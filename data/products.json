@@ -1,0 +1,17 @@
+{
+  "currency": "usd",
+  "pricesBySize": {
+    "30x45": 110,
+    "40x60": 150
+  },
+  "products": [
+    { "slug": "audi-r8-white", "name": "Audi R8 – White" },
+    { "slug": "audi-r8-yellow", "name": "Audi R8 – Yellow" },
+    { "slug": "audi-r8-gt3", "name": "Audi R8 GT3" },
+    { "slug": "audi-rs6", "name": "Audi RS6" },
+    { "slug": "b-ferrari-f40", "name": "B Ferrari F40" },
+    { "slug": "b-maserati-mc20", "name": "B Maserati MC20" },
+    { "slug": "b-dodge-hellcat-02", "name": "B Dodge Hellcat 02" },
+    { "slug": "b-dodge-hellcat-03", "name": "B Dodge Hellcat 03" }
+  ]
+}

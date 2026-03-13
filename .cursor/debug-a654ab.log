@@ -1,0 +1,97 @@
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773205617295,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205631405,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205631666,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205632304,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205632490,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205632921,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205633174,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205633288,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205633527,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205633638,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205633818,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205633896,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205634077,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205634230,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205634413,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205634636,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205634810,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205635337,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205635519,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205635912,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205636153,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773205636545,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773205636725,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773205640248,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773205641053,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773205641559,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773209342545,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209365641,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773209366079,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209368162,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773209368346,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209394731,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773209394925,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209395570,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773209395750,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209395761,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":false,"userId":null,"userEmail":null},"timestamp":1773209395974,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773209579803,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209594832,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:signInThenError","message":"signInWithPassword returned error","data":{"message":"Invalid login credentials","code":"invalid_credentials","status":400},"timestamp":1773209595400,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209757395,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:signInThenError","message":"signInWithPassword returned error","data":{"message":"Invalid login credentials","code":"invalid_credentials","status":400},"timestamp":1773209757939,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209758919,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:signInThenError","message":"signInWithPassword returned error","data":{"message":"Invalid login credentials","code":"invalid_credentials","status":400},"timestamp":1773209759148,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209759611,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:signInThenError","message":"signInWithPassword returned error","data":{"message":"Invalid login credentials","code":"invalid_credentials","status":400},"timestamp":1773209759799,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209760186,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:signInThenError","message":"signInWithPassword returned error","data":{"message":"Invalid login credentials","code":"invalid_credentials","status":400},"timestamp":1773209760426,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209760527,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:signInThenError","message":"signInWithPassword returned error","data":{"message":"Invalid login credentials","code":"invalid_credentials","status":400},"timestamp":1773209760728,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773209766236,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:signInThenError","message":"signInWithPassword returned error","data":{"message":"Invalid login credentials","code":"invalid_credentials","status":400},"timestamp":1773209766497,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773210453592,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773210461802,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773210462315,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"isAdmin":false},"timestamp":1773210462831,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773210489192,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773210489518,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"isAdmin":false},"timestamp":1773210489940,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773210493797,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:signInThenError","message":"signInWithPassword returned error","data":{"message":"Invalid login credentials","code":"invalid_credentials","status":400},"timestamp":1773210494013,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773210498572,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773210498840,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"isAdmin":false},"timestamp":1773210499110,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773210645276,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773210656251,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773210656755,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"normalizedRole":"","isAdmin":false,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688"},"timestamp":1773210657145,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773210704154,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773210710744,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773210711098,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"normalizedRole":"","isAdmin":false,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688"},"timestamp":1773210711578,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773210750174,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773210757621,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773210757942,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"normalizedRole":"","isAdmin":false,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688"},"timestamp":1773210758250,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773210836348,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773210837341,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773210837818,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773210884077,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773210891359,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773210891761,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"normalizedRole":"","isAdmin":false,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688"},"timestamp":1773210891946,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773211967956,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773211968852,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"normalizedRole":"","isAdmin":false,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688"},"timestamp":1773211969258,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773211971378,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773211971963,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773211972078,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773211979532,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773211979733,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"normalizedRole":"","isAdmin":false,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688"},"timestamp":1773211980006,"hypothesisId":"D"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773213880708,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:renderLogin","message":"Login form shown","data":{"supabaseExists":true,"urlPresent":true,"projectRef":"haebgpoowyrsufhqfexw"},"timestamp":1773216067497,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:submit","message":"Login submit","data":{"supabaseExists":true},"timestamp":1773216073985,"hypothesisId":"A"}
+{"sessionId":"a654ab","location":"router.js:afterSignIn","message":"After signInWithPassword","data":{"hasUser":true,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688","userEmail":"teeyeegoh@gmail.com"},"timestamp":1773216074585,"hypothesisId":"B"}
+{"sessionId":"a654ab","location":"router.js:profileThen","message":"Profile fetch success","data":{"roleValue":null,"normalizedRole":"","isAdmin":false,"userId":"67f8cf34-885c-4d73-aa9a-7611761d6688"},"timestamp":1773216075499,"hypothesisId":"D"}
