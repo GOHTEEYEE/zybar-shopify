@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZYBAR | Purchase Confirmation</title>
+    <meta
+      name="description"
+      content="Thank you for joining the ZYBAR Collector's Circle. Your LED automotive masterpiece is now being prepared."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --zybar-blue: #3498db;
+        --glass-bg: rgba(0, 0, 0, 0.6);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #f5f5f5;
+        background: #050505 url("/Poster/precision_car_showroom.jpg") center center / cover no-repeat fixed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      .pc-overlay {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at top, rgba(52, 152, 219, 0.18), transparent 55%),
+          radial-gradient(circle at bottom, rgba(0, 0, 0, 0.85), #000 65%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .pc-card {
+        position: relative;
+        z-index: 1;
+        max-width: 640px;
+        width: 100%;
+        padding: 32px 32px 30px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.85));
+        background-color: var(--glass-bg);
+        border: 1px solid rgba(52, 152, 219, 0.3);
+        box-shadow:
+          0 24px 80px rgba(0, 0, 0, 0.8),
+          0 0 60px rgba(52, 152, 219, 0.25);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        text-align: center;
+        overflow: hidden;
+      }
+
+      /* shimmer sweep */
+      .pc-card::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -150%;
+        width: 60%;
+        height: 200%;
+        background: linear-gradient(
+          120deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.06) 45%,
+          rgba(255, 255, 255, 0.12) 50%,
+          rgba(255, 255, 255, 0.06) 55%,
+          transparent 100%
+        );
+        transform: skewX(-20deg);
+        animation: pc-shimmer 6s infinite;
+        pointer-events: none;
+      }
+
+      @keyframes pc-shimmer {
+        0% {
+          transform: translateX(0) skewX(-20deg);
+        }
+        100% {
+          transform: translateX(260%) skewX(-20deg);
+        }
+      }
+
+      .pc-logo {
+        position: absolute;
+        top: 18px;
+        left: 22px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .pc-logo img {
+        height: 30px;
+        width: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 0 10px rgba(52, 152, 219, 0.9));
+      }
+
+      .pc-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        margin: 0 auto 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 30% 0%, #ffffff, rgba(255, 255, 255, 0.1) 40%, transparent 70%);
+        box-shadow:
+          0 0 24px rgba(52, 152, 219, 0.8),
+          0 0 60px rgba(0, 0, 0, 0.85);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .pc-icon::after {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.9), rgba(52, 152, 219, 0.9));
+        opacity: 0.9;
+      }
+
+      .pc-icon-mark {
+        position: relative;
+        z-index: 1;
+        font-size: 32px;
+        color: #021824;
+      }
+
+      .pc-title {
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: 1.3rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+        text-shadow:
+          0 0 10px rgba(52, 152, 219, 0.6),
+          0 0 24px rgba(0, 0, 0, 0.9);
+      }
+
+      .pc-subtitle {
+        font-family: "Inter", system-ui, sans-serif;
+        font-size: 0.9rem;
+        color: #cfd6e3;
+        letter-spacing: 0.03em;
+        margin-bottom: 18px;
+      }
+
+      .pc-body {
+        font-size: 0.95rem;
+        line-height: 1.8;
+        color: #e6e6e6;
+        max-width: 520px;
+        margin: 0 auto 24px;
+      }
+
+      .pc-divider {
+        margin: 4px auto 22px;
+        max-width: 520px;
+        border: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .pc-details {
+        display: inline-flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px 24px;
+        padding: 14px 20px;
+        margin-bottom: 24px;
+        border-radius: 14px;
+        background: radial-gradient(circle at top left, rgba(52, 152, 219, 0.24), rgba(0, 0, 0, 0.9));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.85rem;
+      }
+
+      .pc-details span {
+        white-space: nowrap;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #a8c9f5;
+      }
+
+      .pc-details span strong {
+        color: #ffffff;
+      }
+
+      .pc-meta-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 18px;
+        margin: 0 auto 20px;
+        max-width: 520px;
+        text-align: left;
+        font-size: 0.85rem;
+      }
+
+      .pc-meta-block-title {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: #888888;
+        margin-bottom: 6px;
+      }
+
+      .pc-meta-line-label {
+        font-size: 0.78rem;
+        color: #888888;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .pc-meta-line-value {
+        font-size: 0.9rem;
+        color: #ffffff;
+      }
+
+      .pc-meta-line + .pc-meta-line {
+        margin-top: 4px;
+      }
+
+      .pc-item-row {
+        display: grid;
+        grid-template-columns: minmax(0, 2.8fr) minmax(0, 4fr) minmax(0, 2.2fr);
+        align-items: center;
+        gap: 16px;
+        padding: 14px 16px;
+        margin: 0 auto 12px;
+        max-width: 520px;
+        border-radius: 14px;
+        background: radial-gradient(circle at top left, rgba(52, 152, 219, 0.16), rgba(0, 0, 0, 0.9));
+        border: 1px solid rgba(255, 255, 255, 0.09);
+      }
+
+      .pc-item-thumb {
+        width: 70px;
+        height: 46px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid rgba(52, 152, 219, 0.8);
+        box-shadow:
+          0 0 14px rgba(52, 152, 219, 0.7),
+          0 0 30px rgba(0, 0, 0, 0.9);
+        background-color: #05070b;
+      }
+
+      .pc-item-name {
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      .pc-item-meta {
+        margin-top: 4px;
+        font-size: 0.8rem;
+        color: #b3b9c2;
+      }
+
+      .pc-item-price {
+        justify-self: flex-end;
+        font-size: 0.95rem;
+      }
+
+      .pc-summary {
+        max-width: 520px;
+        margin: 0 auto 24px;
+        font-size: 0.82rem;
+      }
+
+      .pc-summary-row {
+        display: flex;
+        justify-content: flex-end;
+        gap: 18px;
+        color: #a5acb6;
+      }
+
+      .pc-summary-row span:first-child {
+        min-width: 110px;
+        text-align: right;
+      }
+
+      .pc-summary-row strong {
+        color: #f5f5f5;
+      }
+
+      .pc-summary-row--total {
+        margin-top: 4px;
+        font-size: 0.9rem;
+      }
+
+      .pc-summary-row--total span:first-child {
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .pc-summary-row--total span:last-child {
+        color: var(--zybar-blue);
+        font-size: 1rem;
+      }
+
+      .pc-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .pc-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 32px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        background: transparent;
+        color: #ffffff;
+        font-size: 0.9rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+          background-color 0.35s ease,
+          color 0.35s ease,
+          box-shadow 0.35s ease,
+          transform 0.18s ease;
+        box-shadow: 0 0 0 rgba(52, 152, 219, 0);
+      }
+
+      .pc-btn:hover,
+      .pc-btn:focus-visible {
+        background-color: var(--zybar-blue);
+        color: #020712;
+        box-shadow:
+          0 0 18px rgba(52, 152, 219, 0.8),
+          0 0 46px rgba(52, 152, 219, 0.55);
+        transform: translateY(-1px);
+      }
+
+      .pc-social {
+        font-size: 0.78rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(230, 230, 230, 0.85);
+      }
+
+      .pc-social span {
+        color: var(--zybar-blue);
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 16px;
+        }
+
+        .pc-card {
+          padding: 26px 20px 22px;
+          border-radius: 16px;
+        }
+
+        .pc-title {
+          font-size: 1.4rem;
+          letter-spacing: 0.12em;
+        }
+
+        .pc-body {
+          font-size: 0.9rem;
+        }
+
+        .pc-details,
+        .pc-meta-grid,
+        .pc-item-row,
+        .pc-summary {
+          width: 100%;
+        }
+
+        .pc-meta-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .pc-item-row {
+          grid-template-columns: 1fr;
+          align-items: flex-start;
+        }
+
+        .pc-item-price {
+          justify-self: flex-start;
+        }
+
+        .pc-btn {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pc-overlay" aria-hidden="true"></div>
+    <main class="pc-card" aria-labelledby="pcTitle">
+      <div class="pc-logo" aria-hidden="true">
+        <img src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png" alt="ZYBAR logo" />
+      </div>
+      <div class="pc-icon" aria-hidden="true">
+        <span class="pc-icon-mark">✓</span>
+      </div>
+      <h1 id="pcTitle" class="pc-title">THANKS FOR YOUR ORDER</h1>
+      <p class="pc-subtitle">Your ZYBAR masterpiece is being prepared for dispatch.</p>
+      <p class="pc-body">
+        Thank you for your purchase. We are now calibrating the selective illumination for your specific model. You
+        will receive a tracking number once your art has passed our final quality inspection.
+      </p>
+      <div class="pc-details" aria-label="Order details">
+        <span>Order&nbsp;<strong style="color: #3498db">#ZY-7782</strong></span>
+        <span>Estimated Delivery&nbsp;<strong>7–14 Days</strong></span>
+      </div>
+      <hr class="pc-divider" />
+      <section class="pc-meta-grid" aria-label="Purchaser details">
+        <div>
+          <h2 class="pc-meta-block-title">Shipping to</h2>
+          <div class="pc-meta-line">
+            <div class="pc-meta-line-label">Name</div>
+            <div class="pc-meta-line-value">Jonathan Miller</div>
+          </div>
+          <div class="pc-meta-line">
+            <div class="pc-meta-line-label">Address</div>
+            <div class="pc-meta-line-value">
+              No. 27, Circuit Avenue, Mantin, Negeri Sembilan, 71700, Malaysia
+            </div>
+          </div>
+          <div class="pc-meta-line">
+            <div class="pc-meta-line-label">Phone</div>
+            <div class="pc-meta-line-value">+60 12 345 6789</div>
+          </div>
+        </div>
+        <div>
+          <h2 class="pc-meta-block-title">Payment method</h2>
+          <div class="pc-meta-line">
+            <div class="pc-meta-line-label">Card</div>
+            <div class="pc-meta-line-value">Credit Card ending in 0921</div>
+          </div>
+        </div>
+      </section>
+      <section class="pc-item-row" aria-label="Purchased item">
+        <div>
+          <img
+            src="/Image/audi-r8-white-1.jpg"
+            alt="Porsche GT3 RS selective illumination artwork"
+            class="pc-item-thumb"
+          />
+        </div>
+        <div>
+          <div class="pc-item-name">PORSCHE GT3 RS – SELECTIVE ILLUMINATION</div>
+          <div class="pc-item-meta">Quantity: 1 &nbsp;•&nbsp; Size: 40 x 60 cm</div>
+        </div>
+        <div class="pc-item-price">USD 249.00</div>
+      </section>
+      <section class="pc-summary" aria-label="Price summary">
+        <div class="pc-summary-row">
+          <span>Subtotal</span>
+          <span><strong>USD 249.00</strong></span>
+        </div>
+        <div class="pc-summary-row">
+          <span>Shipping</span>
+          <span><strong>FREE</strong></span>
+        </div>
+        <div class="pc-summary-row pc-summary-row--total">
+          <span>Total</span>
+          <span><strong>USD 249.00</strong></span>
+        </div>
+      </section>
+      <div class="pc-actions">
+        <a href="/collections/all/" class="pc-btn">Back to Gallery</a>
+        <p class="pc-social">Share your dream: <span>@ZYBAR_OFFICIAL</span></p>
+      </div>
+    </main>
+  </body>
+</html>
+

@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZYBAR | Luxury Purchase Receipt</title>
+    <meta
+      name="description"
+      content="Official purchase receipt for your ZYBAR illuminated automotive masterpiece."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-deep: #050505;
+        --panel: #0b0b0d;
+        --border-soft: #222222;
+        --text-main: #f5f5f5;
+        --text-muted: #9da3b0;
+        --zybar-blue: #3498db;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background-color: var(--bg-deep);
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+      }
+
+      .receipt-shell {
+        position: relative;
+        max-width: 900px;
+        width: 100%;
+      }
+
+      .receipt-glow {
+        position: absolute;
+        inset: -16%;
+        background:
+          radial-gradient(circle at top, rgba(52, 152, 219, 0.24), transparent 55%),
+          radial-gradient(circle at bottom, rgba(0, 0, 0, 0.9), #000 70%);
+        opacity: 0.9;
+        filter: blur(12px);
+        pointer-events: none;
+      }
+
+      .receipt-card {
+        position: relative;
+        background: radial-gradient(circle at top left, #0f1219, #05060a 55%);
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        box-shadow:
+          0 26px 80px rgba(0, 0, 0, 0.85),
+          0 0 60px rgba(0, 0, 0, 0.9);
+        padding: 28px 26px 24px;
+      }
+
+      /* Header */
+      .receipt-header {
+        text-align: center;
+        margin-bottom: 26px;
+      }
+
+      .receipt-logo {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 24px;
+        border-radius: 999px;
+        background: radial-gradient(circle at top, rgba(52, 152, 219, 0.35), transparent 70%);
+        box-shadow:
+          0 0 28px rgba(52, 152, 219, 0.9),
+          0 0 56px rgba(0, 0, 0, 1);
+      }
+
+      .receipt-logo span {
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+      }
+
+      .receipt-subtitle {
+        margin-top: 10px;
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: 0.7rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      /* Info grid */
+      .receipt-info-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 24px;
+        padding: 22px 20px 20px;
+        border-radius: 14px;
+        border: 1px solid var(--border-soft);
+        background-color: rgba(8, 8, 10, 0.9);
+        margin-bottom: 22px;
+      }
+
+      .info-block-title {
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: 0.75rem;
+        letter-spacing: 0.23em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+
+      .info-block-body {
+        font-size: 0.86rem;
+        line-height: 1.7;
+      }
+
+      .info-label {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .info-value {
+        font-size: 0.9rem;
+      }
+
+      .info-pair + .info-pair {
+        margin-top: 6px;
+      }
+
+      /* Product row */
+      .receipt-items {
+        margin-bottom: 20px;
+        border-radius: 14px;
+        border: 1px solid var(--border-soft);
+        background-color: rgba(7, 7, 9, 0.95);
+        overflow: hidden;
+      }
+
+      .items-header,
+      .item-row {
+        display: grid;
+        grid-template-columns: minmax(0, 3fr) minmax(0, 4.5fr) minmax(0, 2.5fr);
+        gap: 16px;
+        align-items: center;
+        padding: 14px 18px;
+      }
+
+      .items-header {
+        border-bottom: 1px solid var(--border-soft);
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .item-thumb-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .item-thumb {
+        width: 72px;
+        height: 48px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid rgba(52, 152, 219, 0.7);
+        box-shadow:
+          0 0 14px rgba(52, 152, 219, 0.7),
+          0 0 30px rgba(0, 0, 0, 0.9);
+        background-color: #05070b;
+      }
+
+      .item-name {
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+      }
+
+      .item-specs {
+        margin-top: 4px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .item-price {
+        justify-self: flex-end;
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: 0.95rem;
+      }
+
+      /* Totals */
+      .receipt-totals {
+        margin-top: 6px;
+        padding: 14px 4px 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+      }
+
+      .totals-row {
+        display: flex;
+        gap: 18px;
+        font-size: 0.82rem;
+        color: var(--text-muted);
+      }
+
+      .totals-row span:first-child {
+        min-width: 120px;
+        text-align: right;
+      }
+
+      .totals-row strong {
+        color: var(--text-main);
+      }
+
+      .totals-row--total {
+        margin-top: 4px;
+        font-size: 0.95rem;
+        font-family: "Montserrat", system-ui, sans-serif;
+      }
+
+      .totals-row--total span:first-child {
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .totals-row--total span:last-child {
+        font-size: 1.05rem;
+      }
+
+      /* CTA + footer */
+      .receipt-footer {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-soft);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .receipt-cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 11px 26px;
+        border-radius: 999px;
+        border: 1px solid rgba(52, 152, 219, 0.9);
+        background: #020304;
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: 0.82rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-main);
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow:
+          0 0 22px rgba(52, 152, 219, 0.8),
+          0 0 40px rgba(0, 0, 0, 1);
+        transition:
+          box-shadow 0.3s ease,
+          transform 0.2s ease,
+          background-color 0.3s ease,
+          color 0.3s ease;
+      }
+
+      .receipt-cta:hover,
+      .receipt-cta:focus-visible {
+        background-color: var(--zybar-blue);
+        color: #020712;
+        box-shadow:
+          0 0 26px rgba(52, 152, 219, 1),
+          0 0 50px rgba(52, 152, 219, 0.65);
+        transform: translateY(-1px);
+      }
+
+      .receipt-footer-note {
+        width: 100%;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.03);
+        font-size: 0.72rem;
+        letter-spacing: 0.26em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        text-align: center;
+      }
+
+      .receipt-footer-note span {
+        color: var(--zybar-blue);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        body {
+          padding: 18px 10px;
+        }
+
+        .receipt-card {
+          padding: 22px 18px 18px;
+        }
+
+        .receipt-info-grid {
+          grid-template-columns: 1fr;
+          gap: 18px;
+        }
+
+        .items-header,
+        .item-row {
+          grid-template-columns: 1fr;
+          align-items: flex-start;
+        }
+
+        .item-price {
+          justify-self: flex-start;
+        }
+
+        .receipt-totals {
+          align-items: flex-start;
+        }
+
+        .totals-row span:first-child {
+          text-align: left;
+        }
+
+        .receipt-footer {
+          align-items: stretch;
+        }
+
+        .receipt-cta {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="receipt-shell">
+      <div class="receipt-glow" aria-hidden="true"></div>
+      <section class="receipt-card" aria-label="ZYBAR official purchase receipt">
+        <header class="receipt-header">
+          <div class="receipt-logo">
+            <span>ZYBAR</span>
+          </div>
+          <p class="receipt-subtitle">Official Purchase Receipt</p>
+        </header>
+
+        <section class="receipt-info-grid" aria-label="Delivery and order information">
+          <div>
+            <h2 class="info-block-title">Delivery address</h2>
+            <div class="info-block-body">
+              <div class="info-pair">
+                <div class="info-label">Name</div>
+                <div class="info-value">Jonathan Miller</div>
+              </div>
+              <div class="info-pair">
+                <div class="info-label">Address</div>
+                <div class="info-value">No. 27, Circuit Avenue, Mantin, Negeri Sembilan, 71700, Malaysia</div>
+              </div>
+              <div class="info-pair">
+                <div class="info-label">Phone</div>
+                <div class="info-value">+60 12 345 6789</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h2 class="info-block-title">Order details</h2>
+            <div class="info-block-body">
+              <div class="info-pair">
+                <div class="info-label">Order number</div>
+                <div class="info-value">#ZY-2026-8421</div>
+              </div>
+              <div class="info-pair">
+                <div class="info-label">Date</div>
+                <div class="info-value">March 13, 2026</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="receipt-items" aria-label="Purchased item">
+          <div class="items-header">
+            <div>Artwork</div>
+            <div>Details</div>
+            <div style="text-align: right">Amount</div>
+          </div>
+          <div class="item-row">
+            <div class="item-thumb-wrap">
+              <img
+                src="/Image/audi-r8-white.png"
+                alt="Audi R8 White illuminated artwork"
+                class="item-thumb"
+              />
+            </div>
+            <div>
+              <div class="item-name">ASTON MARTIN DB5 – ILLUMINATED MASTERPIECE</div>
+              <div class="item-specs">Scale: 1:18 &nbsp;|&nbsp; Power: Universal USB &nbsp;|&nbsp; Mount: Wall-ready</div>
+            </div>
+            <div class="item-price">USD 249.00</div>
+          </div>
+        </section>
+
+        <section class="receipt-totals" aria-label="Total">
+          <div class="totals-row">
+            <span>Payment method</span>
+            <span><strong>Credit Card (Visa •••• 0921)</strong></span>
+          </div>
+          <div class="totals-row">
+            <span>Subtotal</span>
+            <span><strong>USD 249.00</strong></span>
+          </div>
+          <div class="totals-row">
+            <span>Shipping fee</span>
+            <span><strong>Free</strong></span>
+          </div>
+          <div class="totals-row totals-row--total">
+            <span>Total</span>
+            <span><strong>USD 249.00</strong></span>
+          </div>
+        </section>
+
+        <footer class="receipt-footer">
+          <a href="/collections/all/" class="receipt-cta">Track your masterpiece</a>
+          <p class="receipt-footer-note">
+            Precision Engineering. Unrivaled Atmosphere. <span>ZYBAR Official.</span>
+          </p>
+        </footer>
+      </section>
+    </div>
+  </body>
+</html>
+

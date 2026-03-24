@@ -14,6 +14,45 @@
   box-sizing: border-box;
 }
 
+.zybar-my-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  text-align: center;
+  padding: 0.4rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.zybar-my-banner .zybar-my-exit {
+  margin-left: 1rem;
+  color: #93c5fd;
+  text-decoration: underline;
+}
+.zybar-my-banner .zybar-my-exit:hover {
+  color: #fff;
+}
+body.has-zybar-my-banner {
+  padding-top: 2.25rem;
+}
+.zybar-my-env-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #000;
+  background: #fbbf24;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
 body {
   margin: 0;
   font-family: "Inter", sans-serif;

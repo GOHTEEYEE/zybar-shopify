@@ -7,6 +7,20 @@
 (function () {
   'use strict';
 
+  if (window.ZYBAR_MY_TEST) {
+    window.adminAuth = {
+      ready: Promise.resolve(true),
+      configReady: true,
+      user: { email: 'test@zybar.my' },
+      isAdmin: true,
+      unauthorized: false,
+      error: '',
+      showLogin: false,
+      signOut: function () { window.location.reload(); }
+    };
+    return;
+  }
+
   var SUPABASE_URL = window.ADMIN_SUPABASE_URL;
   var SUPABASE_ANON_KEY = window.ADMIN_SUPABASE_ANON_KEY;
 

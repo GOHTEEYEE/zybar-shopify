@@ -6,15 +6,17 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>Admin | ZYBAR</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="zybar-my-env.js"></script>
 </head>
 <body>
   <div class="admin-wrap" id="adminWrap">
     <aside class="admin-sidebar">
-      <h1>ZYBAR Admin</h1>
+      <h1 id="adminSidebarTitle">ZYBAR Admin</h1>
       <nav class="admin-nav">
         <a href="#dashboard" data-page="dashboard" class="active">Dashboard</a>
         <a href="#analytics" data-page="analytics">Analytics</a>
         <a href="#products" data-page="products">Products</a>
+        <a href="#customers" data-page="customers">👥 Customers</a>
         <a href="/">Back to site</a>
       </nav>
     </aside>
@@ -24,31 +26,46 @@
     </main>
   </div>
 
-  <!-- Supabase - use package root so UMD bundle loads; then create client in next script -->
+  <!-- Supabase - skip when ZYBAR.MY test env -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-
   <script>
-    window.ADMIN_SUPABASE_URL = window.ADMIN_SUPABASE_URL || 'https://haebgpoowyrsufhqfexw.supabase.co';
-    window.ADMIN_SUPABASE_ANON_KEY = window.ADMIN_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhZWJncG9vd3lyc3VmaHFmZXh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxODgwNTMsImV4cCI6MjA4ODc2NDA1M30.pMmj4-9-s7sAlYBIVm6ZU-ixxRa4aiBUyPTM9XOlnXQ';
-    (function () {
+    if (!window.ZYBAR_MY_TEST) {
+      window.ADMIN_SUPABASE_URL = window.ADMIN_SUPABASE_URL || 'https://haebgpoowyrsufhqfexw.supabase.co';
+      window.ADMIN_SUPABASE_ANON_KEY = window.ADMIN_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhZWJncG9vd3lyc3VmaHFmZXh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxODgwNTMsImV4cCI6MjA4ODc2NDA1M30.pMmj4-9-s7sAlYBIVm6ZU-ixxRa4aiBUyPTM9XOlnXQ';
       var url = window.ADMIN_SUPABASE_URL;
       var key = window.ADMIN_SUPABASE_ANON_KEY;
-      if (!url || !key || key === 'PASTE_ANON_KEY_HERE') return;
-      try {
-        if (typeof supabase !== 'undefined' && supabase && supabase.createClient) {
-          var createClient = supabase.createClient;
-          window.supabase = createClient(url, key);
-        }
-      } catch (e) { console.warn('Supabase createClient:', e); }
-    })();
+      if (url && key && key !== 'PASTE_ANON_KEY_HERE' && typeof supabase !== 'undefined' && supabase && supabase.createClient) {
+        try { window.supabase = supabase.createClient(url, key); } catch (e) { console.warn('Supabase:', e); }
+      }
+    }
   </script>
   <script src="config.js?v=2"></script>
   <script src="auth.js"></script>
-  <script src="router.js"></script>
+  <script src="mock-data-zybar-my.js"></script>
+    <script>
+    if (window.ZYBAR_MY_TEST) {
+      document.title = 'Admin | ZYBAR.MY (BETA/TESTING)';
+      document.addEventListener('DOMContentLoaded', function () {
+        var h = document.getElementById('adminSidebarTitle');
+        if (h) {
+          h.textContent = 'ZYBAR.MY Admin';
+          var badge = document.createElement('span');
+          badge.className = 'zybar-my-admin-badge';
+          badge.setAttribute('aria-label', 'Testing environment');
+          badge.textContent = 'TEST';
+          h.appendChild(document.createTextNode(' '));
+          h.appendChild(badge);
+        }
+        var back = document.querySelector('.admin-nav a[href="/"]');
+        if (back) back.setAttribute('href', '/?env=zybar.my');
+      });
+    }
+  </script>
   <script src="dashboard.js"></script>
   <script src="analytics.js"></script>
   <script src="products.js"></script>
+  <script src="customers.js"></script>
+  <script src="router.js"></script>
 </body>
 </html>

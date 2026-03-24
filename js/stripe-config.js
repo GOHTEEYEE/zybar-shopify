@@ -5,8 +5,9 @@
  */
 (function () {
   window.ZYBAR_STRIPE_CONFIG = window.ZYBAR_STRIPE_CONFIG || {
-    publishableKey: "pk_test_REPLACE_ME",
-    successUrl: "",
+    publishableKey: "pk_test_51RpPz032satLY6UqYeduQTw6uy9CTTJvL0w67UHXfu4QETjzQa2n3EpxF3Ovl2Uc0O2blGSi5BRDJIl60NdTu4Mb00TJ5iFec0",
+    // After successful payment, send customers to the digital postcard page.
+    successUrl: (window.location && window.location.origin ? window.location.origin : "") + "/purchase-confirmation.html",
     cancelUrl: "",
     // If your checkout API is on another origin, set it (e.g. "https://api.example.com").
     apiBaseUrl: "",
@@ -15,10 +16,10 @@
     // Optional shared Stripe Price IDs if all products use same pricing.
     // Fill these and you can skip per-product prices below.
     sharedPriceIdsBySize: {
-      "30x45": "price_REPLACE_ME_110",
-      "40x60": "price_REPLACE_ME_150"
+      "30x45": "price_1TABYg32satLY6Uq6YDazH9S",
+      "40x60": "price_1TABYh32satLY6UquOmmgpm1"
     },
-    prices:       {
+    prices: {
         "audi-r8-white": {
           "30x45": "price_1TABYg32satLY6Uq6YDazH9S",
           "40x60": "price_1TABYh32satLY6UquOmmgpm1"

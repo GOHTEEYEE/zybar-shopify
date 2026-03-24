@@ -51,6 +51,20 @@
     } catch (e) {}
   }
 
+  /** Generate a valid UUID v4 so Supabase sessions.id (UUID) accepts it */
+  function generateUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    var hex = '0123456789abcdef';
+    var s = '';
+    for (var i = 0; i < 36; i++) {
+      if (i === 8 || i === 13 || i === 18 || i === 23) s += '-';
+      else if (i === 14) s += '4';
+      else if (i === 19) s += hex[(Math.random() * 4) | 0 + 8];
+      else s += hex[(Math.random() * 16) | 0];
+    }
+    return s;
+  }
+
   function getOrCreateSessionId() {
     if (isSessionExpired()) {
       try {
@@ -60,14 +74,14 @@
     touchSession();
     try {
       var sid = localStorage.getItem(STORAGE_KEYS.sessionId);
-      if (!sid) {
-        sid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 's_' + Math.random().toString(36).slice(2) + '_' + Date.now().toString(36);
+      if (!sid || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sid)) {
+        sid = generateUUID();
         localStorage.setItem(STORAGE_KEYS.sessionId, sid);
         ensureSessionRow(sid);
       }
       return sid;
     } catch (e) {
-      return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 's_anon_' + Date.now();
+      return generateUUID();
     }
   }
 
@@ -139,6 +153,8 @@
     var ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     var deviceType = getDeviceType();
 
+    updateSessionActivity(sessionId);
+
     fetch(SUPABASE_URL + '/rest/v1/page_views', {
       method: 'POST',
       headers: {
@@ -186,6 +202,7 @@
 
   function ensureSessionRow(sessionId) {
     var visitorId = getVisitorId();
+    var now = new Date().toISOString();
     fetch(SUPABASE_URL + '/rest/v1/sessions', {
       method: 'POST',
       headers: {
@@ -197,23 +214,47 @@
       body: JSON.stringify({
         id: sessionId,
         visitor_id: visitorId,
-        started_at: new Date().toISOString(),
-        last_activity_at: new Date().toISOString(),
+        started_at: now,
+        last_activity_at: now,
         referrer: getReferrer(),
         user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
         device_type: getDeviceType()
       }),
+      keepalive: true
+    }).then(function (r) {
+      if (!r.ok && r.status === 409) updateSessionActivity(sessionId);
+    }).catch(function () {});
+  }
+
+  /** Update session last_activity_at so dashboard "live visitors" (last 5 min) works */
+  function updateSessionActivity(sessionId) {
+    if (!sessionId) return;
+    fetch(SUPABASE_URL + '/rest/v1/sessions?id=eq.' + encodeURIComponent(sessionId), {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ last_activity_at: new Date().toISOString() }),
       keepalive: true
     }).catch(function () {});
   }
 
   // ---------- Run after DOM ready, non-blocking ----------
   function init() {
-    getOrCreateSessionId();
+    var sessionId = getOrCreateSessionId();
+    ensureSessionRow(sessionId);
     sendPageView();
 
     var productId = getProductIdFromPath();
     if (productId) trackProductView(productId);
+
+    setInterval(function () {
+      var sid = getOrCreateSessionId();
+      updateSessionActivity(sid);
+    }, 45 * 1000);
 
     document.addEventListener('click', function (e) {
       var target = e.target && (e.target.closest ? e.target.closest('[data-analytics-add-to-cart]') : null) || (e.target.getAttribute && e.target.getAttribute('data-analytics-add-to-cart') !== null ? e.target : null);

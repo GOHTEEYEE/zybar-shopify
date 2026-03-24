@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
+    "dev:test": "PORT=3001 ZYBAR_MY=1 node server.js",
     "start": "node server.js",
     "server": "node server.js",
-    "sync-stripe": "node scripts/sync-prices-to-stripe.js"
+    "sync-stripe": "node scripts/sync-prices-to-stripe.js",
+    "sync-products": "node scripts/sync-products-to-supabase.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "stripe": "^17.0.0"
