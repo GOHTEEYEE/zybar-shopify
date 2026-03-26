@@ -2107,12 +2107,21 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   display: block;
 }
 
+.pdp-comparison-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .pdp-comparison-wrap {
   position: relative;
+  width: 100%;
+  max-width: 680px;
   border-radius: 12px;
   overflow: hidden;
   background: #111;
-  aspect-ratio: 4/3;
+  aspect-ratio: 5/4;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   --position: 50%;
 }
 
@@ -2159,6 +2168,18 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   font-weight: 700;
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   pointer-events: none;
+}
+
+.pdp-comparison-labels {
+  margin: 0.75rem 0 0;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 680px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--muted);
 }
 
 .pdp-problem-solution {
