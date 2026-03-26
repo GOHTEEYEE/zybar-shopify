@@ -10,7 +10,7 @@ Every page must include:
 
 - **Unique `<title>`** – Include primary keyword and brand (e.g. `Product Name | ZYBAR`).
 - **Meta description** – `<meta name="description" content="…">` (unique, 150–160 chars ideal).
-- **Canonical URL** – `<link rel="canonical" href="https://zybar-shopify.pages.dev/…">` (use your **live** domain; if you add a custom domain on Cloudflare, replace this base URL everywhere: HTML canonicals, `sitemap.xml`, `robots.txt`, JSON-LD `url` / `image`).
+- **Canonical URL** – `<link rel="canonical" href="https://zybar-ledcar.pages.dev/…">` (use your **live** domain; if you add a custom domain on Cloudflare, replace this base URL everywhere: HTML canonicals, `sitemap.xml`, `robots.txt`, JSON-LD `url` / `image`).
 - **Viewport** – `<meta name="viewport" content="width=device-width, initial-scale=1.0" />`.
 
 ---
@@ -48,7 +48,7 @@ Example (in `<head>`):
 
 ```html
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Product","name":"…","description":"…","image":"https://zybar-shopify.pages.dev/Image/…","brand":{"@type":"Brand","name":"ZYBAR"},"offers":{"@type":"AggregateOffer","priceCurrency":"USD","lowPrice":"110","highPrice":"150","offerCount":2,"availability":"https://schema.org/InStock"}}
+{"@context":"https://schema.org","@type":"Product","name":"…","description":"…","image":"https://zybar-ledcar.pages.dev/Image/…","brand":{"@type":"Brand","name":"ZYBAR"},"offers":{"@type":"AggregateOffer","priceCurrency":"USD","lowPrice":"110","highPrice":"150","offerCount":2,"availability":"https://schema.org/InStock"}}
 </script>
 ```
 
@@ -64,7 +64,7 @@ Example (in `<head>`):
 ## 7. Sitemap
 
 - When **new pages** are added, **update `sitemap.xml`** in the project root.
-- Use absolute URLs with your live domain (e.g. `https://zybar-shopify.pages.dev/…`).
+- Use absolute URLs with your live domain (e.g. `https://zybar-ledcar.pages.dev/…`).
 - Include: homepage, collections, all product URLs, policy pages. Exclude admin.
 
 ---
@@ -74,7 +74,7 @@ Example (in `<head>`):
 - **robots.txt** in project root must:
   - Allow crawling of public pages (`Allow: /`).
   - Disallow admin: `Disallow: /admin/`.
-  - Reference sitemap: `Sitemap: https://zybar-shopify.pages.dev/sitemap.xml`.
+  - Reference sitemap: `Sitemap: https://zybar-ledcar.pages.dev/sitemap.xml`.
 
 ---
 
@@ -114,4 +114,4 @@ When modifying code:
 
 ---
 
-**Base URL (current deploy):** Canonicals, sitemap, robots, Open Graph, and JSON-LD use `https://zybar-shopify.pages.dev`. When you connect a custom domain, run a project-wide replace of this origin to avoid mixed signals in Search Console.
+**Base URL (current deploy):** Canonicals, sitemap, robots, Open Graph, and JSON-LD use `https://zybar-ledcar.pages.dev`. When you connect a custom domain, run a project-wide replace of this origin to avoid mixed signals in Search Console.

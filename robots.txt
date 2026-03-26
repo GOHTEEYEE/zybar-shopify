@@ -4,4 +4,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /private/
 
-Sitemap: https://zybar-shopify.pages.dev/sitemap.xml
+Sitemap: https://zybar-ledcar.pages.dev/sitemap.xml
