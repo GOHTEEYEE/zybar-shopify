@@ -6,6 +6,9 @@
 # Dependencies
 node_modules/
 
+# Local inquiry storage (contains PII)
+data/contact-inquiries.json
+
 # OS / editor artifacts
 .DS_Store
 .cursor/

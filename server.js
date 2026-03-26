@@ -5,6 +5,7 @@
  */
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
@@ -12,6 +13,8 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isZybarMy = process.env.ZYBAR_MY === '1' || process.env.ZYBAR_MY === 'true';
+const inquiriesPassword = process.env.ADMIN_INQUIRIES_PASSWORD || 'zybar-admin';
+const inquiriesStorePath = path.join(__dirname, 'data', 'contact-inquiries.json');
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -26,6 +29,28 @@ const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 const supabase = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
   : null;
+
+function ensureInquiriesStore() {
+  const dir = path.dirname(inquiriesStorePath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(inquiriesStorePath)) fs.writeFileSync(inquiriesStorePath, '[]', 'utf8');
+}
+
+function readInquiriesStore() {
+  ensureInquiriesStore();
+  try {
+    const raw = fs.readFileSync(inquiriesStorePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function writeInquiriesStore(list) {
+  ensureInquiriesStore();
+  fs.writeFileSync(inquiriesStorePath, JSON.stringify(list, null, 2), 'utf8');
+}
 
 // ----- ZYBAR.MY test env: redirect root to ?env=zybar.my when running on test port -----
 if (isZybarMy) {
@@ -99,6 +124,92 @@ app.post(
 
 // ----- JSON body for other routes -----
 app.use(express.json());
+
+// ----- Contact form API -----
+app.post('/api/contact', async (req, res) => {
+  const body = req.body || {};
+  const name = String(body.name || '').trim();
+  const email = String(body.email || '').trim().toLowerCase();
+  const phone = String(body.phone || '').trim();
+  const carModelInterest = String(body.carModelInterest || '').trim();
+  const message = String(body.message || '').trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!name || !email || !message || !emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Please provide a valid name, email, and message.' });
+  }
+
+  const inquiries = readInquiriesStore();
+  const row = {
+    id: 'inq_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    name: name,
+    email: email,
+    phone: phone || null,
+    car_model_interest: carModelInterest || null,
+    message: message,
+    created_at: new Date().toISOString()
+  };
+  inquiries.unshift(row);
+  writeInquiriesStore(inquiries);
+
+  var supabaseSaved = false;
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('contact_inquiries').insert({
+        inquiry_id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        car_model_interest: row.car_model_interest,
+        message: row.message,
+        created_at: row.created_at
+      });
+      if (error) {
+        console.error('Supabase insert contact_inquiries error:', error);
+      } else {
+        supabaseSaved = true;
+      }
+    } catch (e) {
+      console.error('Supabase contact_inquiries insert exception:', e);
+    }
+  }
+  return res.json({ ok: true, id: row.id, supabaseSaved: supabaseSaved });
+});
+
+app.get('/api/contact-inquiries', async (req, res) => {
+  const provided = String(req.headers['x-admin-password'] || '');
+  if (!provided || provided !== inquiriesPassword) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (supabase) {
+    try {
+      const result = await supabase
+        .from('contact_inquiries')
+        .select('inquiry_id,name,email,phone,car_model_interest,message,created_at')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (!result.error) {
+        const data = (result.data || []).map(function (r) {
+          return {
+            id: r.inquiry_id || null,
+            name: r.name || null,
+            email: r.email || null,
+            phone: r.phone || null,
+            car_model_interest: r.car_model_interest || null,
+            message: r.message || null,
+            created_at: r.created_at || null
+          };
+        });
+        return res.json({ data: data, source: 'supabase' });
+      }
+      console.error('Supabase fetch contact_inquiries error:', result.error);
+    } catch (e) {
+      console.error('Supabase contact_inquiries fetch exception:', e);
+    }
+  }
+  const inquiries = readInquiriesStore();
+  return res.json({ data: inquiries, source: 'local' });
+});
 
 // ----- Create Checkout Session -----
 app.post('/api/create-checkout-session', async (req, res) => {

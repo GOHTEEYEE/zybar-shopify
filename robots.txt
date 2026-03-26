@@ -2,5 +2,6 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
+Disallow: /private/
 
-Sitemap: https://zybar.com/sitemap.xml
+Sitemap: https://zybar-shopify.pages.dev/sitemap.xml

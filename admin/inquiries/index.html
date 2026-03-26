@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Admin Inquiries | ZYBAR</title>
+    <link rel="canonical" href="https://zybar-shopify.pages.dev/admin/inquiries/" />
+    <link rel="stylesheet" href="/admin/styles.css" />
+    <style>
+      body { background: #f6f8fa; }
+      .inquiries-wrap { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+      .inquiries-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+      .inquiries-badge { font-size: 12px; padding: 4px 8px; border-radius: 9999px; background: #eef2ff; color: #3730a3; }
+      .inquiries-auth { display: flex; gap: 0.5rem; align-items: center; }
+      .inquiries-auth input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; }
+      .inquiries-msg { margin-top: 0.75rem; font-size: 14px; color: #6b7280; }
+      .inquiries-table-wrap { overflow-x: auto; }
+      .inquiries-empty { color: #6b7280; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <main class="inquiries-wrap">
+      <h1>Contact Inquiries</h1>
+      <div class="inquiries-actions">
+        <span class="inquiries-badge">Protected Page</span>
+        <div class="inquiries-auth">
+          <input type="password" id="adminPassword" placeholder="Enter admin password" />
+          <button class="admin-btn-primary" style="width:auto;padding:0.55rem 0.9rem;margin:0;" id="loadBtn">Load</button>
+        </div>
+      </div>
+      <div class="admin-card">
+        <h3>Submitted contact requests</h3>
+        <div class="inquiries-table-wrap">
+          <table class="admin-table" id="inquiriesTable">
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Car Model Interest</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody id="inquiriesBody">
+              <tr><td colspan="6" class="inquiries-empty">Enter password to load inquiries.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="inquiriesMsg" class="inquiries-msg"></p>
+      </div>
+      <a href="/admin/" class="admin-link">Back to Admin</a>
+    </main>
+    <script src="/admin/inquiries/inquiries.js"></script>
+  </body>
+</html>
