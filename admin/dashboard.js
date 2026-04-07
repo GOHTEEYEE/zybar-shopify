@@ -423,11 +423,38 @@ window.renderAdmindashboard = function (container) {
   function loadLiveVisitors() {
     var el = document.getElementById('adminLiveCount');
     var sinceIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    function setCount(value) {
+      if (!el) return;
+      var n = Number(value);
+      el.textContent = Number.isFinite(n) && n >= 0 ? String(Math.floor(n)) : '0';
+    }
+    function loadFromPageViewsDistinctVisitors() {
+      return sb
+        .from('page_views')
+        .select('visitor_id')
+        .gte('created_at', sinceIso)
+        .then(function (res) {
+          var rows = (res && res.data) || [];
+          if (!rows.length) {
+            setCount(0);
+            return;
+          }
+          var uniq = {};
+          rows.forEach(function (row) {
+            var id = row && row.visitor_id ? String(row.visitor_id) : '';
+            if (id) uniq[id] = true;
+          });
+          setCount(Object.keys(uniq).length);
+        })
+        .catch(function () {
+          setCount(0);
+        });
+    }
 
     sb.rpc('get_live_visitor_count')
       .then(function (r) {
         if (r && r.data != null) {
-          if (el) el.textContent = r.data;
+          setCount(r.data);
           return;
         }
         throw new Error('RPC returned no data');
@@ -439,10 +466,14 @@ window.renderAdmindashboard = function (container) {
           .select('id', { count: 'exact', head: true })
           .gte('last_activity_at', sinceIso)
           .then(function (res) {
-            if (el) el.textContent = (res && typeof res.count === 'number') ? res.count : 0;
+            if (res && typeof res.count === 'number') {
+              setCount(res.count);
+              return;
+            }
+            return loadFromPageViewsDistinctVisitors();
           })
           .catch(function () {
-            if (el) el.textContent = '0';
+            return loadFromPageViewsDistinctVisitors();
           });
       });
   }

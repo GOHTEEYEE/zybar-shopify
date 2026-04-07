@@ -1,3 +1,11 @@
+const REVIEW_IMAGE_DATA_URL_RE = /^data:image\/(png|jpe?g|pjpeg|webp|gif);base64,/i;
+const REVIEW_IMAGE_MAX_DATA_URL_LENGTH = 1800000;
+
+function normalizeReviewImageDataUrl(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/\s+/g, '');
+}
+
 const allowedProductSlugs = new Set([
   'audi-r8-white',
   'audi-r8-yellow',
@@ -37,10 +45,12 @@ function sanitizeReviewInput(body) {
   const name = String(payload.name || '').trim().slice(0, 60);
   const comment = String(payload.comment || '').trim().slice(0, 2000);
   const rating = Math.max(1, Math.min(5, parseInt(payload.rating, 10) || 0));
-  const imageDataUrl = typeof payload.imageDataUrl === 'string' ? payload.imageDataUrl.trim() : '';
+  const imageDataUrl = normalizeReviewImageDataUrl(
+    typeof payload.imageDataUrl === 'string' ? payload.imageDataUrl : ''
+  );
   const imageOk = !imageDataUrl || (
-    /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(imageDataUrl) &&
-    imageDataUrl.length <= 1800000
+    REVIEW_IMAGE_DATA_URL_RE.test(imageDataUrl) &&
+    imageDataUrl.length <= REVIEW_IMAGE_MAX_DATA_URL_LENGTH
   );
 
   if (!allowedProductSlugs.has(productSlug)) return { error: 'Invalid product selected.' };

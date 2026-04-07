@@ -5,6 +5,14 @@ function json(data, status) {
   });
 }
 
+const REVIEW_IMAGE_DATA_URL_RE = /^data:image\/(png|jpe?g|pjpeg|webp|gif);base64,/i;
+const REVIEW_IMPORT_IMAGE_MAX_DATA_URL_LENGTH = 2600000;
+
+function normalizeReviewImageDataUrl(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/\s+/g, '');
+}
+
 const allowedProductSlugs = new Set([
   'audi-r8-white',
   'audi-r8-yellow',
@@ -43,13 +51,15 @@ function sanitizeImportedReview(body) {
   const customerName = String(payload.customer_name || '').trim().slice(0, 60);
   const reviewText = String(payload.review_text || '').trim().slice(0, 2000);
   const rating = Math.max(1, Math.min(5, parseInt(payload.rating, 10) || 0));
-  const imageDataUrl = typeof payload.image_data_url === 'string' ? payload.image_data_url.trim() : '';
+  const imageDataUrl = normalizeReviewImageDataUrl(
+    typeof payload.image_data_url === 'string' ? payload.image_data_url : ''
+  );
   const createdAtInput = typeof payload.created_at === 'string' ? payload.created_at.trim() : '';
   const createdAtDate = createdAtInput ? new Date(createdAtInput + (createdAtInput.indexOf('T') === -1 ? 'T00:00:00.000Z' : '')) : null;
   const createdAt = createdAtDate && !Number.isNaN(createdAtDate.getTime()) ? createdAtDate.toISOString() : null;
   const imageOk = !imageDataUrl || (
-    /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(imageDataUrl) &&
-    imageDataUrl.length <= 1800000
+    REVIEW_IMAGE_DATA_URL_RE.test(imageDataUrl) &&
+    imageDataUrl.length <= REVIEW_IMPORT_IMAGE_MAX_DATA_URL_LENGTH
   );
   const imageDropped = !!(imageDataUrl && !imageOk);
   const imageFinal = imageOk ? (imageDataUrl || null) : null;
