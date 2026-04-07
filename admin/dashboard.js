@@ -421,14 +421,29 @@ window.renderAdmindashboard = function (container) {
   }
 
   function loadLiveVisitors() {
+    var el = document.getElementById('adminLiveCount');
+    var sinceIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
     sb.rpc('get_live_visitor_count')
       .then(function (r) {
-        var el = document.getElementById('adminLiveCount');
-        if (el) el.textContent = (r && r.data != null) ? r.data : 0;
+        if (r && r.data != null) {
+          if (el) el.textContent = r.data;
+          return;
+        }
+        throw new Error('RPC returned no data');
       })
       .catch(function () {
-        var el = document.getElementById('adminLiveCount');
-        if (el) el.textContent = '0';
+        // Fallback for projects that do not have the RPC function.
+        return sb
+          .from('sessions')
+          .select('id', { count: 'exact', head: true })
+          .gte('started_at', sinceIso)
+          .then(function (res) {
+            if (el) el.textContent = (res && typeof res.count === 'number') ? res.count : 0;
+          })
+          .catch(function () {
+            if (el) el.textContent = '0';
+          });
       });
   }
 
