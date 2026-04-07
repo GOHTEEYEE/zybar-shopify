@@ -3148,6 +3148,34 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   font-size: 0.8rem;
 }
 
+.reviews-sync-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.reviews-sync-status {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.reviews-sync-tools .btn-outline {
+  color: #111827;
+  background: #ffffff;
+  border-color: #111827;
+  font-weight: 600;
+}
+
+.reviews-sync-tools .btn-outline:hover {
+  background: #f3f4f6;
+  color: #111827;
+  border-color: #111827;
+}
+
 .customer-reviews-feed {
   display: block;
   column-count: 4;
@@ -3393,6 +3421,9 @@ body.review-modal-open {
   }
   .review-form-actions {
     flex-direction: column;
+    align-items: flex-start;
+  }
+  .reviews-sync-tools {
     align-items: flex-start;
   }
   .review-modal {

@@ -111,6 +111,28 @@
     return rows;
   }
 
+  function buildReviewFingerprint(row) {
+    if (!row) return '';
+    return [
+      safeText(row.product_slug).toLowerCase(),
+      safeText(row.product_name).toLowerCase(),
+      safeText(row.customer_name).toLowerCase(),
+      String(Number(row.rating || 0)),
+      safeText(row.review_text).toLowerCase(),
+      safeText(row.created_at)
+    ].join('||');
+  }
+
+  function dedupeReviews(rows) {
+    var seen = {};
+    return (rows || []).filter(function (row) {
+      var key = buildReviewFingerprint(row);
+      if (!key || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+  }
+
   function renderReviews(target, rows, onSelect) {
     if (!target) return;
     target.innerHTML = '';
@@ -175,6 +197,9 @@
   function boot() {
     var grid = document.getElementById('customerReviewsGrid');
     var status = document.getElementById('customerReviewsStatus');
+    var syncTools = document.getElementById('reviewsSyncTools');
+    var syncButton = document.getElementById('syncLocalReviewsBtn');
+    var syncStatus = document.getElementById('reviewsSyncStatus');
     var modal = document.getElementById('reviewModal');
     var modalClose = document.getElementById('reviewModalClose');
     var modalMedia = document.getElementById('reviewModalMedia');
@@ -186,6 +211,22 @@
     var modalComment = document.getElementById('reviewModalComment');
     var modalProductLink = document.getElementById('reviewModalProductLink');
     if (!grid || !status || !modal || !modalClose || !modalMedia || !modalImage || !modalProduct || !modalCustomer || !modalStars || !modalDate || !modalComment || !modalProductLink) return;
+
+    function setSyncStatus(text, isError) {
+      if (!syncStatus) return;
+      syncStatus.textContent = text || '';
+      syncStatus.style.color = isError ? '#b91c1c' : '#4b5563';
+    }
+
+    function updateSyncTools(localRows) {
+      if (!syncTools || !syncButton) return;
+      var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      var hasLocalRows = Array.isArray(localRows) && localRows.length > 0;
+      syncTools.hidden = !(isLocalhost && hasLocalRows);
+      if (!syncTools.hidden) {
+        setSyncStatus(hasLocalRows ? ('Found ' + localRows.length + ' localhost reviews ready to sync.') : '', false);
+      }
+    }
 
     function openModal(row) {
       var imageUrl = safeText(row.image_data_url);
@@ -226,6 +267,56 @@
     });
 
     status.textContent = 'Loading reviews...';
+    var initialLocalRows = loadLocalReviews();
+    updateSyncTools(initialLocalRows);
+
+    if (syncButton) {
+      syncButton.addEventListener('click', function () {
+        var localRows = loadLocalReviews();
+        if (!localRows.length) {
+          updateSyncTools(localRows);
+          setSyncStatus('No localhost reviews found to sync.', true);
+          return;
+        }
+
+        syncButton.disabled = true;
+        syncButton.textContent = 'Syncing...';
+        setSyncStatus('Uploading localhost reviews to cloud...', false);
+
+        fetch('/api/admin-reviews/import', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ reviews: localRows })
+        })
+          .then(function (response) {
+            return response.json().then(function (data) {
+              if (!response.ok) {
+                throw new Error(data && data.error ? data.error : 'Unable to sync localhost reviews.');
+              }
+              return data;
+            });
+          })
+          .then(function (payload) {
+            var msg = 'Synced ' + payload.imported + ' reviews to cloud. Skipped ' + payload.skipped + ' duplicates.';
+            var cleared = payload.images_cleared || 0;
+            if (cleared > 0) {
+              msg += ' (' + cleared + ' had photos removed because they were too large or an unsupported format; text was still saved.)';
+            }
+            setSyncStatus(msg, false);
+            window.setTimeout(function () {
+              window.location.reload();
+            }, 900);
+          })
+          .catch(function (err) {
+            setSyncStatus(err && err.message ? err.message : 'Unable to sync localhost reviews.', true);
+          })
+          .finally(function () {
+            syncButton.disabled = false;
+            syncButton.textContent = 'Sync localhost reviews to cloud';
+          });
+      });
+    }
+
     fetch('/api/reviews?limit=120', { headers: { accept: 'application/json' } })
       .then(function (response) {
         return response.json().then(function (data) {
@@ -241,6 +332,8 @@
         if (localRows.length) {
           rows = localRows.concat(rows);
         }
+        rows = dedupeReviews(rows);
+        updateSyncTools(localRows);
         updateSummary(rows);
         renderReviews(grid, rows, openModal);
         status.textContent = rows.length ? ('Showing ' + rows.length + ' customer reviews') : 'No reviews found yet.';
@@ -248,6 +341,7 @@
       .catch(function (err) {
         var localRows = loadLocalReviews();
         if (localRows.length) {
+          updateSyncTools(localRows);
           updateSummary(localRows);
           renderReviews(grid, localRows, openModal);
           status.textContent = 'Showing ' + localRows.length + ' local customer reviews';

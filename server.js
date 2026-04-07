@@ -140,6 +140,57 @@ function mapReviewRow(row) {
   };
 }
 
+function buildReviewFingerprint(review) {
+  if (!review) return '';
+  return [
+    String(review.product_slug || '').trim().toLowerCase(),
+    String(review.product_name || '').trim().toLowerCase(),
+    String(review.customer_name || '').trim().toLowerCase(),
+    String(review.rating || '').trim(),
+    String(review.review_text || '').trim().toLowerCase(),
+    String(review.created_at || '').trim()
+  ].join('||');
+}
+
+function sanitizeImportedReview(body) {
+  const payload = body || {};
+  const productSlug = String(payload.product_slug || '').trim().slice(0, 80);
+  const productName = String(payload.product_name || '').trim().slice(0, 120);
+  const customerName = String(payload.customer_name || '').trim().slice(0, 60);
+  const reviewText = String(payload.review_text || '').trim().slice(0, 2000);
+  const rating = Math.max(1, Math.min(5, parseInt(payload.rating, 10) || 0));
+  const imageDataUrl = typeof payload.image_data_url === 'string' ? payload.image_data_url.trim() : '';
+  const createdAtInput = typeof payload.created_at === 'string' ? payload.created_at.trim() : '';
+  const createdAtDate = createdAtInput ? new Date(createdAtInput + (createdAtInput.indexOf('T') === -1 ? 'T00:00:00.000Z' : '')) : null;
+  const createdAt = createdAtDate && !Number.isNaN(createdAtDate.getTime()) ? createdAtDate.toISOString() : null;
+  const imageOk = !imageDataUrl || (
+    /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(imageDataUrl) &&
+    imageDataUrl.length <= 1800000
+  );
+  const imageDropped = !!(imageDataUrl && !imageOk);
+  const imageFinal = imageOk ? (imageDataUrl || null) : null;
+
+  if (!allowedProductSlugs.has(productSlug)) return { error: 'Invalid product selected.' };
+  if (!productName || productName.length < 2) return { error: 'Product name is required.' };
+  if (!customerName || customerName.length < 2) return { error: 'Customer name is required.' };
+  if (!reviewText || reviewText.length < 8) return { error: 'Review is too short.' };
+  if (rating < 1 || rating > 5) return { error: 'Rating must be between 1 and 5.' };
+  if (!createdAt) return { error: 'Valid review date is required.' };
+
+  return {
+    value: {
+      product_slug: productSlug,
+      product_name: productName,
+      customer_name: customerName,
+      rating: rating,
+      review_text: reviewText,
+      image_data_url: imageFinal,
+      created_at: createdAt
+    },
+    imageDropped: imageDropped
+  };
+}
+
 async function logChatbotConversation(sessionId, pageContext, userAgent, userMessage, assistantReply) {
   if (!supabase || !sessionId) return;
 
@@ -338,6 +389,80 @@ app.get('/api/admin-reviews', async (req, res) => {
   } catch (e) {
     console.error('Supabase admin product_reviews fetch exception:', e);
     return res.status(500).json({ error: 'Unable to load admin reviews.' });
+  }
+});
+
+app.post('/api/admin-reviews/import', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Supabase is not configured for reviews yet.' });
+  }
+
+  const rows = Array.isArray(req.body && req.body.reviews) ? req.body.reviews.slice(0, 500) : [];
+  if (!rows.length) {
+    return res.status(400).json({ error: 'No reviews were provided for import.' });
+  }
+
+  const sanitized = [];
+  let imagesDropped = 0;
+  for (const row of rows) {
+    const checked = sanitizeImportedReview(row);
+    if (checked.error) return res.status(400).json({ error: checked.error });
+    sanitized.push(checked.value);
+    if (checked.imageDropped) imagesDropped += 1;
+  }
+
+  try {
+    const existingResult = await supabase
+      .from('product_reviews')
+      .select('product_slug,product_name,customer_name,rating,review_text,created_at')
+      .limit(5000);
+    if (existingResult.error) {
+      console.error('Supabase fetch existing product_reviews error:', existingResult.error);
+      return res.status(500).json({ error: 'Unable to import reviews right now.' });
+    }
+
+    const existingFingerprints = new Set((existingResult.data || []).map(buildReviewFingerprint));
+    const inserts = [];
+    let skipped = 0;
+
+    sanitized.forEach(function (row) {
+      const fingerprint = buildReviewFingerprint(row);
+      if (existingFingerprints.has(fingerprint)) {
+        skipped += 1;
+        return;
+      }
+      existingFingerprints.add(fingerprint);
+      inserts.push({
+        product_slug: row.product_slug,
+        product_name: row.product_name,
+        customer_name: row.customer_name,
+        rating: row.rating,
+        review_text: row.review_text,
+        image_data_url: row.image_data_url,
+        created_at: row.created_at,
+        status: 'approved',
+        source: 'local-import'
+      });
+    });
+
+    if (inserts.length) {
+      const insertResult = await supabase.from('product_reviews').insert(inserts);
+      if (insertResult.error) {
+        console.error('Supabase import product_reviews error:', insertResult.error);
+        return res.status(500).json({ error: 'Unable to import reviews right now.' });
+      }
+    }
+
+    return res.json({
+      ok: true,
+      imported: inserts.length,
+      skipped: skipped,
+      total: sanitized.length,
+      images_cleared: imagesDropped
+    });
+  } catch (e) {
+    console.error('Supabase import product_reviews exception:', e);
+    return res.status(500).json({ error: 'Unable to import reviews right now.' });
   }
 });
 
