@@ -10,12 +10,9 @@ window.renderAdmininquiries = function (container) {
     '<div class="admin-card">' +
     '  <div class="admin-customers-header">' +
     '    <h3 style="margin:0;">Contact Requests</h3>' +
-    '    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-    '      <input type="password" id="inquiriesAdminPass" class="admin-search-input" placeholder="Admin inquiries password" style="max-width:260px;" />' +
-    '      <button id="inquiriesLoadBtn" class="admin-btn-primary" style="width:auto;padding:0.55rem 0.9rem;margin:0;">Load</button>' +
-    '    </div>' +
+    '    <button id="inquiriesLoadBtn" class="admin-btn-primary" style="width:auto;padding:0.55rem 0.9rem;margin:0;">Refresh</button>' +
     '  </div>' +
-    '  <p id="inquiriesMeta" style="margin:0 0 10px;color:#6b7280;font-size:13px;">Enter password to load submissions.</p>' +
+    '  <p id="inquiriesMeta" style="margin:0 0 10px;color:#6b7280;font-size:13px;">Loading inquiries...</p>' +
     '  <div class="admin-table-wrap">' +
     '    <table class="admin-table admin-table-customers">' +
     '      <thead><tr>' +
@@ -31,7 +28,6 @@ window.renderAdmininquiries = function (container) {
     '  </div>' +
     '</div>';
 
-  var passInput = document.getElementById('inquiriesAdminPass');
   var loadBtn = document.getElementById('inquiriesLoadBtn');
   var tbody = document.getElementById('inquiriesTableBody');
   var meta = document.getElementById('inquiriesMeta');
@@ -58,17 +54,11 @@ window.renderAdmininquiries = function (container) {
   }
 
   async function loadInquiries() {
-    var pass = (passInput && passInput.value || '').trim();
-    if (!pass) {
-      setMeta('Please enter admin inquiries password.', true);
-      return;
-    }
     loadBtn.disabled = true;
     setMeta('Loading inquiries...', false);
     try {
       var res = await fetch('/api/contact-inquiries', {
-        method: 'GET',
-        headers: { 'x-admin-password': pass }
+        method: 'GET'
       });
       var json = await res.json().catch(function () { return {}; });
       if (!res.ok) throw new Error(json.error || 'Failed to load inquiries.');
@@ -97,9 +87,5 @@ window.renderAdmininquiries = function (container) {
   }
 
   if (loadBtn) loadBtn.addEventListener('click', loadInquiries);
-  if (passInput) {
-    passInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') loadInquiries();
-    });
-  }
+  loadInquiries();
 };

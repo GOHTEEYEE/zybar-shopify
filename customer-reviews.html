@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Customer Reviews | ZYBAR</title>
+    <meta name="description" content="Read verified customer reviews for ZYBAR LED automotive wall art and visit product pages to share your own review." />
+    <link rel="canonical" href="https://zybar-ledcar.pages.dev/customer-reviews.html" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="welcome-bar">Welcome to our store</div>
+    <header class="site-header">
+      <div class="container header-wrap">
+        <a class="brand zybar-logo" href="/">
+          <img src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png" alt="ZYBAR" class="logo-img" loading="eager" width="1304" height="287" />
+        </a>
+        <nav class="nav main-nav">
+          <a href="/">Home</a>
+          <a href="/collections/all/">Catalog</a>
+          <a href="/customer-reviews.html">Customer Reviews</a>
+          <a href="/contact.html">Contact</a>
+        </nav>
+        <div class="header-actions">
+          <span class="currency">USD ▾</span>
+          <a href="/collections/all/" class="icon-btn" aria-label="Cart">🛒</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="section">
+      <div class="container">
+        <section class="pdp-reviews">
+          <div class="reviews-head">
+            <h2 id="customer-reviews-title">WE ALWAYS PUT OUR CUSTOMERS FIRST</h2>
+            <p class="reviews-head-subtitle">Customers from all over the world love our products!</p>
+          </div>
+          <div class="reviews-overview">
+            <div class="reviews-score-panel">
+              <p class="reviews-score" id="customerReviewsAverage">0.00</p>
+              <p class="reviews-stars-big" id="customerReviewsStars">☆☆☆☆☆</p>
+              <p class="reviews-total"><span id="customerReviewsCount">0</span> reviews</p>
+            </div>
+            <div class="reviews-stats">
+              <div class="review-stats-row">
+                <span class="review-stats-label">5 ★</span>
+                <div class="review-stats-track"><div class="review-stats-fill" data-star-fill="5"></div></div>
+                <span class="review-stats-count" data-star-count="5">0</span>
+              </div>
+              <div class="review-stats-row">
+                <span class="review-stats-label">4 ★</span>
+                <div class="review-stats-track"><div class="review-stats-fill" data-star-fill="4"></div></div>
+                <span class="review-stats-count" data-star-count="4">0</span>
+              </div>
+              <div class="review-stats-row">
+                <span class="review-stats-label">3 ★</span>
+                <div class="review-stats-track"><div class="review-stats-fill" data-star-fill="3"></div></div>
+                <span class="review-stats-count" data-star-count="3">0</span>
+              </div>
+              <div class="review-stats-row">
+                <span class="review-stats-label">2 ★</span>
+                <div class="review-stats-track"><div class="review-stats-fill" data-star-fill="2"></div></div>
+                <span class="review-stats-count" data-star-count="2">0</span>
+              </div>
+              <div class="review-stats-row">
+                <span class="review-stats-label">1 ★</span>
+                <div class="review-stats-track"><div class="review-stats-fill" data-star-fill="1"></div></div>
+                <span class="review-stats-count" data-star-count="1">0</span>
+              </div>
+            </div>
+          </div>
+          <p class="contact-subtitle" id="customerReviewsStatus">Loading reviews...</p>
+        </section>
+
+        <section class="pdp-reviews">
+          <div class="reviews-grid customer-reviews-feed" id="customerReviewsGrid"></div>
+        </section>
+
+        <div class="cta-row">
+          <a class="btn" href="/collections/all/">Browse All Products</a>
+          <a class="btn btn-outline" href="/products/audi-r8-white/">Write a Review on Product Page</a>
+        </div>
+      </div>
+    </main>
+
+    <div class="review-modal" id="reviewModal" hidden>
+      <div class="review-modal-backdrop" data-review-modal-close></div>
+      <div class="review-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="reviewModalCustomer">
+        <button type="button" class="review-modal-close" id="reviewModalClose" aria-label="Close review">×</button>
+        <div class="review-modal-grid">
+          <div class="review-modal-media" id="reviewModalMedia">
+            <img id="reviewModalImage" alt="Customer review photo" />
+          </div>
+          <div class="review-modal-content">
+            <p class="review-modal-product" id="reviewModalProduct"></p>
+            <p class="review-customer"><strong id="reviewModalCustomer"></strong><span class="review-verified" title="Verified purchase">✔</span></p>
+            <p class="review-stars" id="reviewModalStars"></p>
+            <p class="review-meta" id="reviewModalDate"></p>
+            <p class="review-modal-comment" id="reviewModalComment"></p>
+            <a class="btn btn-outline" id="reviewModalProductLink" href="/collections/all/">View Product</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <div class="container footer-wrap">
+        <div class="footer-copyright">
+          <p>© 2026 <a href="/">ZYBAR</a>, Powered by Shopify</p>
+          <a href="/policies/privacy-policy/">Privacy policy</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="/js/customer-reviews-page.js"></script>
+    <script src="/js/chatbot.js"></script>
+  </body>
+</html>

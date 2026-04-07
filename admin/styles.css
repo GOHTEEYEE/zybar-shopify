@@ -690,8 +690,19 @@ body {
   min-width: 900px;
 }
 
+.admin-table-reviews {
+  min-width: 1150px;
+}
+
 .admin-table-customers tbody tr {
   cursor: default;
+}
+
+.admin-reviews-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .admin-btn-view {
@@ -712,6 +723,24 @@ body {
   color: #fff;
 }
 
+.admin-btn-delete-row {
+  display: inline-block;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #b91c1c;
+  background: transparent;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.admin-btn-delete-row:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
 .admin-badge-processing {
   background: #fef3c7;
   color: #92400e;
@@ -725,6 +754,21 @@ body {
 .admin-badge-delivered {
   background: #d1fae5;
   color: #065f46;
+}
+
+.admin-badge-approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.admin-badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.admin-badge-rejected {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .admin-cell-num {
@@ -744,10 +788,139 @@ body {
   margin-left: 0.5rem;
 }
 
+.admin-review-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-btn-danger {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-top: 0.625rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #fff;
+  background: #dc2626;
+  border: none;
+  border-radius: var(--admin-radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.admin-btn-danger:hover {
+  background: #b91c1c;
+}
+
 .admin-loading {
   text-align: center;
   padding: 2rem;
   color: var(--admin-text-muted);
+}
+
+.admin-chatbot-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.admin-chatbot-sessions,
+.admin-chatbot-thread {
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: #fff;
+  min-height: 520px;
+}
+
+.admin-chatbot-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.admin-chatbot-session {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.8rem 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.admin-chatbot-session:hover,
+.admin-chatbot-session.is-selected {
+  border-color: var(--admin-accent);
+  background: #eef4ff;
+}
+
+.admin-chatbot-session-title {
+  font-weight: 600;
+  color: var(--admin-text);
+  margin-bottom: 0.3rem;
+}
+
+.admin-chatbot-session-meta {
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.admin-chatbot-session-preview {
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+  line-height: 1.4;
+}
+
+.admin-chatbot-thread-header {
+  padding: 1rem 1rem 0.85rem;
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 0.95rem;
+}
+
+.admin-chatbot-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  max-height: 455px;
+  overflow: auto;
+}
+
+.admin-chatbot-bubble {
+  max-width: 85%;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.admin-chatbot-bubble-user {
+  align-self: flex-end;
+  background: #0d6efd;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.admin-chatbot-bubble-assistant {
+  align-self: flex-start;
+  background: #f3f4f6;
+  color: var(--admin-text);
+  border-bottom-left-radius: 4px;
+}
+
+.admin-chatbot-bubble-meta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+  margin-bottom: 0.35rem;
 }
 
 .admin-error {
@@ -763,6 +936,11 @@ body {
   .admin-login-wrap { padding: 1rem 0; }
   .admin-login-card { padding: 1.5rem; }
   .admin-kpi-cards { grid-template-columns: repeat(2, 1fr); }
+  .admin-chatbot-layout { grid-template-columns: 1fr; }
+  .admin-chatbot-sessions,
+  .admin-chatbot-thread { min-height: 0; }
+  .admin-chatbot-session-list,
+  .admin-chatbot-messages { max-height: none; }
 }
 
 @media (max-width: 480px) {
