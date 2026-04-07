@@ -353,6 +353,7 @@
   function boot() {
     var grid = document.getElementById('customerReviewsGrid');
     var status = document.getElementById('customerReviewsStatus');
+    var isLiveDomain = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
     var modal = document.getElementById('reviewModal');
     var modalClose = document.getElementById('reviewModalClose');
     var modalMedia = document.getElementById('reviewModalMedia');
@@ -416,8 +417,8 @@
       })
       .then(function (payload) {
         var rows = payload && Array.isArray(payload.data) ? payload.data : [];
-        var localRows = loadLocalReviews();
-        if (localRows.length) {
+        var localRows = isLiveDomain ? [] : loadLocalReviews();
+        if (!isLiveDomain && localRows.length) {
           rows = localRows.concat(rows);
         }
         updateSummary(rows);
@@ -425,6 +426,11 @@
         status.textContent = rows.length ? ('Showing ' + rows.length + ' customer reviews') : 'No reviews found yet.';
       })
       .catch(function (err) {
+        if (isLiveDomain) {
+          updateSummary([]);
+          status.textContent = formatReviewsPageLoadError(err && err.message);
+          return;
+        }
         var localRows = loadLocalReviews();
         if (localRows.length) {
           updateSummary(localRows);
