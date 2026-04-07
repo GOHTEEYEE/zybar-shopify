@@ -522,6 +522,206 @@ body {
   margin-top: 0.5rem;
 }
 
+/* Analytics — Shopify-style toolbar + summary strip */
+.admin-analytics-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.admin-analytics-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem 0.45rem 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--admin-text);
+  background: #fff;
+  border: 1px solid var(--admin-border);
+  border-radius: 9999px;
+  box-shadow: var(--admin-shadow);
+  cursor: pointer;
+  position: relative;
+}
+
+.admin-analytics-filter-pill:hover {
+  border-color: #c4cdd5;
+}
+
+.admin-analytics-filter-pill-static {
+  cursor: default;
+  color: var(--admin-text-muted);
+}
+
+.admin-analytics-filter-pill-static:hover {
+  border-color: var(--admin-border);
+}
+
+.admin-analytics-filter-pill select {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
+  padding: 0 0.25rem;
+  margin: 0;
+  max-width: 11rem;
+}
+
+.admin-analytics-filter-icon {
+  flex-shrink: 0;
+  color: var(--admin-text-muted);
+}
+
+.admin-analytics-filter-chevron {
+  flex-shrink: 0;
+  color: var(--admin-text-muted);
+  pointer-events: none;
+  margin-left: -0.15rem;
+}
+
+.admin-analytics-summary-card {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border-radius: var(--admin-radius);
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.admin-analytics-summary-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  min-width: 0;
+}
+
+.admin-analytics-metric {
+  padding: 1.1rem 1.25rem;
+  border-right: 1px solid var(--admin-border);
+  min-width: 0;
+}
+
+.admin-analytics-metric:last-of-type {
+  border-right: none;
+}
+
+.admin-analytics-metric-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.admin-analytics-metric-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--admin-text-muted);
+  border-bottom: 1px dotted #cbd5e1;
+  cursor: help;
+  line-height: 1.3;
+}
+
+.admin-analytics-spark {
+  flex-shrink: 0;
+  width: 80px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.admin-analytics-spark svg {
+  display: block;
+  width: 80px;
+  height: 40px;
+}
+
+.admin-analytics-metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--admin-text);
+  line-height: 1.2;
+  margin-bottom: 0.35rem;
+}
+
+.admin-analytics-metric-value.admin-kpi-value-wrap {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.15em;
+}
+
+.admin-analytics-metric-trend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-analytics-vs {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.admin-analytics-summary-bar-chevron {
+  display: flex;
+  align-items: center;
+  padding: 0 0.65rem;
+  border-left: 1px solid var(--admin-border);
+  color: var(--admin-text-muted);
+  flex-shrink: 0;
+}
+
+.admin-analytics-summary-bar-chevron .admin-analytics-filter-chevron {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .admin-analytics-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-analytics-metric {
+    border-right: 1px solid var(--admin-border);
+    border-bottom: 1px solid var(--admin-border);
+  }
+  .admin-analytics-metric:nth-child(2n) {
+    border-right: none;
+  }
+  .admin-analytics-metric:nth-last-child(-n + 2) {
+    border-bottom: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-analytics-summary-card {
+    flex-direction: column;
+  }
+  .admin-analytics-summary-bar-chevron {
+    display: none;
+  }
+  .admin-analytics-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-analytics-metric {
+    border-right: none;
+    border-bottom: 1px solid var(--admin-border);
+  }
+  .admin-analytics-metric:last-of-type {
+    border-bottom: none;
+  }
+}
+
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
