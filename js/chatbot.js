@@ -347,6 +347,7 @@
         var errParts = [];
         if (data && data.error) errParts.push(data.error);
         if (data && data.hint) errParts.push(data.hint);
+        if (data && data.openai_detail) errParts.push(data.openai_detail);
         throw new Error(errParts.length ? errParts.join(' — ') : 'Chatbot request failed.');
       }
 

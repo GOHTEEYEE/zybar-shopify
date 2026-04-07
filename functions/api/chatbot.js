@@ -56,6 +56,15 @@ function openAiErrorHint(status, data) {
   if (status === 401) {
     return 'OpenAI rejected the API key. In Cloudflare → Variables, re-paste OPENAI_API_KEY (Secret, Production) with no spaces; redeploy.';
   }
+  if (status === 403) {
+    if (msg.indexOf('Country') !== -1 || msg.indexOf('region') !== -1 || msg.indexOf('territory') !== -1) {
+      return 'OpenAI blocked the request for your region. API calls must run from a supported country, or use OpenAI support.';
+    }
+    if (msg.indexOf('organization') !== -1 || msg.indexOf('Organization') !== -1) {
+      return 'OpenAI organization restriction. Check platform.openai.com → Settings → Organization.';
+    }
+    return 'OpenAI returned 403 Forbidden. See openai_detail in the JSON (browser Network tab) or verify your OpenAI account.';
+  }
   if (status === 429) {
     return 'OpenAI rate limit. Wait a minute or check usage on platform.openai.com.';
   }
@@ -215,11 +224,13 @@ export async function onRequestPost(context) {
       data = {};
     }
     if (!response.ok) {
+      var errMsg = data && data.error && data.error.message ? String(data.error.message).slice(0, 280) : '';
       return json(
         {
           error: 'The chatbot could not respond right now.',
           hint: openAiErrorHint(response.status, data),
-          openai_status: response.status
+          openai_status: response.status,
+          openai_detail: errMsg || undefined
         },
         500
       );
