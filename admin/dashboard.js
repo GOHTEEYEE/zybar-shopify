@@ -437,7 +437,7 @@ window.renderAdmindashboard = function (container) {
         return sb
           .from('sessions')
           .select('id', { count: 'exact', head: true })
-          .gte('started_at', sinceIso)
+          .gte('last_activity_at', sinceIso)
           .then(function (res) {
             if (el) el.textContent = (res && typeof res.count === 'number') ? res.count : 0;
           })
