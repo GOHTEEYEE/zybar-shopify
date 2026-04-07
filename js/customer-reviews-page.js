@@ -28,9 +28,120 @@
     return String(value || '').trim();
   }
 
+  /** When Cloudflare Pages has no SUPABASE_* env, the API returns 503 with this phrase. */
+  function formatReviewsPageLoadError(raw) {
+    var s = raw && String(raw);
+    if (s && s.indexOf('Supabase is not configured') !== -1) {
+      return (
+        'Reviews are not loading on this live domain yet: add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY ' +
+        'in Cloudflare Pages → your project → Settings → Environment variables (Production), save, then redeploy. ' +
+        'Your rows in Supabase are fine; the site just cannot reach them until those variables are set.'
+      );
+    }
+    return s || 'Unable to load reviews right now.';
+  }
+
   function productPathFromSlug(slug) {
     var safe = safeText(slug);
     return safe ? ('/products/' + safe + '/') : '/collections/all/';
+  }
+
+  /** Stay under server import limit (see REVIEW_IMPORT_IMAGE_MAX_DATA_URL_LENGTH on server). */
+  var MAX_SYNC_IMAGE_DATA_URL = 2550000;
+  var REVIEW_IMAGE_DATA_URL_RE = /^data:image\/(png|jpe?g|pjpeg|webp|gif);base64,/i;
+
+  /** localStorage / copy-paste sometimes inserts newlines inside the base64 part. */
+  function normalizeReviewImageDataUrl(s) {
+    if (typeof s !== 'string') return '';
+    return s.trim().replace(/\s+/g, '');
+  }
+
+  function dataUrlLooksImportable(dataUrl) {
+    var s = normalizeReviewImageDataUrl(dataUrl);
+    return !!s && REVIEW_IMAGE_DATA_URL_RE.test(s) && s.length <= MAX_SYNC_IMAGE_DATA_URL;
+  }
+
+  /**
+   * Re-encode review photos as JPEG and shrink them so cloud import accepts the payload.
+   * Returns '' if there was no image, load failed, or it could not be shrunk enough.
+   */
+  function compressImageDataUrlForSync(dataUrl) {
+    return new Promise(function (resolve) {
+      var raw = normalizeReviewImageDataUrl(dataUrl);
+      if (!raw) return resolve('');
+      if (dataUrlLooksImportable(raw)) return resolve(raw);
+      if (raw.length > 35 * 1024 * 1024) return resolve('');
+
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var w0 = img.naturalWidth;
+          var h0 = img.naturalHeight;
+          if (!w0 || !h0) return resolve('');
+
+          function encodeAt(cw, ch, quality) {
+            var canvas = document.createElement('canvas');
+            canvas.width = cw;
+            canvas.height = ch;
+            var ctx = canvas.getContext('2d');
+            if (!ctx) return '';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(img, 0, 0, cw, ch);
+            return canvas.toDataURL('image/jpeg', quality);
+          }
+
+          var maxSide = 1600;
+          var scale = Math.min(1, maxSide / Math.max(w0, h0));
+          var cw = Math.max(1, Math.round(w0 * scale));
+          var ch = Math.max(1, Math.round(h0 * scale));
+
+          var q;
+          var out;
+          for (q = 0.92; q >= 0.38; q -= 0.08) {
+            out = encodeAt(cw, ch, q);
+            if (out && out.length <= MAX_SYNC_IMAGE_DATA_URL) return resolve(out);
+          }
+
+          var s;
+          for (s = 0.82; s >= 0.42; s -= 0.1) {
+            var cw2 = Math.max(360, Math.round(w0 * scale * s));
+            var ch2 = Math.max(360, Math.round(h0 * scale * s));
+            out = encodeAt(cw2, ch2, 0.72);
+            if (out && out.length <= MAX_SYNC_IMAGE_DATA_URL) return resolve(out);
+          }
+
+          out = encodeAt(Math.max(320, Math.round(w0 * scale * 0.45)), Math.max(320, Math.round(h0 * scale * 0.45)), 0.62);
+          if (out && out.length <= MAX_SYNC_IMAGE_DATA_URL) return resolve(out);
+
+          resolve('');
+        } catch (_) {
+          resolve('');
+        }
+      };
+      img.onerror = function () {
+        resolve('');
+      };
+      img.src = raw;
+    });
+  }
+
+  function prepareLocalRowsForSync(rows) {
+    return Promise.all(
+      rows.map(function (row) {
+        return compressImageDataUrlForSync(row.image_data_url).then(function (imageUrl) {
+          return {
+            product_slug: row.product_slug,
+            product_name: row.product_name,
+            customer_name: row.customer_name,
+            rating: row.rating,
+            review_text: row.review_text,
+            image_data_url: imageUrl,
+            created_at: row.created_at
+          };
+        });
+      })
+    );
   }
 
   function getCardVariant(row, index) {
@@ -83,6 +194,51 @@
       return JSON.parse(value);
     } catch (_) {
       return fallback;
+    }
+  }
+
+  /** Avoid raw response.json() rejections; always surface a normal Error. */
+  function readJsonFromResponse(response) {
+    return response.text().then(function (text) {
+      if (!text || !text.trim()) {
+        return {};
+      }
+      try {
+        return JSON.parse(text);
+      } catch (_) {
+        if (!response.ok) {
+          throw new Error('Bad response from server (' + response.status + ').');
+        }
+        throw new Error('Server returned invalid JSON.');
+      }
+    });
+  }
+
+  /** After a successful import (new or duplicate), drop matching rows from localStorage so sync does not repeat forever. */
+  function removeLocalReviewsMatchingPrepared(preparedRows) {
+    if (!preparedRows || !preparedRows.length) return;
+    try {
+      preparedRows.forEach(function (prepared) {
+        var slug = safeText(prepared.product_slug);
+        if (!slug) return;
+        var key = 'zybar.reviews.local.' + slug;
+        var raw = window.localStorage.getItem(key);
+        var parsed = safeParse(raw || '[]', []);
+        if (!Array.isArray(parsed)) return;
+        var next = parsed.filter(function (item) {
+          if (!item) return true;
+          var sameProduct = safeText(item.productName || slug) === safeText(prepared.product_name);
+          var sameName = safeText(item.name) === safeText(prepared.customer_name);
+          var sameText = safeText(item.comment) === safeText(prepared.review_text);
+          var sameRating = Number(item.rating || 0) === Number(prepared.rating || 0);
+          return !(sameProduct && sameName && sameText && sameRating);
+        });
+        if (next.length !== parsed.length) {
+          window.localStorage.setItem(key, JSON.stringify(next));
+        }
+      });
+    } catch (_) {
+      /* storage blocked or quota */
     }
   }
 
@@ -281,15 +437,21 @@
 
         syncButton.disabled = true;
         syncButton.textContent = 'Syncing...';
-        setSyncStatus('Uploading localhost reviews to cloud...', false);
+        setSyncStatus('Optimizing photos, then uploading...', false);
 
-        fetch('/api/admin-reviews/import', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ reviews: localRows })
-        })
+        var preparedForCleanup = [];
+
+        prepareLocalRowsForSync(localRows)
+          .then(function (preparedRows) {
+            preparedForCleanup = preparedRows;
+            return fetch('/api/admin-reviews/import', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ reviews: preparedRows })
+            });
+          })
           .then(function (response) {
-            return response.json().then(function (data) {
+            return readJsonFromResponse(response).then(function (data) {
               if (!response.ok) {
                 throw new Error(data && data.error ? data.error : 'Unable to sync localhost reviews.');
               }
@@ -297,10 +459,26 @@
             });
           })
           .then(function (payload) {
-            var msg = 'Synced ' + payload.imported + ' reviews to cloud. Skipped ' + payload.skipped + ' duplicates.';
+            removeLocalReviewsMatchingPrepared(preparedForCleanup);
+
+            var imported = payload.imported || 0;
+            var skipped = payload.skipped || 0;
             var cleared = payload.images_cleared || 0;
+            var msg;
+
+            if (imported === 0 && skipped > 0) {
+              msg =
+                'Those reviews were already in the cloud (' +
+                skipped +
+                ' duplicate(s)). Removed matching copies from this browser so you will not be asked to sync them again.';
+            } else {
+              msg = 'Synced ' + imported + ' new review(s) to cloud. Skipped ' + skipped + ' duplicate(s).';
+            }
             if (cleared > 0) {
-              msg += ' (' + cleared + ' had photos removed because they were too large or an unsupported format; text was still saved.)';
+              msg +=
+                ' (' +
+                cleared +
+                ' had no photo after optimization—text was still saved; add photos in admin if needed.)';
             }
             setSyncStatus(msg, false);
             window.setTimeout(function () {
@@ -319,7 +497,7 @@
 
     fetch('/api/reviews?limit=120', { headers: { accept: 'application/json' } })
       .then(function (response) {
-        return response.json().then(function (data) {
+        return readJsonFromResponse(response).then(function (data) {
           if (!response.ok) {
             throw new Error(data && data.error ? data.error : 'Unable to load reviews.');
           }
@@ -332,7 +510,6 @@
         if (localRows.length) {
           rows = localRows.concat(rows);
         }
-        rows = dedupeReviews(rows);
         updateSyncTools(localRows);
         updateSummary(rows);
         renderReviews(grid, rows, openModal);
@@ -348,7 +525,7 @@
           return;
         }
         updateSummary([]);
-        status.textContent = err && err.message ? err.message : 'Unable to load reviews right now.';
+        status.textContent = formatReviewsPageLoadError(err && err.message);
       });
   }
 
