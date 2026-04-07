@@ -42,7 +42,7 @@
     .zybar-chatbot-root {
       position: fixed;
       right: 1.35rem;
-      bottom: 1.35rem;
+      bottom: 3.75rem;
       z-index: 60;
       font-family: "Inter", sans-serif;
     }
@@ -209,7 +209,7 @@
     @media (max-width: 640px) {
       .zybar-chatbot-root {
         right: 0.75rem;
-        bottom: 0.85rem;
+        bottom: 2.75rem;
       }
       .zybar-chatbot-panel {
         right: 0;
@@ -344,7 +344,10 @@
 
       var data = await response.json();
       if (!response.ok) {
-        throw new Error(data && data.error ? data.error : 'Chatbot request failed.');
+        var errParts = [];
+        if (data && data.error) errParts.push(data.error);
+        if (data && data.hint) errParts.push(data.hint);
+        throw new Error(errParts.length ? errParts.join(' — ') : 'Chatbot request failed.');
       }
 
       appendMessage('assistant', data.reply);
@@ -367,7 +370,7 @@
 
   form.addEventListener('submit', function (event) {
     event.preventDefault();
-    sendMessage(input.value);
+    void sendMessage(input.value).catch(function () {});
   });
 
   input.addEventListener('keydown', function (event) {
@@ -385,7 +388,7 @@
   prompts.forEach(function (button) {
     button.addEventListener('click', function () {
       openChat();
-      sendMessage(button.textContent);
+      void sendMessage(button.textContent).catch(function () {});
     });
   });
 

@@ -40,6 +40,37 @@ function json(data, status) {
   });
 }
 
+function normalizeOpenAiKey(raw) {
+  if (typeof raw !== 'string') return '';
+  var s = raw.trim();
+  if (!s) return '';
+  if (s.toLowerCase().indexOf('bearer ') === 0) s = s.slice(7).trim();
+  return s;
+}
+
+/** Map OpenAI HTTP errors to a short owner-facing hint (no secrets). */
+function openAiErrorHint(status, data) {
+  var err = data && data.error;
+  var type = err && err.type ? String(err.type) : '';
+  var msg = err && err.message ? String(err.message) : '';
+  if (status === 401) {
+    return 'OpenAI rejected the API key. In Cloudflare → Variables, re-paste OPENAI_API_KEY (Secret, Production) with no spaces; redeploy.';
+  }
+  if (status === 429) {
+    return 'OpenAI rate limit. Wait a minute or check usage on platform.openai.com.';
+  }
+  if (type === 'insufficient_quota' || msg.indexOf('quota') !== -1 || msg.indexOf('billing') !== -1) {
+    return 'OpenAI billing/quota: add a payment method or credits at platform.openai.com → Billing.';
+  }
+  if (type === 'invalid_request_error' && msg.indexOf('model') !== -1) {
+    return 'Model not allowed: remove OPENAI_MODEL in Cloudflare or set it to gpt-4o-mini, then redeploy.';
+  }
+  if (msg && msg.indexOf('Incorrect API key') !== -1) {
+    return 'Invalid OpenAI key. Create a new secret key at platform.openai.com/api-keys and update Cloudflare.';
+  }
+  return 'Check OPENAI_API_KEY, billing, and redeploy. See Network tab response JSON for openai_status.';
+}
+
 async function logChatbotConversation(env, sessionId, pageContext, userAgent, userMessage, assistantReply) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY || !sessionId) return;
 
@@ -102,8 +133,8 @@ async function logChatbotConversation(env, sessionId, pageContext, userAgent, us
 
 export async function onRequestPost(context) {
   const env = context.env || {};
-  const apiKey = env.OPENAI_API_KEY;
-  const model = env.OPENAI_MODEL || 'gpt-4o-mini';
+  const apiKey = normalizeOpenAiKey(env.OPENAI_API_KEY);
+  const model = String(env.OPENAI_MODEL || 'gpt-4o-mini').trim() || 'gpt-4o-mini';
 
   if (!apiKey) {
     return json({ error: 'Chatbot is not configured yet.' }, 503);
@@ -177,9 +208,21 @@ export async function onRequestPost(context) {
       })
     });
 
-    const data = await response.json();
+    var data;
+    try {
+      data = await response.json();
+    } catch (_) {
+      data = {};
+    }
     if (!response.ok) {
-      return json({ error: 'The chatbot could not respond right now.' }, 500);
+      return json(
+        {
+          error: 'The chatbot could not respond right now.',
+          hint: openAiErrorHint(response.status, data),
+          openai_status: response.status
+        },
+        500
+      );
     }
 
     const reply = data &&
