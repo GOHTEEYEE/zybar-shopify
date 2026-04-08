@@ -851,9 +851,14 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 });
 
+// Export app for serverless runtimes (e.g. Vercel).
+module.exports = app;
+
 // ----- Start -----
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-  if (isZybarMy) console.log('ZYBAR.MY test mode — open http://localhost:' + PORT + ' (redirects to ?env=zybar.my)');
-  if (!stripeSecretKey) console.warn('STRIPE_SECRET_KEY missing — checkout will return 503.');
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+    if (isZybarMy) console.log('ZYBAR.MY test mode — open http://localhost:' + PORT + ' (redirects to ?env=zybar.my)');
+    if (!stripeSecretKey) console.warn('STRIPE_SECRET_KEY missing — checkout will return 503.');
+  });
+}

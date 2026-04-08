@@ -422,59 +422,72 @@ window.renderAdmindashboard = function (container) {
 
   function loadLiveVisitors() {
     var el = document.getElementById('adminLiveCount');
-    var sinceIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     function setCount(value) {
       if (!el) return;
       var n = Number(value);
       el.textContent = Number.isFinite(n) && n >= 0 ? String(Math.floor(n)) : '0';
     }
-    function loadFromPageViewsDistinctVisitors() {
+    function fetchFromRpc() {
+      return sb.rpc('get_live_visitor_count')
+        .then(function (r) {
+          return r && r.data != null ? Number(r.data) : NaN;
+        })
+        .catch(function () { return NaN; });
+    }
+    function fetchFromSessions() {
+      var sinceIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      return sb
+        .from('sessions')
+        .select('id', { count: 'exact', head: true })
+        .gte('last_activity_at', sinceIso)
+        .then(function (res) {
+          return res && typeof res.count === 'number' ? Number(res.count) : NaN;
+        })
+        .catch(function () { return NaN; });
+    }
+    function fetchFromPageViewsDistinctVisitors() {
+      var sinceIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       return sb
         .from('page_views')
-        .select('visitor_id')
+        .select('session_id,visitor_id')
         .gte('created_at', sinceIso)
         .then(function (res) {
           var rows = (res && res.data) || [];
-          if (!rows.length) {
-            setCount(0);
-            return;
-          }
+          if (!rows.length) return 0;
           var uniq = {};
           rows.forEach(function (row) {
-            var id = row && row.visitor_id ? String(row.visitor_id) : '';
+            var id = row && row.session_id ? String(row.session_id) : '';
+            if (!id && row && row.visitor_id) id = String(row.visitor_id);
             if (id) uniq[id] = true;
           });
-          setCount(Object.keys(uniq).length);
+          return Object.keys(uniq).length;
         })
-        .catch(function () {
-          setCount(0);
-        });
+        .catch(function () { return NaN; });
     }
 
-    sb.rpc('get_live_visitor_count')
-      .then(function (r) {
-        if (r && r.data != null) {
-          setCount(r.data);
+    Promise.all([fetchFromRpc(), fetchFromSessions(), fetchFromPageViewsDistinctVisitors()])
+      .then(function (counts) {
+        var fromRpc = Number(counts[0]);
+        var fromSessions = Number(counts[1]);
+        var fromPageViews = Number(counts[2]);
+
+        // Prefer the authoritative DB function first, then fallback progressively.
+        if (Number.isFinite(fromRpc) && fromRpc >= 0) {
+          setCount(fromRpc);
           return;
         }
-        throw new Error('RPC returned no data');
+        if (Number.isFinite(fromSessions) && fromSessions >= 0) {
+          setCount(fromSessions);
+          return;
+        }
+        if (Number.isFinite(fromPageViews) && fromPageViews >= 0) {
+          setCount(fromPageViews);
+          return;
+        }
+        setCount(0);
       })
       .catch(function () {
-        // Fallback for projects that do not have the RPC function.
-        return sb
-          .from('sessions')
-          .select('id', { count: 'exact', head: true })
-          .gte('last_activity_at', sinceIso)
-          .then(function (res) {
-            if (res && typeof res.count === 'number') {
-              setCount(res.count);
-              return;
-            }
-            return loadFromPageViewsDistinctVisitors();
-          })
-          .catch(function () {
-            return loadFromPageViewsDistinctVisitors();
-          });
+        setCount(0);
       });
   }
 
