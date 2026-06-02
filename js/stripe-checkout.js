@@ -357,8 +357,19 @@
     return (a.pathname || clean).replace(/\/{2,}/g, "/");
   }
 
+  /** Encode path segments so spaces/unicode work in img src on production. */
+  function encodeMediaUrl(url) {
+    var path = normalizeImageUrl(url);
+    if (!path) return "";
+    return path.split("/").map(function (segment, index) {
+      if (!segment) return index === 0 ? "" : segment;
+      return encodeURIComponent(segment);
+    }).join("/");
+  }
+
   function headImageExists(url) {
-    return fetch(url, { method: "HEAD", cache: "force-cache" })
+    var requestUrl = encodeMediaUrl(url);
+    return fetch(requestUrl, { method: "HEAD", cache: "force-cache" })
       .then(function (res) { return !!(res && res.ok); })
       .catch(function () { return false; });
   }
@@ -376,7 +387,7 @@
     var logicalKey = slug + "-" + index + suffix;
     var mainNorm = normalizeImageUrl(mainSrc || "");
     if (mainNorm && getImageLogicalKey(mainNorm) === logicalKey) {
-      return Promise.resolve(mainNorm);
+      return Promise.resolve(encodeMediaUrl(mainNorm));
     }
     var chain = Promise.resolve("");
     exts.forEach(function (ext) {
@@ -384,7 +395,7 @@
         if (found) return found;
         var url = "/Image/" + slug + "-" + index + suffix + "." + ext;
         return headImageExists(url).then(function (ok) {
-          return ok ? url : "";
+          return ok ? encodeMediaUrl(url) : "";
         });
       });
     });
@@ -394,7 +405,7 @@
   function resolveGalleryImages(mainSrc, slug) {
     if (!slug) {
       var only = normalizeImageUrl(mainSrc);
-      return Promise.resolve(only ? [only] : []);
+      return Promise.resolve(only ? [encodeMediaUrl(only)] : []);
     }
     var chain = Promise.resolve([]);
     var i;
@@ -436,8 +447,8 @@
     var type = raw.type === "video" ? "video" : "image";
     return {
       type: type,
-      src: normalizeImageUrl(raw.src),
-      poster: raw.poster ? normalizeImageUrl(raw.poster) : "",
+      src: encodeMediaUrl(raw.src),
+      poster: raw.poster ? encodeMediaUrl(raw.poster) : "",
       label: "shared"
     };
   }
