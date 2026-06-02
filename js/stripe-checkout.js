@@ -357,21 +357,40 @@
     return (a.pathname || clean).replace(/\/{2,}/g, "/");
   }
 
+  /** Encode each path segment once (safe if JSON already encoded). */
+  function encodePathSegment(segment) {
+    if (!segment) return segment;
+    try {
+      return encodeURIComponent(decodeURIComponent(segment));
+    } catch (e) {
+      return encodeURIComponent(segment);
+    }
+  }
+
   /** Encode path segments so spaces/unicode work in img src on production. */
   function encodeMediaUrl(url) {
     var path = normalizeImageUrl(url);
     if (!path) return "";
     return path.split("/").map(function (segment, index) {
       if (!segment) return index === 0 ? "" : segment;
-      return encodeURIComponent(segment);
+      return encodePathSegment(segment);
     }).join("/");
   }
 
-  function headImageExists(url) {
+  /** True only when the URL returns real image/video bytes (not SPA index.html). */
+  function headMediaExists(url) {
     var requestUrl = encodeMediaUrl(url);
     return fetch(requestUrl, { method: "HEAD", cache: "force-cache" })
-      .then(function (res) { return !!(res && res.ok); })
+      .then(function (res) {
+        if (!res || !res.ok) return false;
+        var contentType = (res.headers.get("content-type") || "").toLowerCase();
+        return contentType.indexOf("image/") === 0 || contentType.indexOf("video/") === 0;
+      })
       .catch(function () { return false; });
+  }
+
+  function headImageExists(url) {
+    return headMediaExists(url);
   }
 
   function getImageLogicalKey(url) {
@@ -741,9 +760,18 @@
         return item.type === "image" && normalizeImageUrl(item.src) === normalizeImageUrl(mainSrc);
       })[0] || items[0];
       var initialIndex = findGalleryIndex(items, initial);
-      if (galleryNav) galleryNav.selectAt(initialIndex);
-      else {
+      var mainNorm = normalizeImageUrl(mainImage.getAttribute("src") || "");
+      var initialNorm = normalizeImageUrl(initial && initial.src);
+      if (galleryNav) {
+        galleryNav.setIndex(initialIndex);
+        setActiveGalleryThumb(thumbs, initial);
+        if (initialNorm && initialNorm !== mainNorm) {
+          galleryNav.selectAt(initialIndex);
+        }
+      } else if (initialNorm && initialNorm !== mainNorm) {
         showGalleryMedia(mainImage, inner, initial);
+        setActiveGalleryThumb(thumbs, initial);
+      } else {
         setActiveGalleryThumb(thumbs, initial);
       }
     });

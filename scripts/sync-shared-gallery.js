@@ -31,16 +31,6 @@ function sortFiles(files) {
   });
 }
 
-function encodeMediaPath(filePath) {
-  return String(filePath || "")
-    .split("/")
-    .map(function (segment, index) {
-      if (!segment) return index === 0 ? "" : segment;
-      return encodeURIComponent(segment);
-    })
-    .join("/");
-}
-
 function buildItems() {
   if (!fs.existsSync(sourceDir)) {
     fs.mkdirSync(sourceDir, { recursive: true });
@@ -54,7 +44,7 @@ function buildItems() {
     if (SKIP_NAMES.has(file.toLowerCase())) return;
     if (!isPosterFile(file)) return;
     const base = getPosterBase(file);
-    posters[base] = encodeMediaPath("/shared-gallery/" + file);
+    posters[base] = "/shared-gallery/" + file;
   });
 
   const items = [];
@@ -63,7 +53,7 @@ function buildItems() {
     if (isPosterFile(file)) return;
     const ext = path.extname(file).toLowerCase();
     const base = path.basename(file, ext);
-    const src = encodeMediaPath("/shared-gallery/" + file);
+    const src = "/shared-gallery/" + file;
 
     if (VIDEO_EXT.has(ext)) {
       items.push({

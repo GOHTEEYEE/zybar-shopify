@@ -11,6 +11,7 @@
     "release:prod": "npm run sync:shared-gallery && npm run sync-stripe && npm run validate-stripe && npx vercel --prod",
     "sync-products": "node scripts/sync-products-to-supabase.js",
     "sync:shared-gallery": "node scripts/sync-shared-gallery.js",
+    "compress:images": "node scripts/compress-images.js",
     "dev": "node scripts/sync-shared-gallery.js && node server.js"
   },
   "dependencies": {
@@ -19,5 +20,8 @@
     "express": "^4.21.0",
     "openai": "^6.33.0",
     "stripe": "^17.0.0"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
   }
 }
