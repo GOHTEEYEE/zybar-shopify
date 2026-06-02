@@ -8,12 +8,20 @@ export interface CheckoutSessionMetadata {
   productSlug?: string;
   size?: string;
   quantity?: string;
+  cartItems?: string;
+}
+
+/** Request body for creating a Checkout Session (your API). */
+export interface CheckoutLineItemRequest {
+  priceId: string;
+  quantity: number;
 }
 
 /** Request body for creating a Checkout Session (your API). */
 export interface CreateCheckoutSessionRequest {
-  priceId: string;
-  quantity: number;
+  priceId?: string;
+  quantity?: number;
+  lineItems?: CheckoutLineItemRequest[];
   successUrl: string;
   cancelUrl: string;
   productSlug?: string;

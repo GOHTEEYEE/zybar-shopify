@@ -11,17 +11,17 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://zybar-ledcar.pages.dev/products/audi-r8-gt3/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://zybar-ledcar.pages.dev/products/audi-r8-white/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://zybar-ledcar.pages.dev/products/audi-r8-yellow/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://zybar-ledcar.pages.dev/products/audi-r8-gt3/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -47,6 +47,141 @@
   </url>
   <url>
     <loc>https://zybar-ledcar.pages.dev/products/b-maserati-mc20/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/b-nissan-gt-r35/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/b-yamaha-r1/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/bmw-classic-3-0/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/bmw-m1000rr/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/bmw-m2-neon/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/bmw-m4/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/bmw-m4-black/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/bmw-m5-e39/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/bugatti-tailights/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/c-ford-mustang-gt350r/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/c-lamborghini-oragne/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/dark-colour-audi/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/dodge-srt-hellcat-01/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/ferrari-488/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/ferrari-f8/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/lambrghini-svj-tailights/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/mercedes-benz-amg-1/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/mercedes-benz-cls-amg63/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/mercedes-benz-g63-double-tail-2/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/nissan-gtr/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/porsche-gt3-rs/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/porsche-gt3-rs-green/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/porsche-gt3-rs-grey/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/porsche-r/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/toyota-supra/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/xa-ferrari-motorcycle-1/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/xd-bmw-headlights-motorcycle/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

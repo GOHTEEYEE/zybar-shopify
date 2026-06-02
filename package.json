@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
     "dev:test": "PORT=3001 ZYBAR_MY=1 node server.js",
     "start": "node server.js",
     "server": "node server.js",
     "sync-stripe": "node scripts/sync-prices-to-stripe.js",
-    "sync-products": "node scripts/sync-products-to-supabase.js"
+    "validate-stripe": "node scripts/validate-stripe-config.js",
+    "release:prod": "npm run sync:shared-gallery && npm run sync-stripe && npm run validate-stripe && npx vercel --prod",
+    "sync-products": "node scripts/sync-products-to-supabase.js",
+    "sync:shared-gallery": "node scripts/sync-shared-gallery.js",
+    "dev": "node scripts/sync-shared-gallery.js && node server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",

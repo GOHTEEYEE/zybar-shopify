@@ -12,6 +12,10 @@
     return "zybar.reviews.local." + slug;
   }
 
+  function getSessionCacheKey(slug) {
+    return "zybar.reviews.remote.cache." + slug;
+  }
+
   function safeParse(value, fallback) {
     try {
       return JSON.parse(value);
@@ -26,7 +30,10 @@
   }
 
   function escapeText(value) {
-    return String(value || "").trim();
+    var text = String(value || "").trim();
+    // Normalize user input for display: remove tag-like content and collapse spaces.
+    text = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    return text;
   }
 
   function formatDate(input) {
@@ -36,40 +43,7 @@
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
-  var defaultReviewsBySlug = {
-    "audi-r8-white": [
-      { productName: "Audi R8 White Edition", name: "Jason M.", rating: 5, comment: "The glow quality is insane. Looks premium in my garage setup.", date: "2026-02-11" },
-      { productName: "Audi R8 White Edition", name: "Nina R.", rating: 5, comment: "Arrived fast and was super easy to mount. Remote works perfectly.", date: "2026-02-22" }
-    ],
-    "audi-r8-yellow": [
-      { productName: "Audi R8 Yellow Edition", name: "Amir H.", rating: 5, comment: "Color pops hard at night. Exactly what I wanted for my office wall.", date: "2026-02-13" },
-      { productName: "Audi R8 Yellow Edition", name: "Lucas T.", rating: 4, comment: "Great brightness and finish. Packaging was excellent too.", date: "2026-03-01" }
-    ],
-    "audi-r8-gt3": [
-      { productName: "Audi R8 GT3", name: "Kieran D.", rating: 5, comment: "Best car art piece I have bought. Looks even better in person.", date: "2026-01-29" },
-      { productName: "Audi R8 GT3", name: "Mae P.", rating: 5, comment: "Build quality feels top tier. Looks amazing lights on and off.", date: "2026-02-16" }
-    ],
-    "audi-rs6": [
-      { productName: "Audi RS6", name: "Adam C.", rating: 5, comment: "Really clean design and strong lighting. Love it in my studio.", date: "2026-02-04" },
-      { productName: "Audi RS6", name: "Felix W.", rating: 4, comment: "Very good quality. Would definitely order another style.", date: "2026-03-06" }
-    ],
-    "b-dodge-hellcat-02": [
-      { productName: "B Dodge Hellcat 02", name: "Ben K.", rating: 5, comment: "Aggressive vibe and excellent detail. Looks sick at night.", date: "2026-02-03" },
-      { productName: "B Dodge Hellcat 02", name: "Rory S.", rating: 4, comment: "Good brightness and remote controls are simple to use.", date: "2026-02-25" }
-    ],
-    "b-dodge-hellcat-03": [
-      { productName: "B Dodge Hellcat 03", name: "Shawn V.", rating: 5, comment: "Perfect gift for my brother. He loved it right away.", date: "2026-01-19" },
-      { productName: "B Dodge Hellcat 03", name: "Derek L.", rating: 5, comment: "Super clean LED spread and easy USB setup.", date: "2026-02-28" }
-    ],
-    "b-ferrari-f40": [
-      { productName: "B Ferrari F40", name: "Marco E.", rating: 5, comment: "Looks elegant and sharp. This one is pure art.", date: "2026-02-08" },
-      { productName: "B Ferrari F40", name: "Kelvin N.", rating: 5, comment: "My favorite piece from the collection so far.", date: "2026-03-09" }
-    ],
-    "b-maserati-mc20": [
-      { productName: "B Maserati MC20", name: "Ari G.", rating: 5, comment: "Beautiful in person. The glow creates real depth.", date: "2026-02-14" },
-      { productName: "B Maserati MC20", name: "Jon P.", rating: 4, comment: "Great purchase. Setup took less than five minutes.", date: "2026-03-03" }
-    ]
-  };
+  var defaultReviewsBySlug = {};
 
   function sanitizeReview(item, defaultProductName) {
     return {
@@ -110,9 +84,13 @@
   }
 
   async function fetchRemoteReviews(slug, productTitle) {
-    var response = await fetch("/api/reviews?productSlug=" + encodeURIComponent(slug), {
+    // Fetch lighter payload first (no image_data_url) for faster render.
+    var response = await fetch(
+      "/api/reviews?productSlug=" + encodeURIComponent(slug) + "&limit=24&includeImages=0",
+      {
       headers: { accept: "application/json" }
-    });
+      }
+    );
     if (!response.ok) {
       throw new Error("Could not load reviews from Supabase.");
     }
@@ -331,9 +309,7 @@
 
     function getCurrentList() {
       if (state.remoteEnabled) {
-        return state.remoteReviews.length ? state.remoteReviews : (defaultReviewsBySlug[slug] || []).map(function (r) {
-          return sanitizeReview(r, productTitle);
-        });
+        return state.remoteReviews;
       }
       var fallback = state.localReviews.concat(defaultReviewsBySlug[slug] || []);
       return fallback.map(function (r) { return sanitizeReview(r, productTitle); });
@@ -393,6 +369,24 @@
       renderReviews(section, getCurrentList(), openModal);
     }
 
+    function readSessionCachedReviews() {
+      try {
+        var raw = window.sessionStorage.getItem(getSessionCacheKey(slug));
+        var parsed = safeParse(raw || "[]", []);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map(function (item) { return sanitizeReview(item, productTitle); });
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function writeSessionCachedReviews(reviews) {
+      try {
+        var subset = Array.isArray(reviews) ? reviews.slice(0, 24) : [];
+        window.sessionStorage.setItem(getSessionCacheKey(slug), JSON.stringify(subset));
+      } catch (_) {}
+    }
+
     if (modal) {
       Array.prototype.forEach.call(modal.querySelectorAll("[data-review-modal-close]"), function (node) {
         node.addEventListener("click", closeModal);
@@ -410,10 +404,18 @@
     state.localReviews = loadLocalReviews(slug, productTitle);
     refresh();
 
+    var cached = readSessionCachedReviews();
+    if (cached.length) {
+      state.remoteEnabled = true;
+      state.remoteReviews = cached;
+      refresh();
+    }
+
     fetchRemoteReviews(slug, productTitle)
       .then(function (reviews) {
         state.remoteEnabled = true;
         state.remoteReviews = reviews;
+        writeSessionCachedReviews(reviews);
         refresh();
       })
       .catch(function () {

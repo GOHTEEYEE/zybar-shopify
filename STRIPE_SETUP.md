@@ -38,7 +38,38 @@ Stripe cannot send webhooks to `localhost` directly. Use the Stripe CLI to forwa
 
 Keep `stripe listen` running while testing payments; completing a checkout will trigger `checkout.session.completed` and you’ll see it in the CLI and in your server logs.
 
-## 4. Frontend config
+## 4. Sync products and prices to Stripe (recommended)
+
+Catalog and amounts live in `data/products.json` (slugs, names, `pricesBySize`).
+For product-specific overrides (e.g. one product at $10 / $20), set `perProductPricesBySize`.
+To create or update Stripe Products and Price IDs and write them into `js/stripe-config.js`:
+
+1. Set `STRIPE_SECRET_KEY` in `.env` (same account as your publishable key).
+2. Run:
+
+   ```bash
+   npm run sync-stripe
+   ```
+
+3. This also writes `data/stripe-price-ids.json` as a backup snapshot.
+
+If prices change in `data/products.json`, run `npm run sync-stripe` again; the script reuses Stripe Products by `metadata.slug` and creates new Prices when amounts change.
+
+### Automated safe production release
+
+Run one command to avoid drift between website price, Stripe price IDs, and production deploy:
+
+```bash
+npm run release:prod
+```
+
+It performs:
+
+1. `npm run sync-stripe` (regenerates IDs from `data/products.json`)
+2. `npm run validate-stripe` (checks active IDs + amount matches + slug mapping)
+3. `npx vercel --prod` (deploys verified config)
+
+## 5. Frontend config
 
 In `js/stripe-config.js`:
 
@@ -47,16 +78,17 @@ In `js/stripe-config.js`:
 - Optionally set `successUrl` and `cancelUrl`; if omitted, success goes to `/collections/all/?checkout=success` and cancel returns to the current page.
 - If your API is on a different origin, set `apiBaseUrl` (e.g. `https://api.example.com`).
 
-## 5. API overview
+## 6. API overview
 
 - **POST /api/create-checkout-session**  
-  Body: `{ priceId, quantity, successUrl, cancelUrl, productSlug?, size? }`  
+  Body (single item): `{ priceId, quantity, successUrl, cancelUrl, productSlug?, size? }`  
+  Body (cart / multiple items): `{ lineItems: [{ priceId, quantity }], successUrl, cancelUrl }`  
   Returns: `{ url, sessionId }`. Frontend redirects the user to `url`.
 
 - **POST /api/webhook**  
   Raw body; verified with `Stripe-Signature` and `STRIPE_WEBHOOK_SECRET`. Handles `checkout.session.completed` (e.g. fulfill order or persist to DB).
 
-## 6. TypeScript types
+## 7. TypeScript types
 
 See `types/stripe.d.ts` for:
 

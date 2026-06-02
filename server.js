@@ -15,6 +15,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isZybarMy = process.env.ZYBAR_MY === '1' || process.env.ZYBAR_MY === 'true';
 const inquiriesStorePath = path.join(__dirname, 'data', 'contact-inquiries.json');
+const stripePriceIdsPath = path.join(__dirname, 'data', 'stripe-price-ids.json');
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -35,6 +36,84 @@ const openai = openAiApiKey ? new OpenAI({ apiKey: openAiApiKey }) : null;
 const supabase = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
   : null;
+const REVIEW_SUBMIT_COOLDOWN_MS = 30 * 1000;
+const lastReviewSubmitByKey = new Map();
+
+/**
+ * Recover from stale/inactive Stripe Price IDs sent by old frontend bundles or cached carts.
+ * If a price is inactive, try to find an active replacement on the same product
+ * with matching size metadata (preferred), amount, and currency.
+ */
+async function resolveActivePriceId(priceId) {
+  const candidate = String(priceId || '').trim();
+  if (!candidate || !stripe) return candidate;
+  try {
+    const price = await stripe.prices.retrieve(candidate);
+    if (price && price.active) return candidate;
+    if (!price || !price.product) return candidate;
+
+    const productId = typeof price.product === 'string' ? price.product : price.product.id;
+    const size = price.metadata && price.metadata.size ? String(price.metadata.size) : '';
+    const amount = typeof price.unit_amount === 'number' ? price.unit_amount : null;
+    const currency = String(price.currency || '').toLowerCase();
+
+    const list = await stripe.prices.list({
+      product: productId,
+      active: true,
+      limit: 100
+    });
+    const activePrices = Array.isArray(list.data) ? list.data : [];
+    if (!activePrices.length) return candidate;
+
+    // 1) Best match: same size + amount + currency.
+    let match = activePrices.find(function (p) {
+      const pSize = p.metadata && p.metadata.size ? String(p.metadata.size) : '';
+      return pSize === size && p.unit_amount === amount && String(p.currency || '').toLowerCase() === currency;
+    });
+    // 2) Fallback: same size + currency.
+    if (!match && size) {
+      match = activePrices.find(function (p) {
+        const pSize = p.metadata && p.metadata.size ? String(p.metadata.size) : '';
+        return pSize === size && String(p.currency || '').toLowerCase() === currency;
+      });
+    }
+    // 3) Last fallback: same amount + currency.
+    if (!match && amount !== null) {
+      match = activePrices.find(function (p) {
+        return p.unit_amount === amount && String(p.currency || '').toLowerCase() === currency;
+      });
+    }
+    // 4) Final fallback: first active price on product.
+    if (!match) match = activePrices[0];
+
+    if (match && match.id && match.id !== candidate) {
+      console.warn('Replaced inactive Stripe price ID:', candidate, '->', match.id);
+      return match.id;
+    }
+    return candidate;
+  } catch (error) {
+    console.error('Failed to resolve active Stripe price ID:', candidate, error && error.message ? error.message : error);
+    return candidate;
+  }
+}
+
+function getConfiguredPriceId(productSlug, size) {
+  const slug = String(productSlug || '').trim();
+  const selectedSize = String(size || '').trim();
+  if (!slug || !selectedSize) return '';
+  try {
+    if (!fs.existsSync(stripePriceIdsPath)) return '';
+    const raw = fs.readFileSync(stripePriceIdsPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    const prices = parsed && parsed.prices ? parsed.prices : null;
+    if (!prices || !prices[slug]) return '';
+    const id = prices[slug][selectedSize];
+    return typeof id === 'string' ? id.trim() : '';
+  } catch (error) {
+    console.error('Failed to read configured Stripe price map:', error && error.message ? error.message : error);
+    return '';
+  }
+}
 
 const chatbotProductCatalog = [
   { name: 'Audi R8 - White', slug: 'audi-r8-white', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' },
@@ -119,6 +198,7 @@ function sanitizeReviewInput(body) {
     REVIEW_IMAGE_DATA_URL_RE.test(imageDataUrl) &&
     imageDataUrl.length <= REVIEW_IMAGE_MAX_DATA_URL_LENGTH
   );
+  const suspiciousMarkup = /<[^>]*>|javascript:|onerror\s*=|onload\s*=/i;
 
   if (!allowedProductSlugs.has(productSlug)) return { error: 'Invalid product selected.' };
   if (!productName || productName.length < 2) return { error: 'Product name is required.' };
@@ -126,6 +206,9 @@ function sanitizeReviewInput(body) {
   if (!comment || comment.length < 8) return { error: 'Review is too short.' };
   if (rating < 1 || rating > 5) return { error: 'Rating must be between 1 and 5.' };
   if (!imageOk) return { error: 'Invalid image format or image is too large.' };
+  if (suspiciousMarkup.test(name) || suspiciousMarkup.test(comment) || suspiciousMarkup.test(productName)) {
+    return { error: 'Invalid characters detected in review content.' };
+  }
 
   return {
     value: {
@@ -568,6 +651,7 @@ app.delete('/api/admin-reviews', async (req, res) => {
 app.get('/api/reviews', async (req, res) => {
   const productSlug = String(req.query.productSlug || '').trim().slice(0, 80);
   const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 80, 200));
+  const includeImages = String(req.query.includeImages || '').trim() !== '0';
   if (productSlug && !allowedProductSlugs.has(productSlug)) {
     return res.status(400).json({ error: 'Invalid product selected.' });
   }
@@ -576,9 +660,12 @@ app.get('/api/reviews', async (req, res) => {
   }
 
   try {
+    const reviewColumns = includeImages
+      ? 'id,product_slug,product_name,customer_name,rating,review_text,image_data_url,created_at'
+      : 'id,product_slug,product_name,customer_name,rating,review_text,created_at';
     let query = supabase
       .from('product_reviews')
-      .select('id,product_slug,product_name,customer_name,rating,review_text,image_data_url,created_at')
+      .select(reviewColumns)
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -610,8 +697,31 @@ app.post('/api/reviews', async (req, res) => {
     return res.status(400).json({ error: checked.error });
   }
   const payload = checked.value;
+  const reviewSubmitKey = [
+    req.ip || req.headers['x-forwarded-for'] || 'unknown',
+    payload.productSlug,
+    payload.name.toLowerCase()
+  ].join('::');
+  const now = Date.now();
+  const lastAt = lastReviewSubmitByKey.get(reviewSubmitKey) || 0;
+  if (now - lastAt < REVIEW_SUBMIT_COOLDOWN_MS) {
+    return res.status(429).json({ error: 'Please wait a moment before submitting another review.' });
+  }
+  lastReviewSubmitByKey.set(reviewSubmitKey, now);
 
   try {
+    // Soft dedupe for repeated spam submissions.
+    const duplicateCheck = await supabase
+      .from('product_reviews')
+      .select('id')
+      .eq('product_slug', payload.productSlug)
+      .eq('customer_name', payload.name)
+      .eq('review_text', payload.comment)
+      .limit(1);
+    if (!duplicateCheck.error && Array.isArray(duplicateCheck.data) && duplicateCheck.data.length) {
+      return res.status(409).json({ error: 'Duplicate review detected. This review already exists.' });
+    }
+
     const result = await supabase
       .from('product_reviews')
       .insert({
@@ -823,23 +933,65 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (!stripe) {
     return res.status(503).json({ error: 'Stripe is not configured' });
   }
-  const { priceId, quantity, successUrl, cancelUrl, productSlug, size } = req.body || {};
-  if (!priceId || typeof quantity !== 'number' || quantity < 1) {
-    return res.status(400).json({ error: 'Invalid request: priceId and quantity (number >= 1) required' });
-  }
+  const { priceId, quantity, lineItems, successUrl, cancelUrl, productSlug, size } = req.body || {};
   if (!successUrl || !cancelUrl) {
     return res.status(400).json({ error: 'successUrl and cancelUrl are required' });
+  }
+
+  let stripeLineItems = [];
+  if (Array.isArray(lineItems) && lineItems.length) {
+    stripeLineItems = lineItems
+      .map(function (item) {
+        if (!item || typeof item !== 'object') return null;
+        const itemPriceId = typeof item.priceId === 'string' ? item.priceId.trim() : '';
+        const itemQty = Number(item.quantity);
+        const itemProductSlug = typeof item.productSlug === 'string' ? item.productSlug.trim() : '';
+        const itemSize = typeof item.size === 'string' ? item.size.trim() : '';
+        if (!itemPriceId || !Number.isFinite(itemQty) || itemQty < 1) return null;
+        return {
+          price: itemPriceId,
+          quantity: Math.floor(itemQty),
+          productSlug: itemProductSlug,
+          size: itemSize
+        };
+      })
+      .filter(Boolean);
+    stripeLineItems = await Promise.all(
+      stripeLineItems.map(async function (item) {
+        const configuredPrice = getConfiguredPriceId(item.productSlug, item.size);
+        const requestedPrice = configuredPrice || item.price;
+        const resolvedPrice = await resolveActivePriceId(requestedPrice);
+        return { price: resolvedPrice, quantity: item.quantity };
+      })
+    );
+    if (!stripeLineItems.length) {
+      return res.status(400).json({ error: 'Invalid request: lineItems must contain valid priceId and quantity' });
+    }
+  } else {
+    if (!priceId || typeof quantity !== 'number' || quantity < 1) {
+      return res.status(400).json({ error: 'Invalid request: priceId and quantity (number >= 1) required' });
+    }
+    // Prefer canonical product+size mapping from synced file when available.
+    const configuredPrice = getConfiguredPriceId(productSlug, size);
+    const requestedPrice = configuredPrice || priceId;
+    const resolvedPrice = await resolveActivePriceId(requestedPrice);
+    stripeLineItems = [{ price: resolvedPrice, quantity: Math.floor(quantity) }];
   }
 
   const metadata = {};
   if (productSlug) metadata.productSlug = String(productSlug);
   if (size) metadata.size = String(size);
-  metadata.quantity = String(quantity);
+  const totalQty = stripeLineItems.reduce(function (sum, item) {
+    return sum + (Number(item.quantity) || 0);
+  }, 0);
+  metadata.quantity = String(totalQty);
+  metadata.cartItems = String(stripeLineItems.length);
 
   try {
+    console.log('Checkout line item prices:', stripeLineItems.map(function (i) { return i.price; }));
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      line_items: [{ price: priceId, quantity }],
+      line_items: stripeLineItems,
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata,

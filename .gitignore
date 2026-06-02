@@ -12,3 +12,5 @@ data/contact-inquiries.json
 # OS / editor artifacts
 .DS_Store
 .cursor/
+.vercel
+.env*.local

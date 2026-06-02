@@ -342,6 +342,15 @@
         })
       });
 
+      var contentType = (response.headers && response.headers.get && response.headers.get('content-type')) || '';
+      var isJson = contentType.toLowerCase().indexOf('application/json') !== -1;
+      if (!isJson) {
+        throw new Error(
+          'Chatbot API is not reachable (expected JSON). ' +
+          'If this is deployed on Cloudflare Pages, ensure Pages Functions are enabled and that /api/chatbot is mapped to functions/api/chatbot.js.'
+        );
+      }
+
       var data = await response.json();
       if (!response.ok) {
         var errParts = [];

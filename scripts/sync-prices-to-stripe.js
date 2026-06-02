@@ -36,7 +36,7 @@ try {
   process.exit(1);
 }
 
-const { currency = 'usd', pricesBySize, products } = data;
+const { currency = 'usd', pricesBySize, perProductPricesBySize = {}, products } = data;
 if (!pricesBySize || !products || !Array.isArray(products)) {
   console.error('data/products.json must have pricesBySize and products array');
   process.exit(1);
@@ -84,7 +84,11 @@ async function getOrCreatePrice(productId, size, amountUSD) {
 }
 
 async function run() {
-  const output = { prices: {}, sizePricesUSD: { ...pricesBySize } };
+  const output = {
+    prices: {},
+    sizePricesUSD: { ...pricesBySize },
+    perProductSizePricesUSD: { ...perProductPricesBySize }
+  };
   const sizes = Object.keys(pricesBySize);
 
   for (const prod of products) {
@@ -92,7 +96,10 @@ async function run() {
     const product = await getOrCreateProduct(slug, name);
     output.prices[slug] = {};
     for (const size of sizes) {
-      const amount = pricesBySize[size];
+      const perProduct = perProductPricesBySize && perProductPricesBySize[slug];
+      const amount = perProduct && typeof perProduct[size] === 'number'
+        ? perProduct[size]
+        : pricesBySize[size];
       const price = await getOrCreatePrice(product.id, size, amount);
       output.prices[slug][size] = price.id;
     }
@@ -107,9 +114,13 @@ async function run() {
     let config = fs.readFileSync(configPath, 'utf8');
     const sizePricesRepl = 'sizePricesUSD: ' + JSON.stringify(output.sizePricesUSD);
     config = config.replace(/sizePricesUSD:\s*\{[^}]*\}/, sizePricesRepl);
+    const perProductRepl = 'perProductSizePricesUSD: ' + JSON.stringify(output.perProductSizePricesUSD, null, 2).replace(/\n/g, '\n    ');
+    config = replaceJsObjectAfterKey(config, 'perProductSizePricesUSD', perProductRepl);
 
-    const pricesRepl = 'prices: ' + JSON.stringify(output.prices, null, 2).replace(/^/gm, '      ');
-    config = config.replace(/prices:\s*\{[\s\S]*?\n\s*\}/, () => pricesRepl);
+    const pricesJson = JSON.stringify(output.prices, null, 2);
+    // Do not prefix "    " — slice(0, start) already ends with the line indent before `prices:`.
+    const pricesRepl = 'prices: ' + pricesJson.replace(/\n/g, '\n    ');
+    config = replaceJsObjectAfterKey(config, 'prices', pricesRepl);
 
     fs.writeFileSync(configPath, config, 'utf8');
     console.log('Updated js/stripe-config.js with new price IDs.');
@@ -117,6 +128,47 @@ async function run() {
     console.warn('Could not update stripe-config.js:', e.message);
     console.log('\nManually copy "prices" and "sizePricesUSD" from', outPath, 'into js/stripe-config.js');
   }
+}
+
+/** Replace `key: { ... }` where `{` may contain nested braces (safe for prices map). */
+function replaceJsObjectAfterKey(source, key, replacement) {
+  const needle = key + ':';
+  const start = source.indexOf(needle);
+  if (start === -1) throw new Error('Key not found: ' + key);
+  const braceStart = source.indexOf('{', start + needle.length);
+  if (braceStart === -1) throw new Error('Expected { after ' + key);
+  let depth = 0;
+  let inString = false;
+  let stringQuote = '';
+  let escape = false;
+  for (let i = braceStart; i < source.length; i++) {
+    const c = source[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (c === '\\') {
+        escape = true;
+        continue;
+      }
+      if (c === stringQuote) inString = false;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      inString = true;
+      stringQuote = c;
+      continue;
+    }
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) {
+        return source.slice(0, start) + replacement + source.slice(i + 1);
+      }
+    }
+  }
+  throw new Error('Unclosed object for key: ' + key);
 }
 
 run().catch((err) => {

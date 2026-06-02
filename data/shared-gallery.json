@@ -1,0 +1,27 @@
+{
+  "updatedAt": "2026-06-02T16:23:28.931Z",
+  "sourceFolder": "shared-gallery/",
+  "items": [
+    {
+      "type": "video",
+      "src": "/shared-gallery/A.mp4",
+      "poster": ""
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/ChatGPT Image 2026年6月2日 21_58_15.png"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/ChatGPT Image 2026年6月2日 22_15_16.png"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/ChatGPT Image 2026年6月2日 22_15_21.png"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/IMG_3616.JPG"
+    }
+  ]
+}

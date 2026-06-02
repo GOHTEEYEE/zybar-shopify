@@ -1,202 +1,171 @@
 /**
  * Stripe Checkout configuration for product pages.
- * 1) Set publishableKey from Stripe Dashboard.
- * 2) Set price IDs for each product slug and size.
+ *
+ * To create/update Stripe Products and Price IDs from data/products.json:
+ *   1. Set STRIPE_SECRET_KEY in .env (Secret key from Stripe Dashboard).
+ *   2. Run: npm run sync-stripe
+ *
+ * That writes data/stripe-price-ids.json and updates prices below.
+ *
+ * Note: We assign the full object below (no `||` merge). Otherwise a truthy
+ * partial `ZYBAR_STRIPE_CONFIG` from elsewhere could block real price IDs.
  */
 (function () {
-  window.ZYBAR_STRIPE_CONFIG = window.ZYBAR_STRIPE_CONFIG || {
-    publishableKey: "pk_live_51RpPz032satLY6UqpvVhmnV8U5xVORlMOgjIvP4ivxIORZOxlcuQidIPWN7zAlT4XOK4mTajGkeaFqkAlo84waYf00y7eZJAAd",
-    // After successful payment, send customers to the digital postcard page.
-    successUrl: (window.location && window.location.origin ? window.location.origin : "") + "/purchase-confirmation.html",
+  window.ZYBAR_STRIPE_CONFIG = {
+    publishableKey:
+      "pk_live_51RpPz032satLY6UqpvVhmnV8U5xVORlMOgjIvP4ivxIORZOxlcuQidIPWN7zAlT4XOK4mTajGkeaFqkAlo84waYf00y7eZJAAd",
+    successUrl:
+      (window.location && window.location.origin ? window.location.origin : "") +
+      "/purchase-confirmation.html",
     cancelUrl: "",
-    // If your checkout API is on another origin, set it (e.g. "https://api.example.com").
     apiBaseUrl: "",
-    // Display prices by size (USD) used on product page UI.
     sizePricesUSD: {"30x45":110,"40x60":150},
-    // Optional shared Stripe Price IDs if all products use same pricing.
-    // Fill these and you can skip per-product prices below.
+    perProductSizePricesUSD: {},
     sharedPriceIdsBySize: {
-      "30x45": "price_1TABYg32satLY6Uq6YDazH9S",
-      "40x60": "price_1TABYh32satLY6UquOmmgpm1"
+      "30x45": "",
+      "40x60": ""
     },
-    prices:       {
-        "audi-r8-white": {
-          "30x45": "price_1TJYPq32satLY6UqJwOGN6Zj",
-          "40x60": "price_1TJYPr32satLY6Uq3zJyVb70"
-        },
-        "audi-r8-yellow": {
-          "30x45": "price_1TJYPs32satLY6UqaSEFBQXH",
-          "40x60": "price_1TJYPt32satLY6UqbTDY6Leb"
-        },
-        "audi-r8-gt3": {
-          "30x45": "price_1TJYPu32satLY6Uqll7CDRk8",
-          "40x60": "price_1TJYPv32satLY6Uq3apD6pJP"
-        },
-        "audi-rs6": {
-          "30x45": "price_1TJYPx32satLY6UqeayYITZs",
-          "40x60": "price_1TJYPx32satLY6UqsJGDOlrH"
-        },
-        "b-ferrari-f40": {
-          "30x45": "price_1TJYPz32satLY6Uq1WeRliut",
-          "40x60": "price_1TJYPz32satLY6Uq8PmtWaW5"
-        },
-        "b-maserati-mc20": {
-          "30x45": "price_1TJYQ132satLY6UqTC9xBmS2",
-          "40x60": "price_1TJYQ232satLY6UqZWriCWAQ"
-        },
-        "b-dodge-hellcat-02": {
-          "30x45": "price_1TJYQ332satLY6UqtKoKpmuj",
-          "40x60": "price_1TJYQ432satLY6UqElRP0y68"
-        },
-        "b-dodge-hellcat-03": {
-          "30x45": "price_1TJYQ532satLY6UqdAjBEOeU",
-          "40x60": "price_1TJYQ632satLY6Uqbh71icyj"
-        }
+    prices: {
+      "audi-r8-gt3": {
+        "30x45": "price_1TJYPu32satLY6Uqll7CDRk8",
+        "40x60": "price_1TJYPv32satLY6Uq3apD6pJP"
       },
-        "audi-r8-yellow": {
-          "30x45": "price_1TABYi32satLY6Uq9j0gFaT4",
-          "40x60": "price_1TABYj32satLY6UqQB5sHt2R"
-        },
-        "audi-r8-gt3": {
-          "30x45": "price_1TABYk32satLY6UqUSeM86Iz",
-          "40x60": "price_1TABYl32satLY6UqNf1Xv5tc"
-        },
-        "audi-rs6": {
-          "30x45": "price_1TABYm32satLY6UqsRfwdsZu",
-          "40x60": "price_1TABYn32satLY6UqPSIni6yl"
-        },
-        "b-ferrari-f40": {
-          "30x45": "price_1TABYo32satLY6UqNrPrJ46p",
-          "40x60": "price_1TABYp32satLY6UqJ3OyuEM5"
-        },
-        "b-maserati-mc20": {
-          "30x45": "price_1TABYr32satLY6Uqgzs5PLfA",
-          "40x60": "price_1TABYr32satLY6UqnRTHuZnL"
-        },
-        "b-dodge-hellcat-02": {
-          "30x45": "price_1TABYt32satLY6UqaTOR21wn",
-          "40x60": "price_1TABYt32satLY6Uqo2JsLFfU"
-        },
-        "b-dodge-hellcat-03": {
-          "30x45": "price_1TABYv32satLY6UqeaeQPt6N",
-          "40x60": "price_1TABYv32satLY6UqTxJw79NJ"
-        }
+      "audi-r8-white": {
+        "30x45": "price_1TJYPq32satLY6UqJwOGN6Zj",
+        "40x60": "price_1TJYPr32satLY6Uq3zJyVb70"
       },
-        "audi-r8-yellow": {
-          "30x45": "price_1TABYi32satLY6Uq9j0gFaT4",
-          "40x60": "price_1TABYj32satLY6UqQB5sHt2R"
-        },
-        "audi-r8-gt3": {
-          "30x45": "price_1TABYk32satLY6UqUSeM86Iz",
-          "40x60": "price_1TABYl32satLY6UqNf1Xv5tc"
-        },
-        "audi-rs6": {
-          "30x45": "price_1TABYm32satLY6UqsRfwdsZu",
-          "40x60": "price_1TABYn32satLY6UqPSIni6yl"
-        },
-        "b-ferrari-f40": {
-          "30x45": "price_1TABYo32satLY6UqNrPrJ46p",
-          "40x60": "price_1TABYp32satLY6UqJ3OyuEM5"
-        },
-        "b-maserati-mc20": {
-          "30x45": "price_1TABYr32satLY6Uqgzs5PLfA",
-          "40x60": "price_1TABYr32satLY6UqnRTHuZnL"
-        },
-        "b-dodge-hellcat-02": {
-          "30x45": "price_1TABYt32satLY6UqaTOR21wn",
-          "40x60": "price_1TABYt32satLY6Uqo2JsLFfU"
-        },
-        "b-dodge-hellcat-03": {
-          "30x45": "price_1TABYv32satLY6UqeaeQPt6N",
-          "40x60": "price_1TABYv32satLY6UqTxJw79NJ"
-        }
+      "audi-r8-yellow": {
+        "30x45": "price_1TJYPs32satLY6UqaSEFBQXH",
+        "40x60": "price_1TJYPt32satLY6UqbTDY6Leb"
       },
-        "audi-r8-yellow": {
-          "30x45": "price_1TABYi32satLY6Uq9j0gFaT4",
-          "40x60": "price_1TABYj32satLY6UqQB5sHt2R"
-        },
-        "audi-r8-gt3": {
-          "30x45": "price_1TABYk32satLY6UqUSeM86Iz",
-          "40x60": "price_1TABYl32satLY6UqNf1Xv5tc"
-        },
-        "audi-rs6": {
-          "30x45": "price_1TABYm32satLY6UqsRfwdsZu",
-          "40x60": "price_1TABYn32satLY6UqPSIni6yl"
-        },
-        "b-ferrari-f40": {
-          "30x45": "price_1TABYo32satLY6UqNrPrJ46p",
-          "40x60": "price_1TABYp32satLY6UqJ3OyuEM5"
-        },
-        "b-maserati-mc20": {
-          "30x45": "price_1TABYr32satLY6Uqgzs5PLfA",
-          "40x60": "price_1TABYr32satLY6UqnRTHuZnL"
-        },
-        "b-dodge-hellcat-02": {
-          "30x45": "price_1TABYt32satLY6UqaTOR21wn",
-          "40x60": "price_1TABYt32satLY6Uqo2JsLFfU"
-        },
-        "b-dodge-hellcat-03": {
-          "30x45": "price_1TABYv32satLY6UqeaeQPt6N",
-          "40x60": "price_1TABYv32satLY6UqTxJw79NJ"
-        }
+      "audi-rs6": {
+        "30x45": "price_1TJYPx32satLY6UqeayYITZs",
+        "40x60": "price_1TJYPx32satLY6UqsJGDOlrH"
       },
-        "audi-r8-yellow": {
-          "30x45": "price_1TABYi32satLY6Uq9j0gFaT4",
-          "40x60": "price_1TABYj32satLY6UqQB5sHt2R"
-        },
-        "audi-r8-gt3": {
-          "30x45": "price_1TABYk32satLY6UqUSeM86Iz",
-          "40x60": "price_1TABYl32satLY6UqNf1Xv5tc"
-        },
-        "audi-rs6": {
-          "30x45": "price_1TABYm32satLY6UqsRfwdsZu",
-          "40x60": "price_1TABYn32satLY6UqPSIni6yl"
-        },
-        "b-ferrari-f40": {
-          "30x45": "price_1TABYo32satLY6UqNrPrJ46p",
-          "40x60": "price_1TABYp32satLY6UqJ3OyuEM5"
-        },
-        "b-maserati-mc20": {
-          "30x45": "price_1TABYr32satLY6Uqgzs5PLfA",
-          "40x60": "price_1TABYr32satLY6UqnRTHuZnL"
-        },
-        "b-dodge-hellcat-02": {
-          "30x45": "price_1TABYt32satLY6UqaTOR21wn",
-          "40x60": "price_1TABYt32satLY6Uqo2JsLFfU"
-        },
-        "b-dodge-hellcat-03": {
-          "30x45": "price_1TABYv32satLY6UqeaeQPt6N",
-          "40x60": "price_1TABYv32satLY6UqTxJw79NJ"
-        }
+      "b-dodge-hellcat-02": {
+        "30x45": "price_1TJYQ332satLY6UqtKoKpmuj",
+        "40x60": "price_1TJYQ432satLY6UqElRP0y68"
       },
-        "audi-r8-yellow": {
-          "30x45": "price_1TABYi32satLY6Uq9j0gFaT4",
-          "40x60": "price_1TABYj32satLY6UqQB5sHt2R"
-        },
-        "audi-r8-gt3": {
-          "30x45": "price_1TABYk32satLY6UqUSeM86Iz",
-          "40x60": "price_1TABYl32satLY6UqNf1Xv5tc"
-        },
-        "audi-rs6": {
-          "30x45": "price_1TABYm32satLY6UqsRfwdsZu",
-          "40x60": "price_1TABYn32satLY6UqPSIni6yl"
-        },
-        "b-ferrari-f40": {
-          "30x45": "price_1TABYo32satLY6UqNrPrJ46p",
-          "40x60": "price_1TABYp32satLY6UqJ3OyuEM5"
-        },
-        "b-maserati-mc20": {
-          "30x45": "price_1TABYr32satLY6Uqgzs5PLfA",
-          "40x60": "price_1TABYr32satLY6UqnRTHuZnL"
-        },
-        "b-dodge-hellcat-02": {
-          "30x45": "price_1TABYt32satLY6UqaTOR21wn",
-          "40x60": "price_1TABYt32satLY6Uqo2JsLFfU"
-        },
-        "b-dodge-hellcat-03": {
-          "30x45": "price_1TABYv32satLY6UqeaeQPt6N",
-          "40x60": "price_1TABYv32satLY6UqTxJw79NJ"
-        }
+      "b-dodge-hellcat-03": {
+        "30x45": "price_1TJYQ532satLY6UqdAjBEOeU",
+        "40x60": "price_1TJYQ632satLY6Uqbh71icyj"
+      },
+      "b-ferrari-f40": {
+        "30x45": "price_1TJYPz32satLY6Uq1WeRliut",
+        "40x60": "price_1TJYPz32satLY6Uq8PmtWaW5"
+      },
+      "b-maserati-mc20": {
+        "30x45": "price_1TJYQ132satLY6UqTC9xBmS2",
+        "40x60": "price_1TJYQ232satLY6UqZWriCWAQ"
+      },
+      "b-nissan-gt-r35": {
+        "30x45": "price_1TKFG532satLY6Uq2Dpge5Pw",
+        "40x60": "price_1TKFG632satLY6UqnDL624m2"
+      },
+      "b-yamaha-r1": {
+        "30x45": "price_1TKFG732satLY6UqYIs2mrrD",
+        "40x60": "price_1TKFG832satLY6Uqeo1YNWGS"
+      },
+      "bmw-classic-3-0": {
+        "30x45": "price_1TKFGA32satLY6Uq0McCmaZb",
+        "40x60": "price_1TKFGA32satLY6Uq5Zw9EcWD"
+      },
+      "bmw-m1000rr": {
+        "30x45": "price_1TKFGC32satLY6UqWoJ272ZI",
+        "40x60": "price_1TKFGD32satLY6UqCbIZC4cR"
+      },
+      "bmw-m2-neon": {
+        "30x45": "price_1TKFGE32satLY6Uq6PXtrTLp",
+        "40x60": "price_1TKFGF32satLY6UqaTVhAzEL"
+      },
+      "bmw-m4": {
+        "30x45": "price_1TKFGH32satLY6UqdnnipuQP",
+        "40x60": "price_1TKFGI32satLY6Uq4ov8SEUr"
+      },
+      "bmw-m4-black": {
+        "30x45": "price_1TKFGK32satLY6UqsZLMk5Jq",
+        "40x60": "price_1TKFGK32satLY6UqqBhGtff8"
+      },
+      "bmw-m5-e39": {
+        "30x45": "price_1TKFGM32satLY6UqBxiFEFFn",
+        "40x60": "price_1TKFGN32satLY6UqaZIqRRKW"
+      },
+      "bugatti-tailights": {
+        "30x45": "price_1TKFGO32satLY6Uqe9UgQC8s",
+        "40x60": "price_1TKFGP32satLY6UquwJkDbeP"
+      },
+      "c-ford-mustang-gt350r": {
+        "30x45": "price_1TKFGQ32satLY6Uqh8RlLs8Z",
+        "40x60": "price_1TKFGR32satLY6UqMHjPAX3p"
+      },
+      "c-lamborghini-oragne": {
+        "30x45": "price_1TKFGT32satLY6Uq20IaM6tS",
+        "40x60": "price_1TKFGT32satLY6Uqwrx6rKbQ"
+      },
+      "dark-colour-audi": {
+        "30x45": "price_1TKFGV32satLY6UqZcotljnl",
+        "40x60": "price_1TKFGV32satLY6UqayGnSyxo"
+      },
+      "dodge-srt-hellcat-01": {
+        "30x45": "price_1TKFGX32satLY6Uq2h5YPnGE",
+        "40x60": "price_1TKFGX32satLY6Uq0cPHUcJn"
+      },
+      "ferrari-488": {
+        "30x45": "price_1TKFGZ32satLY6Uq99Mj3dhf",
+        "40x60": "price_1TKFGa32satLY6UqAioP3DSt"
+      },
+      "ferrari-f8": {
+        "30x45": "price_1TKFGb32satLY6UqNJ8nSAsO",
+        "40x60": "price_1TKFGc32satLY6UqwRrBy29A"
+      },
+      "lambrghini-svj-tailights": {
+        "30x45": "price_1TKFGd32satLY6UqFp3weiOi",
+        "40x60": "price_1TKFGe32satLY6UqpxHnxJb1"
+      },
+      "mercedes-benz-amg-1": {
+        "30x45": "price_1TKFGf32satLY6UqIkVIkd9B",
+        "40x60": "price_1TKFGg32satLY6UqjGMEwcHq"
+      },
+      "mercedes-benz-cls-amg63": {
+        "30x45": "price_1TKFGh32satLY6UqJKoG80UC",
+        "40x60": "price_1TKFGi32satLY6UqnoPSOYKx"
+      },
+      "mercedes-benz-g63-double-tail-2": {
+        "30x45": "price_1TKFGk32satLY6UqwPxzXnP9",
+        "40x60": "price_1TKFGl32satLY6UqZAtaSgTp"
+      },
+      "nissan-gtr": {
+        "30x45": "price_1TKFGm32satLY6UqfH0kyE22",
+        "40x60": "price_1TKFGn32satLY6Uq76AtX6MX"
+      },
+      "porsche-gt3-rs": {
+        "30x45": "price_1TKFGo32satLY6UqhkACYgOL",
+        "40x60": "price_1TKFGp32satLY6UqvISVfXbb"
+      },
+      "porsche-gt3-rs-green": {
+        "30x45": "price_1TKFGr32satLY6UqTiTFvutw",
+        "40x60": "price_1TKFGr32satLY6UqVItj8dRh"
+      },
+      "porsche-gt3-rs-grey": {
+        "30x45": "price_1TKFGt32satLY6Uq3fmeaNYT",
+        "40x60": "price_1TKFGt32satLY6Uqp6zZrkIM"
+      },
+      "porsche-r": {
+        "30x45": "price_1TKFGv32satLY6UqKVUpwePJ",
+        "40x60": "price_1TKFGw32satLY6UqPOBSazJW"
+      },
+      "toyota-supra": {
+        "30x45": "price_1TKFGx32satLY6UqzJEOujss",
+        "40x60": "price_1TKFGy32satLY6Uq7H2OS7f4"
+      },
+      "xa-ferrari-motorcycle-1": {
+        "30x45": "price_1TKFH032satLY6Uqgjlrpin4",
+        "40x60": "price_1TKFH032satLY6UqB1dbrDNJ"
+      },
+      "xd-bmw-headlights-motorcycle": {
+        "30x45": "price_1TKFH232satLY6Uq7t8rCL6T",
+        "40x60": "price_1TKFH232satLY6Uqu8Glnqga"
       }
+    }
   };
 })();

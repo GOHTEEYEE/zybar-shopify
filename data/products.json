@@ -4,14 +4,147 @@
     "30x45": 110,
     "40x60": 150
   },
+  "perProductPricesBySize": {},
   "products": [
-    { "slug": "audi-r8-white", "name": "Audi R8 – White" },
-    { "slug": "audi-r8-yellow", "name": "Audi R8 – Yellow" },
-    { "slug": "audi-r8-gt3", "name": "Audi R8 GT3" },
-    { "slug": "audi-rs6", "name": "Audi RS6" },
-    { "slug": "b-ferrari-f40", "name": "B Ferrari F40" },
-    { "slug": "b-maserati-mc20", "name": "B Maserati MC20" },
-    { "slug": "b-dodge-hellcat-02", "name": "B Dodge Hellcat 02" },
-    { "slug": "b-dodge-hellcat-03", "name": "B Dodge Hellcat 03" }
+    {
+      "slug": "audi-r8-gt3",
+      "name": "Audi R8 GT3"
+    },
+    {
+      "slug": "audi-r8-white",
+      "name": "Audi R8 – White"
+    },
+    {
+      "slug": "audi-r8-yellow",
+      "name": "Audi R8 – Yellow"
+    },
+    {
+      "slug": "audi-rs6",
+      "name": "Audi RS6"
+    },
+    {
+      "slug": "b-dodge-hellcat-02",
+      "name": "B Dodge Hellcat 02"
+    },
+    {
+      "slug": "b-dodge-hellcat-03",
+      "name": "B Dodge Hellcat 03"
+    },
+    {
+      "slug": "b-ferrari-f40",
+      "name": "B Ferrari F40"
+    },
+    {
+      "slug": "b-maserati-mc20",
+      "name": "B Maserati MC20"
+    },
+    {
+      "slug": "b-nissan-gt-r35",
+      "name": "B Nissan Gt R35"
+    },
+    {
+      "slug": "b-yamaha-r1",
+      "name": "B Yamaha R1"
+    },
+    {
+      "slug": "bmw-classic-3-0",
+      "name": "Bmw Classic 3 0"
+    },
+    {
+      "slug": "bmw-m1000rr",
+      "name": "Bmw M1000rr"
+    },
+    {
+      "slug": "bmw-m2-neon",
+      "name": "Bmw M2 Neon"
+    },
+    {
+      "slug": "bmw-m4",
+      "name": "Bmw M4"
+    },
+    {
+      "slug": "bmw-m4-black",
+      "name": "Bmw M4 Black"
+    },
+    {
+      "slug": "bmw-m5-e39",
+      "name": "Bmw M5 E39"
+    },
+    {
+      "slug": "bugatti-tailights",
+      "name": "Bugatti Tailights"
+    },
+    {
+      "slug": "c-ford-mustang-gt350r",
+      "name": "C Ford Mustang Gt350r"
+    },
+    {
+      "slug": "c-lamborghini-oragne",
+      "name": "C Lamborghini Oragne"
+    },
+    {
+      "slug": "dark-colour-audi",
+      "name": "Dark Colour Audi"
+    },
+    {
+      "slug": "dodge-srt-hellcat-01",
+      "name": "Dodge Srt Hellcat 01"
+    },
+    {
+      "slug": "ferrari-488",
+      "name": "Ferrari 488"
+    },
+    {
+      "slug": "ferrari-f8",
+      "name": "Ferrari F8"
+    },
+    {
+      "slug": "lambrghini-svj-tailights",
+      "name": "Lambrghini Svj Tailights"
+    },
+    {
+      "slug": "mercedes-benz-amg-1",
+      "name": "Mercedes Benz Amg 1"
+    },
+    {
+      "slug": "mercedes-benz-cls-amg63",
+      "name": "Mercedes Benz Cls Amg63"
+    },
+    {
+      "slug": "mercedes-benz-g63-double-tail-2",
+      "name": "Mercedes Benz G63 Double Tail 2"
+    },
+    {
+      "slug": "nissan-gtr",
+      "name": "Nissan Gtr"
+    },
+    {
+      "slug": "porsche-gt3-rs",
+      "name": "Porsche Gt3 Rs"
+    },
+    {
+      "slug": "porsche-gt3-rs-green",
+      "name": "Porsche Gt3 Rs Green"
+    },
+    {
+      "slug": "porsche-gt3-rs-grey",
+      "name": "Porsche Gt3 Rs Grey"
+    },
+    {
+      "slug": "porsche-r",
+      "name": "Porsche R"
+    },
+    {
+      "slug": "toyota-supra",
+      "name": "Toyota Supra"
+    },
+    {
+      "slug": "xa-ferrari-motorcycle-1",
+      "name": "Xa Ferrari Motorcycle 1"
+    },
+    {
+      "slug": "xd-bmw-headlights-motorcycle",
+      "name": "Xd Bmw Headlights Motorcycle"
+    }
   ]
 }
