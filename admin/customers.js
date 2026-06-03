@@ -140,12 +140,26 @@ window.renderAdmincustomers = function (container) {
     filterAndRender();
   }
 
+  function formatFullShippingAddress(r) {
+    var parts = [
+      r.shipping_address,
+      r.city,
+      r.state,
+      r.postcode,
+      r.country
+    ].filter(function (p) {
+      return p && String(p).trim();
+    });
+    return parts.length ? parts.join(', ') : '—';
+  }
+
   function filterAndRender() {
     var q = (searchInput && searchInput.value || '').trim().toLowerCase();
     var filtered = q
       ? allRows.filter(function (r) {
           return (r.client_name && r.client_name.toLowerCase().indexOf(q) !== -1) ||
-                 (r.email && r.email.toLowerCase().indexOf(q) !== -1);
+                 (r.email && r.email.toLowerCase().indexOf(q) !== -1) ||
+                 (r.phone && r.phone.toLowerCase().indexOf(q) !== -1);
         })
       : allRows;
 
@@ -155,7 +169,6 @@ window.renderAdmincustomers = function (container) {
     }
 
     var html = filtered.map(function (r) {
-      var contact = (r.email || '') + (r.phone ? '<br><small>' + escapeHtml(r.phone) + '</small>' : '');
       var amount = typeof r.amount_paid_usd === 'number' ? (isZybarMy ? 'RM ' : '$') + r.amount_paid_usd.toFixed(2) : formatAmount(r.amount_total_cents);
       var statusCls = statusBadgeClass(r.status);
       return '<tr>' +
@@ -163,7 +176,7 @@ window.renderAdmincustomers = function (container) {
         '<td>' + escapeHtml(r.email) + (r.phone ? '<br><small style="color:var(--admin-text-muted)">' + escapeHtml(r.phone) + '</small>' : '') + '</td>' +
         '<td>' + escapeHtml(r.product_bought) + '</td>' +
         '<td class="admin-cell-price">' + amount + '</td>' +
-        '<td style="max-width:180px;font-size:0.875rem;">' + escapeHtml(r.shipping_address) + '</td>' +
+        '<td style="max-width:220px;font-size:0.875rem;">' + escapeHtml(formatFullShippingAddress(r)) + '</td>' +
         '<td>' + escapeHtml(formatDate(r.order_date)) + '</td>' +
         '<td><span class="admin-badge ' + statusCls + '">' + escapeHtml(r.status || 'Processing') + '</span></td>' +
         '<td><a href="' + escapeHtml(r.receipt_url || '/receipt.html') + '" target="_blank" rel="noopener" class="admin-btn-view">View Order</a></td>' +
@@ -180,7 +193,11 @@ window.renderAdmincustomers = function (container) {
   var sb = !isZybarMy ? window.supabase : null;
   if (sb) {
     sb.from('orders')
-      .select('id, stripe_session_id, customer_email, amount_total_cents, product_slug, size, quantity, status, created_at')
+      .select(
+        'id, stripe_session_id, customer_name, customer_email, customer_phone, ' +
+        'shipping_address, city, state, postcode, country, ' +
+        'amount_total_cents, product_slug, size, quantity, status, created_at'
+      )
       .order('created_at', { ascending: false })
       .limit(200)
       .then(function (res) {
@@ -194,12 +211,16 @@ window.renderAdmincustomers = function (container) {
             var productName = slug ? slug.replace(/\b\w/g, function (c) { return c.toUpperCase(); }) : 'Product';
             return {
               id: o.id,
-              client_name: o.customer_email || '—',
+              client_name: o.customer_name || o.customer_email || '—',
               email: o.customer_email || '—',
-              phone: '—',
+              phone: o.customer_phone || '',
               product_bought: productName + (o.size ? ' [' + o.size + ']' : ''),
               amount_paid_usd: (o.amount_total_cents || 0) / 100,
-              shipping_address: '—',
+              shipping_address: o.shipping_address || '',
+              city: o.city || '',
+              state: o.state || '',
+              postcode: o.postcode || '',
+              country: o.country || '',
               order_date: o.created_at,
               status: o.status === 'completed' ? 'Delivered' : (o.status || 'Processing'),
               receipt_url: '/receipt.html?id=' + (o.stripe_session_id || o.id || '')

@@ -22,15 +22,18 @@ export interface CreateCheckoutSessionRequest {
   priceId?: string;
   quantity?: number;
   lineItems?: CheckoutLineItemRequest[];
-  successUrl: string;
-  cancelUrl: string;
+  successUrl?: string;
+  cancelUrl?: string;
+  returnUrl?: string;
+  embedded?: boolean;
   productSlug?: string;
   size?: string;
 }
 
 /** Response from your create-checkout-session API. */
 export interface CreateCheckoutSessionResponse {
-  url: string;
+  url?: string;
+  clientSecret?: string;
   sessionId?: string;
 }
 

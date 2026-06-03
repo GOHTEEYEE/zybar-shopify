@@ -432,7 +432,14 @@ app.post(
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      console.log('Checkout completed:', session.id, session.customer_email, session.metadata);
+      const customer = extractOrderCustomerFields(session);
+      console.log(
+        'Checkout completed:',
+        session.id,
+        customer.customer_email,
+        customer.customer_name,
+        session.metadata
+      );
 
       if (supabase) {
         try {
@@ -441,7 +448,14 @@ app.post(
           const { error } = await supabase.from('orders').insert({
             stripe_session_id: session.id,
             stripe_payment_intent: session.payment_intent || null,
-            customer_email: session.customer_details && session.customer_details.email ? session.customer_details.email : session.customer_email || null,
+            customer_name: customer.customer_name,
+            customer_email: customer.customer_email,
+            customer_phone: customer.customer_phone,
+            shipping_address: customer.shipping_address,
+            city: customer.city,
+            state: customer.state,
+            postcode: customer.postcode,
+            country: customer.country,
             currency: (session.currency || 'usd').toLowerCase(),
             amount_total_cents: amount,
             product_slug: session.metadata && session.metadata.productSlug ? session.metadata.productSlug : null,
@@ -928,13 +942,228 @@ app.get('/api/contact-inquiries', async (req, res) => {
   return res.json({ data: inquiries, source: 'local' });
 });
 
+function formatSizeLabel(size) {
+  const raw = String(size || '').trim();
+  if (!raw) return '';
+  const normalized = raw.replace(/\s*x\s*/gi, ' x ');
+  if (/\bcm\b/i.test(normalized)) return normalized;
+  return normalized + ' cm';
+}
+
+function formatMoneyFromCents(cents, currency) {
+  const cur = String(currency || 'usd').toUpperCase();
+  const amount = (Number(cents) || 0) / 100;
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(amount);
+  } catch (_) {
+    return cur + ' ' + amount.toFixed(2);
+  }
+}
+
+function formatOrderNumber(sessionId) {
+  const id = String(sessionId || '');
+  const suffix = id.replace(/^cs_(test|live)_/i, '').slice(-6).toUpperCase();
+  return 'ZY-' + (suffix || 'ORDER');
+}
+
+function formatShippingAddress(details) {
+  if (!details || typeof details !== 'object') {
+    return { name: '', address: '', phone: '' };
+  }
+  const addr = details.address && typeof details.address === 'object' ? details.address : {};
+  const lines = [];
+  const line1 = addr.line1 || addr.line_1;
+  const line2 = addr.line2 || addr.line_2;
+  if (line1) lines.push(String(line1));
+  if (line2) lines.push(String(line2));
+  const cityParts = [
+    addr.city,
+    addr.state,
+    addr.postal_code || addr.postalCode,
+    addr.country
+  ].filter(Boolean);
+  if (cityParts.length) lines.push(cityParts.join(', '));
+  return {
+    name: details.name ? String(details.name) : '',
+    address: lines.join(', '),
+    phone: details.phone ? String(details.phone) : ''
+  };
+}
+
+/** Normalized customer + shipping fields for Supabase orders (Stripe Checkout Session). */
+function extractOrderCustomerFields(session) {
+  const details =
+    session && (session.customer_details || session.shipping_details)
+      ? session.customer_details || session.shipping_details
+      : null;
+  const email =
+    details && details.email
+      ? String(details.email).trim()
+      : session && session.customer_email
+        ? String(session.customer_email).trim()
+        : null;
+  const phone = details && details.phone ? String(details.phone).trim() : null;
+  const name = details && details.name ? String(details.name).trim() : null;
+  const addr =
+    details && details.address && typeof details.address === 'object' ? details.address : {};
+  const line1 = addr.line1 || addr.line_1 || '';
+  const line2 = addr.line2 || addr.line_2 || '';
+  const streetParts = [line1, line2].map(function (s) {
+    return String(s || '').trim();
+  }).filter(Boolean);
+
+  return {
+    customer_name: name || null,
+    customer_email: email || null,
+    customer_phone: phone || null,
+    shipping_address: streetParts.length ? streetParts.join(', ') : null,
+    city: addr.city ? String(addr.city).trim() : null,
+    state: addr.state ? String(addr.state).trim() : null,
+    postcode:
+      addr.postal_code || addr.postalCode
+        ? String(addr.postal_code || addr.postalCode).trim()
+        : null,
+    country: addr.country ? String(addr.country).trim() : null
+  };
+}
+
+async function getPaymentMethodLabel(paymentIntentId) {
+  if (!paymentIntentId || !stripe) return null;
+  try {
+    const pi = await stripe.paymentIntents.retrieve(String(paymentIntentId), {
+      expand: ['payment_method']
+    });
+    const pm = pi.payment_method;
+    if (pm && typeof pm === 'object' && pm.card && pm.card.last4) {
+      const brand = pm.card.brand
+        ? String(pm.card.brand).charAt(0).toUpperCase() + String(pm.card.brand).slice(1)
+        : 'Card';
+      return brand + ' ending in ' + pm.card.last4;
+    }
+  } catch (err) {
+    console.warn('Could not load payment method for session:', err.message || err);
+  }
+  return null;
+}
+
+// ----- Retrieve completed Checkout Session (for confirmation page) -----
+app.get('/api/checkout-session', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe is not configured' });
+  }
+  const sessionId = typeof req.query.session_id === 'string' ? req.query.session_id.trim() : '';
+  if (!sessionId || !sessionId.startsWith('cs_')) {
+    return res.status(400).json({ error: 'Invalid session_id' });
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const paid =
+      session.payment_status === 'paid' ||
+      session.payment_status === 'no_payment_required' ||
+      session.status === 'complete';
+    if (!paid) {
+      return res.status(402).json({
+        error: 'Order not completed yet',
+        status: session.status,
+        paymentStatus: session.payment_status
+      });
+    }
+
+    const lineItemsRes = await stripe.checkout.sessions.listLineItems(sessionId, {
+      limit: 100,
+      expand: ['data.price.product']
+    });
+
+    const currency = (session.currency || 'usd').toLowerCase();
+    const items = (lineItemsRes.data || []).map(function (row) {
+      const price = row.price && typeof row.price === 'object' ? row.price : null;
+      const product =
+        price && price.product && typeof price.product === 'object' ? price.product : null;
+      const slug =
+        (product && product.metadata && product.metadata.slug) ||
+        (session.metadata && session.metadata.productSlug) ||
+        '';
+      const size =
+        (price && price.metadata && price.metadata.size) ||
+        (session.metadata && session.metadata.size) ||
+        '';
+      const name = product && product.name ? product.name : row.description || 'Product';
+      const amountCents = typeof row.amount_total === 'number' ? row.amount_total : 0;
+      return {
+        name: name,
+        slug: slug,
+        size: size,
+        sizeLabel: formatSizeLabel(size),
+        quantity: row.quantity || 1,
+        imageUrl: slug ? '/Image/' + slug + '-1-on.webp' : '',
+        amountCents: amountCents,
+        amountFormatted: formatMoneyFromCents(amountCents, currency)
+      };
+    });
+
+    const shipping = formatShippingAddress(session.customer_details || session.shipping_details);
+    const shippingCents =
+      session.total_details &&
+      typeof session.total_details.amount_shipping === 'number'
+        ? session.total_details.amount_shipping
+        : 0;
+    const subtotalCents =
+      typeof session.amount_subtotal === 'number' ? session.amount_subtotal : session.amount_total || 0;
+    const totalCents = typeof session.amount_total === 'number' ? session.amount_total : 0;
+
+    const paymentLabel = await getPaymentMethodLabel(
+      typeof session.payment_intent === 'string' ? session.payment_intent : null
+    );
+
+    return res.json({
+      orderNumber: formatOrderNumber(session.id),
+      email: session.customer_details && session.customer_details.email
+        ? session.customer_details.email
+        : session.customer_email || '',
+      shipping: shipping,
+      paymentMethod: paymentLabel || 'Card payment',
+      items: items,
+      subtotalCents: subtotalCents,
+      subtotalFormatted: formatMoneyFromCents(subtotalCents, currency),
+      shippingCents: shippingCents,
+      shippingFormatted:
+        shippingCents > 0 ? formatMoneyFromCents(shippingCents, currency) : 'FREE',
+      totalCents: totalCents,
+      totalFormatted: formatMoneyFromCents(totalCents, currency),
+      currency: currency
+    });
+  } catch (err) {
+    console.error('Checkout session retrieve failed:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load order' });
+  }
+});
+
 // ----- Create Checkout Session -----
 app.post('/api/create-checkout-session', async (req, res) => {
   if (!stripe) {
     return res.status(503).json({ error: 'Stripe is not configured' });
   }
-  const { priceId, quantity, lineItems, successUrl, cancelUrl, productSlug, size } = req.body || {};
-  if (!successUrl || !cancelUrl) {
+  const {
+    priceId,
+    quantity,
+    lineItems,
+    successUrl,
+    cancelUrl,
+    returnUrl,
+    productSlug,
+    size,
+    embedded,
+    custom
+  } = req.body || {};
+  const isEmbedded = embedded === true || embedded === 'true';
+  const isCustom = custom === true || custom === 'true';
+
+  if (isEmbedded || isCustom) {
+    if (!returnUrl && !successUrl) {
+      return res.status(400).json({ error: 'returnUrl or successUrl is required for checkout' });
+    }
+  } else if (!successUrl || !cancelUrl) {
     return res.status(400).json({ error: 'successUrl and cancelUrl are required' });
   }
 
@@ -971,7 +1200,6 @@ app.post('/api/create-checkout-session', async (req, res) => {
     if (!priceId || typeof quantity !== 'number' || quantity < 1) {
       return res.status(400).json({ error: 'Invalid request: priceId and quantity (number >= 1) required' });
     }
-    // Prefer canonical product+size mapping from synced file when available.
     const configuredPrice = getConfiguredPriceId(productSlug, size);
     const requestedPrice = configuredPrice || priceId;
     const resolvedPrice = await resolveActivePriceId(requestedPrice);
@@ -987,15 +1215,66 @@ app.post('/api/create-checkout-session', async (req, res) => {
   metadata.quantity = String(totalQty);
   metadata.cartItems = String(stripeLineItems.length);
 
+  function buildReturnUrl() {
+    if (returnUrl) return String(returnUrl);
+    const base = String(successUrl || '');
+    if (base.indexOf('{CHECKOUT_SESSION_ID}') !== -1) return base;
+    const join = base.indexOf('?') === -1 ? '?' : '&';
+    return base + join + 'session_id={CHECKOUT_SESSION_ID}';
+  }
+
+  const sessionBase = {
+    mode: 'payment',
+    line_items: stripeLineItems,
+    metadata,
+    branding_settings: {
+      background_color: '#111111',
+      button_color: '#d9ff00',
+      border_style: 'rounded',
+      font_family: 'inter'
+    },
+    custom_text: {
+      submit: {
+        message: 'Complete your secure order'
+      }
+    }
+  };
+
   try {
     console.log('Checkout line item prices:', stripeLineItems.map(function (i) { return i.price; }));
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      line_items: stripeLineItems,
+
+    if (isCustom || isEmbedded) {
+      if (isCustom) {
+        try {
+          const session = await stripe.checkout.sessions.create(Object.assign({}, sessionBase, {
+            ui_mode: 'custom',
+            return_url: buildReturnUrl()
+          }));
+          return res.json({
+            clientSecret: session.client_secret,
+            sessionId: session.id,
+            checkoutMode: 'custom'
+          });
+        } catch (customErr) {
+          console.warn('Custom checkout unavailable, using embedded:', customErr.message || customErr);
+        }
+      }
+      const session = await stripe.checkout.sessions.create(Object.assign({}, sessionBase, {
+        ui_mode: 'embedded',
+        return_url: buildReturnUrl()
+      }));
+      return res.json({
+        clientSecret: session.client_secret,
+        sessionId: session.id,
+        checkoutMode: 'embedded',
+        embedded: true
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create(Object.assign({}, sessionBase, {
       success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata,
-    });
+      cancel_url: cancelUrl
+    }));
     return res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
     console.error('Checkout session creation failed:', err);

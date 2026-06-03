@@ -335,9 +335,11 @@ body {
 }
 
 .trending-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 1.25rem;
+}
+
+.trending-section .product-card {
+  border-radius: 16px;
 }
 
 .trending-card {

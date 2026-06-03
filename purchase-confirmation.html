@@ -370,6 +370,22 @@
         color: var(--zybar-blue);
       }
 
+      .pc-loading,
+      .pc-error {
+        font-size: 0.9rem;
+        color: #cfd6e3;
+        margin-bottom: 16px;
+      }
+
+      .pc-error {
+        color: #f87171;
+      }
+
+      .pc-card.is-loading .pc-dynamic {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+
       @media (max-width: 768px) {
         body {
           padding: 16px;
@@ -430,74 +446,62 @@
         Thank you for your purchase. We are now calibrating the selective illumination for your specific model. You
         will receive a tracking number once your art has passed our final quality inspection.
       </p>
-      <div class="pc-details" aria-label="Order details">
-        <span>Order&nbsp;<strong style="color: #3498db">#ZY-7782</strong></span>
-        <span>Estimated Delivery&nbsp;<strong>7–14 Days</strong></span>
-      </div>
-      <hr class="pc-divider" />
-      <section class="pc-meta-grid" aria-label="Purchaser details">
-        <div>
-          <h2 class="pc-meta-block-title">Shipping to</h2>
-          <div class="pc-meta-line">
-            <div class="pc-meta-line-label">Name</div>
-            <div class="pc-meta-line-value">Jonathan Miller</div>
-          </div>
-          <div class="pc-meta-line">
-            <div class="pc-meta-line-label">Address</div>
-            <div class="pc-meta-line-value">
-              No. 27, Circuit Avenue, Mantin, Negeri Sembilan, 71700, Malaysia
+      <p id="pc-status" class="pc-loading" hidden>Loading your order details…</p>
+      <p id="pc-error" class="pc-error" hidden></p>
+      <div class="pc-dynamic">
+        <div class="pc-details" aria-label="Order details">
+          <span>Order&nbsp;<strong id="pc-order-number" style="color: #3498db">—</strong></span>
+          <span>Estimated Delivery&nbsp;<strong>7–14 Days</strong></span>
+        </div>
+        <hr class="pc-divider" />
+        <section class="pc-meta-grid" aria-label="Purchaser details">
+          <div>
+            <h2 class="pc-meta-block-title">Shipping to</h2>
+            <div class="pc-meta-line">
+              <div class="pc-meta-line-label">Name</div>
+              <div class="pc-meta-line-value" id="pc-ship-name">—</div>
+            </div>
+            <div class="pc-meta-line">
+              <div class="pc-meta-line-label">Address</div>
+              <div class="pc-meta-line-value" id="pc-ship-address">—</div>
+            </div>
+            <div class="pc-meta-line">
+              <div class="pc-meta-line-label">Phone</div>
+              <div class="pc-meta-line-value" id="pc-ship-phone">—</div>
             </div>
           </div>
-          <div class="pc-meta-line">
-            <div class="pc-meta-line-label">Phone</div>
-            <div class="pc-meta-line-value">+60 12 345 6789</div>
+          <div>
+            <h2 class="pc-meta-block-title">Payment method</h2>
+            <div class="pc-meta-line">
+              <div class="pc-meta-line-label">Card</div>
+              <div class="pc-meta-line-value" id="pc-payment-method">—</div>
+            </div>
           </div>
-        </div>
-        <div>
-          <h2 class="pc-meta-block-title">Payment method</h2>
-          <div class="pc-meta-line">
-            <div class="pc-meta-line-label">Card</div>
-            <div class="pc-meta-line-value">Credit Card ending in 0921</div>
+        </section>
+        <div id="pc-items" aria-label="Purchased items"></div>
+        <section class="pc-summary" aria-label="Price summary">
+          <div class="pc-summary-row">
+            <span>Subtotal</span>
+            <span><strong id="pc-subtotal">—</strong></span>
           </div>
-        </div>
-      </section>
-      <section class="pc-item-row" aria-label="Purchased item">
-        <div>
-          <img
-            src="/Image/audi-r8-white-1.webp"
-            alt="Audi R8 White Edition - LED Light Painting Wall Art"
-            class="pc-item-thumb"
-            loading="lazy"
-            width="990"
-            height="990"
-          />
-        </div>
-        <div>
-          <div class="pc-item-name">PORSCHE GT3 RS – SELECTIVE ILLUMINATION</div>
-          <div class="pc-item-meta">Quantity: 1 &nbsp;•&nbsp; Size: 40 x 60 cm</div>
-        </div>
-        <div class="pc-item-price">USD 249.00</div>
-      </section>
-      <section class="pc-summary" aria-label="Price summary">
-        <div class="pc-summary-row">
-          <span>Subtotal</span>
-          <span><strong>USD 249.00</strong></span>
-        </div>
-        <div class="pc-summary-row">
-          <span>Shipping</span>
-          <span><strong>FREE</strong></span>
-        </div>
-        <div class="pc-summary-row pc-summary-row--total">
-          <span>Total</span>
-          <span><strong>USD 249.00</strong></span>
-        </div>
-      </section>
+          <div class="pc-summary-row">
+            <span>Shipping</span>
+            <span><strong id="pc-shipping">—</strong></span>
+          </div>
+          <div class="pc-summary-row pc-summary-row--total">
+            <span>Total</span>
+            <span><strong id="pc-total">—</strong></span>
+          </div>
+        </section>
+      </div>
       <div class="pc-actions">
         <a href="/collections/all/" class="pc-btn">Back to Gallery</a>
         <p class="pc-social">Share your dream: <span>@ZYBAR_OFFICIAL</span></p>
       </div>
     </main>
-      <script src="/js/chatbot.js"></script>
+    <script src="/js/stripe-config.js"></script>
+    <script src="/js/purchase-confirmation.js" defer></script>
+    <script src="/js/chatbot.js"></script>
   </body>
 </html>
 

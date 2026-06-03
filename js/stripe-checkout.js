@@ -5,6 +5,7 @@
 (function () {
   "use strict";
   var CART_STORAGE_KEY = "zybar.cart.items";
+  var CHECKOUT_PENDING_KEY = "zybar.checkout.pending";
 
   function getProductSlug() {
     var path = (window.location && window.location.pathname) || "";
@@ -290,8 +291,7 @@
 
   function beginCartCheckout(items, button) {
     var config = getConfig();
-    var apiBase = config.apiBaseUrl || window.location.origin;
-    var successUrl = config.successUrl || (window.location.origin + "/collections/all/?checkout=success");
+    var successUrl = config.successUrl || (window.location.origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}");
     var cancelUrl = config.cancelUrl || window.location.href;
     var validItems = (items || []).map(function (item) {
       return {
@@ -314,35 +314,18 @@
       button.textContent = "Redirecting...";
     }
 
-    fetch(apiBase + "/api/create-checkout-session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lineItems: validItems,
-        successUrl: successUrl,
-        cancelUrl: cancelUrl
-      })
-    })
-      .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
-      .then(function (result) {
-        if (button) {
-          button.disabled = false;
-          button.textContent = "Pay with card";
-        }
-        if (result.ok && result.data && result.data.url) {
-          window.location.href = result.data.url;
-          return;
-        }
-        alert((result.data && result.data.error) ? result.data.error : "Checkout could not be started.");
-      })
-      .catch(function (err) {
-        if (button) {
-          button.disabled = false;
-          button.textContent = "Pay with card";
-        }
-        console.error(err);
-        alert("Something went wrong. Please try again.");
-      });
+    goToPremiumCheckout({
+      lineItems: validItems,
+      displayItems: buildDisplayItemsFromCart(
+        (items || []).filter(function (item) {
+          return item && validItems.some(function (v) {
+            return v.productSlug === item.slug && v.size === item.size;
+          });
+        })
+      ),
+      successUrl: successUrl,
+      cancelUrl: cancelUrl
+    });
   }
 
   function getPrimaryProductImage() {
@@ -835,6 +818,31 @@
     return "$" + Number(amount || 0).toFixed(2);
   }
 
+  function buildDisplayItemsFromCart(items) {
+    return (items || []).map(function (item) {
+      return {
+        name: item && item.name ? item.name : "Product",
+        imageUrl: item && item.imageUrl ? item.imageUrl : getProductImageUrlBySlug(item && item.slug),
+        sizeLabel: item && item.sizeLabel ? item.sizeLabel : sizeToLabel(item && item.size),
+        size: item && item.size ? item.size : "",
+        slug: item && item.slug ? item.slug : "",
+        quantity: item && item.quantity ? item.quantity : 1,
+        unitPriceUSD: item && item.unitPriceUSD ? item.unitPriceUSD : 0
+      };
+    });
+  }
+
+  function goToPremiumCheckout(payload) {
+    try {
+      window.sessionStorage.setItem(CHECKOUT_PENDING_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.error(err);
+      alert("Could not start checkout. Please try again.");
+      return;
+    }
+    window.location.href = "/checkout/";
+  }
+
   function getSizePriceUSD(config, slug, size) {
     var perProduct = (config && config.perProductSizePricesUSD) || {};
     if (slug && perProduct[slug] && typeof perProduct[slug][size] === "number") {
@@ -925,40 +933,35 @@
         return;
       }
 
-      var successUrl = config.successUrl || (window.location.origin + "/collections/all/?checkout=success");
+      var successUrl = config.successUrl || (window.location.origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}");
       var cancelUrl = config.cancelUrl || window.location.href;
 
-      var apiBase = config.apiBaseUrl || window.location.origin;
       var btn = event.target && event.target.closest("[data-stripe-action='checkout']");
       if (btn) btn.disabled = true;
 
-      fetch(apiBase + "/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      goToPremiumCheckout({
+        lineItems: [{
           priceId: priceId,
           quantity: quantity,
-          successUrl: successUrl,
-          cancelUrl: cancelUrl,
-          productSlug: slug || undefined,
-          size: size || undefined
-        })
-      })
-        .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
-        .then(function (result) {
-          if (btn) btn.disabled = false;
-          if (result.ok && result.data && result.data.url) {
-            window.location.href = result.data.url;
-            return;
-          }
-          var msg = (result.data && result.data.error) ? result.data.error : "Checkout could not be started.";
-          alert(msg);
-        })
-        .catch(function (err) {
-          if (btn) btn.disabled = false;
-          console.error(err);
-          alert("Something went wrong. Please try again.");
-        });
+          productSlug: slug || "",
+          size: size || ""
+        }],
+        displayItems: [{
+          name: getProductName(),
+          imageUrl: getCurrentProductImageUrl(),
+          sizeLabel: sizeToLabel(size),
+          size: size,
+          slug: slug,
+          quantity: quantity,
+          unitPriceUSD: getSizePriceUSD(config, slug, size)
+        }],
+        priceId: priceId,
+        quantity: quantity,
+        productSlug: slug || undefined,
+        size: size || undefined,
+        successUrl: successUrl,
+        cancelUrl: cancelUrl
+      });
     };
   }
 

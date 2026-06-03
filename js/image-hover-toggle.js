@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-  var SELECTOR = "img.product-image, img.trending-card-img";
+  var SELECTOR = "img.product-image";
   var IMAGE_EXTS = ["webp", "png", "jpg", "jpeg"];
   var pairCache = {};
 
@@ -163,7 +163,7 @@
         overlay.remove();
       });
 
-      var trigger = img.closest(".product-image-link, .trending-card-image-link") || img;
+      var trigger = img.closest(".product-image-link") || img;
       trigger.addEventListener("mouseenter", showOff);
       trigger.addEventListener("mouseleave", showOn);
       trigger.addEventListener("focusin", showOff);
