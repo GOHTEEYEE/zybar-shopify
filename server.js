@@ -662,8 +662,20 @@ app.delete('/api/admin-reviews', async (req, res) => {
   }
 });
 
+function parseReviewIdsQuery(raw) {
+  const ids = [];
+  String(raw || '')
+    .split(',')
+    .forEach(function (part) {
+      const id = parseInt(String(part).trim(), 10);
+      if (id > 0 && ids.indexOf(id) === -1) ids.push(id);
+    });
+  return ids.slice(0, 24);
+}
+
 app.get('/api/reviews', async (req, res) => {
   const productSlug = String(req.query.productSlug || '').trim().slice(0, 80);
+  const reviewIds = parseReviewIdsQuery(req.query.reviewIds);
   const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 80, 200));
   const includeImages = String(req.query.includeImages || '').trim() !== '0';
   if (productSlug && !allowedProductSlugs.has(productSlug)) {
@@ -674,17 +686,22 @@ app.get('/api/reviews', async (req, res) => {
   }
 
   try {
-    const reviewColumns = includeImages
-      ? 'id,product_slug,product_name,customer_name,rating,review_text,image_data_url,created_at'
-      : 'id,product_slug,product_name,customer_name,rating,review_text,created_at';
+    const reviewColumns = reviewIds.length && includeImages
+      ? 'id,image_data_url'
+      : includeImages
+        ? 'id,product_slug,product_name,customer_name,rating,review_text,image_data_url,created_at'
+        : 'id,product_slug,product_name,customer_name,rating,review_text,created_at';
     let query = supabase
       .from('product_reviews')
       .select(reviewColumns)
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .limit(reviewIds.length || limit);
     if (productSlug) {
       query = query.eq('product_slug', productSlug);
+    }
+    if (reviewIds.length) {
+      query = query.in('id', reviewIds);
     }
     const result = await query;
     if (result.error) {

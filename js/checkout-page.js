@@ -87,7 +87,7 @@
     var unit = Number(item.unitPriceUSD);
     var safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
     var lineTotal = safeQty * safeUnit;
-    var imageUrl = item.imageUrl || (item.slug ? "/Image/" + item.slug + "-1-on.webp" : "");
+    var imageUrl = item.imageUrl || (item.slug ? "/Image/" + item.slug + "-1.webp" : "");
     var titles = splitProductTitle(item.name);
     var variant = item.sizeLabel || item.size || "";
 

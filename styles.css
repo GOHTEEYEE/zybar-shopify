@@ -3273,6 +3273,18 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   outline: none;
 }
 
+.customer-reviews-feed .review-photo-wrap--pending {
+  background: linear-gradient(110deg, #eceff3 8%, #f8fafc 18%, #eceff3 33%);
+  background-size: 200% 100%;
+  animation: review-photo-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes review-photo-shimmer {
+  to {
+    background-position-x: -200%;
+  }
+}
+
 .review-photo-wrap {
   width: 100%;
   aspect-ratio: 1 / 1;

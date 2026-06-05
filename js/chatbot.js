@@ -35,7 +35,14 @@
 
   ensureCustomerReviewsNavLink();
 
+  function isHomePage() {
+    var path = window.location.pathname || '/';
+    var normalized = path.replace(/\/+$/, '') || '/';
+    return normalized === '/' || normalized === '/index.html';
+  }
+
   if (window.location.pathname.indexOf('/admin/') === 0) return;
+  if (!isHomePage()) return;
   if (document.getElementById('zybar-chatbot-root')) return;
 
   var styles = `

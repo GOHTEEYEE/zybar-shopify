@@ -289,7 +289,7 @@
     });
   }
 
-  function renderReviews(target, rows, onSelect) {
+  function renderReviews(target, rows, onSelect, imageLoader) {
     if (!target) return;
     target.innerHTML = '';
 
@@ -321,6 +321,13 @@
         img.src = imageUrl;
         media.appendChild(img);
         card.appendChild(media);
+      } else if (row.id && imageLoader) {
+        var pendingMedia = document.createElement('div');
+        pendingMedia.className = 'review-photo-wrap review-photo-wrap--pending';
+        pendingMedia.setAttribute('data-review-photo', String(row.id));
+        pendingMedia.setAttribute('aria-hidden', 'true');
+        card.appendChild(pendingMedia);
+        imageLoader.observeCard(card, row);
       }
 
       var body = document.createElement('div');
@@ -350,6 +357,163 @@
     });
   }
 
+  function fetchReviewsFromApi(query) {
+    return fetch('/api/reviews?' + query, { headers: { accept: 'application/json' } })
+      .then(function (response) {
+        return readJsonFromResponse(response).then(function (data) {
+          if (!response.ok) {
+            throw new Error(data && data.error ? data.error : 'Unable to load reviews.');
+          }
+          return data;
+        });
+      });
+  }
+
+  function createReviewImageLoader(onImageLoaded) {
+    var queue = [];
+    var queuedIds = {};
+    var loadingIds = {};
+    var noImageIds = {};
+    var flushTimer = null;
+    var observer = null;
+    var rowByCard = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+    function markNoImage(id) {
+      noImageIds[id] = true;
+    }
+
+    function applyImageToCard(card, row, imageUrl) {
+      var pending = card.querySelector('[data-review-photo="' + row.id + '"]');
+      if (!pending) return;
+      if (!imageUrl) {
+        pending.remove();
+        return;
+      }
+      row.image_data_url = imageUrl;
+      pending.className = 'review-photo-wrap';
+      pending.removeAttribute('data-review-photo');
+      pending.removeAttribute('aria-hidden');
+      var img = document.createElement('img');
+      img.className = 'review-photo';
+      img.loading = 'lazy';
+      img.alt = 'Customer review photo';
+      img.src = imageUrl;
+      pending.appendChild(img);
+      if (onImageLoaded) onImageLoaded(row);
+    }
+
+    function flushQueue() {
+      flushTimer = null;
+      var batch = queue.splice(0, 8);
+      batch.forEach(function (item) {
+        delete queuedIds[item.row.id];
+      });
+      if (!batch.length) return;
+
+      var ids = batch.map(function (item) {
+        loadingIds[item.row.id] = true;
+        return item.row.id;
+      });
+
+      fetchReviewsFromApi('reviewIds=' + ids.join(',') + '&includeImages=1')
+        .then(function (payload) {
+          var imageById = {};
+          (payload && Array.isArray(payload.data) ? payload.data : []).forEach(function (item) {
+            if (item && item.id) {
+              imageById[item.id] = safeText(item.image_data_url);
+            }
+          });
+          batch.forEach(function (item) {
+            delete loadingIds[item.row.id];
+            var imageUrl = imageById[item.row.id] || '';
+            if (!imageUrl) markNoImage(item.row.id);
+            applyImageToCard(item.card, item.row, imageUrl);
+          });
+        })
+        .catch(function () {
+          batch.forEach(function (item) {
+            delete loadingIds[item.row.id];
+          });
+        });
+    }
+
+    function scheduleFlush() {
+      if (flushTimer) return;
+      flushTimer = window.setTimeout(flushQueue, 60);
+    }
+
+    function enqueue(card, row) {
+      var id = row && row.id;
+      if (!id || row.image_data_url || noImageIds[id] || queuedIds[id] || loadingIds[id]) return;
+      queuedIds[id] = true;
+      queue.push({ card: card, row: row });
+      scheduleFlush();
+    }
+
+    function observeCard(card, row) {
+      if (!row || !row.id) return;
+      if (rowByCard) rowByCard.set(card, row);
+      if (!window.IntersectionObserver) {
+        enqueue(card, row);
+        return;
+      }
+      if (!observer) {
+        observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            var node = entry.target;
+            observer.unobserve(node);
+            var matchedRow = rowByCard ? rowByCard.get(node) : null;
+            if (!matchedRow || !node.querySelector('[data-review-photo]')) return;
+            enqueue(node, matchedRow);
+          });
+        }, { rootMargin: '240px 0px' });
+      }
+      observer.observe(card);
+    }
+
+    function fetchOne(row) {
+      if (!row || !row.id) return Promise.resolve('');
+      if (row.image_data_url) return Promise.resolve(row.image_data_url);
+      if (noImageIds[row.id]) return Promise.resolve('');
+      if (loadingIds[row.id]) {
+        return new Promise(function (resolve) {
+          var tries = 0;
+          var timer = window.setInterval(function () {
+            tries += 1;
+            if (row.image_data_url || noImageIds[row.id] || tries > 40) {
+              window.clearInterval(timer);
+              resolve(row.image_data_url || '');
+            }
+          }, 100);
+        });
+      }
+      loadingIds[row.id] = true;
+      return fetchReviewsFromApi('reviewIds=' + row.id + '&includeImages=1')
+        .then(function (payload) {
+          var match = (payload && Array.isArray(payload.data) ? payload.data : []).find(function (item) {
+            return item && item.id === row.id;
+          });
+          var imageUrl = safeText(match && match.image_data_url);
+          if (!imageUrl) markNoImage(row.id);
+          row.image_data_url = imageUrl;
+          return imageUrl;
+        })
+        .catch(function () {
+          return '';
+        })
+        .then(function (imageUrl) {
+          delete loadingIds[row.id];
+          return imageUrl;
+        });
+    }
+
+    return {
+      observeCard: observeCard,
+      fetchOne: fetchOne
+    };
+  }
+
   function boot() {
     var grid = document.getElementById('customerReviewsGrid');
     var status = document.getElementById('customerReviewsStatus');
@@ -366,7 +530,11 @@
     var modalProductLink = document.getElementById('reviewModalProductLink');
     if (!grid || !status || !modal || !modalClose || !modalMedia || !modalImage || !modalProduct || !modalCustomer || !modalStars || !modalDate || !modalComment || !modalProductLink) return;
 
+    var activeModalReviewId = null;
+    var imageLoader = createReviewImageLoader(function () {});
+
     function openModal(row) {
+      activeModalReviewId = row && row.id ? row.id : null;
       var imageUrl = safeText(row.image_data_url);
       modalProduct.textContent = safeText(row.product_name) || safeText(row.product_slug);
       modalCustomer.textContent = safeText(row.customer_name) || 'Customer';
@@ -374,23 +542,34 @@
       modalDate.textContent = formatDate(row.created_at) || 'Recent review';
       modalComment.textContent = safeText(row.review_text);
       modalProductLink.href = productPathFromSlug(row.product_slug);
+      modal.hidden = false;
+      document.body.classList.add('review-modal-open');
 
       if (imageUrl) {
         modalImage.src = imageUrl;
         modalImage.alt = 'Customer review photo by ' + (safeText(row.customer_name) || 'Customer');
         modalMedia.hidden = false;
-      } else {
-        modalImage.removeAttribute('src');
-        modalMedia.hidden = true;
+        modalClose.focus();
+        return;
       }
 
-      modal.hidden = false;
-      document.body.classList.add('review-modal-open');
+      modalImage.removeAttribute('src');
+      modalMedia.hidden = true;
       modalClose.focus();
+
+      if (!row.id || !imageLoader) return;
+      imageLoader.fetchOne(row).then(function (loadedUrl) {
+        if (modal.hidden || activeModalReviewId !== row.id) return;
+        if (!loadedUrl) return;
+        modalImage.src = loadedUrl;
+        modalImage.alt = 'Customer review photo by ' + (safeText(row.customer_name) || 'Customer');
+        modalMedia.hidden = false;
+      });
     }
 
     function closeModal() {
       modal.hidden = true;
+      activeModalReviewId = null;
       document.body.classList.remove('review-modal-open');
     }
 
@@ -406,24 +585,20 @@
 
     status.textContent = 'Loading reviews...';
 
-    fetch('/api/reviews?limit=120', { headers: { accept: 'application/json' } })
-      .then(function (response) {
-        return readJsonFromResponse(response).then(function (data) {
-          if (!response.ok) {
-            throw new Error(data && data.error ? data.error : 'Unable to load reviews.');
-          }
-          return data;
-        });
-      })
+    function showRows(rows) {
+      updateSummary(rows);
+      renderReviews(grid, rows, openModal, imageLoader);
+      status.textContent = rows.length ? ('Showing ' + rows.length + ' customer reviews') : 'No reviews found yet.';
+    }
+
+    fetchReviewsFromApi('limit=120&includeImages=0')
       .then(function (payload) {
         var rows = payload && Array.isArray(payload.data) ? payload.data : [];
         var localRows = isLiveDomain ? [] : loadLocalReviews();
         if (!isLiveDomain && localRows.length) {
           rows = localRows.concat(rows);
         }
-        updateSummary(rows);
-        renderReviews(grid, rows, openModal);
-        status.textContent = rows.length ? ('Showing ' + rows.length + ' customer reviews') : 'No reviews found yet.';
+        showRows(rows);
       })
       .catch(function (err) {
         if (isLiveDomain) {
@@ -433,9 +608,7 @@
         }
         var localRows = loadLocalReviews();
         if (localRows.length) {
-          updateSummary(localRows);
-          renderReviews(grid, localRows, openModal);
-          status.textContent = 'Showing ' + localRows.length + ' local customer reviews';
+          showRows(localRows);
           return;
         }
         updateSummary([]);

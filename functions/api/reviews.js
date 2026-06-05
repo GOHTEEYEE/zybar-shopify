@@ -80,6 +80,17 @@ function buildHeaders(serviceRoleKey) {
   };
 }
 
+function parseReviewIdsParam(raw) {
+  const ids = [];
+  String(raw || '')
+    .split(',')
+    .forEach(function (part) {
+      const id = parseInt(String(part).trim(), 10);
+      if (id > 0 && ids.indexOf(id) === -1) ids.push(id);
+    });
+  return ids.slice(0, 24);
+}
+
 export async function onRequestGet(context) {
   const env = context.env || {};
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -88,20 +99,30 @@ export async function onRequestGet(context) {
 
   const url = new URL(context.request.url);
   const productSlug = String(url.searchParams.get('productSlug') || '').trim().slice(0, 80);
+  const reviewIds = parseReviewIdsParam(url.searchParams.get('reviewIds'));
+  const includeImages = String(url.searchParams.get('includeImages') || '').trim() !== '0';
   const limit = Math.max(1, Math.min(parseInt(url.searchParams.get('limit') || '80', 10) || 80, 200));
   if (productSlug && !allowedProductSlugs.has(productSlug)) {
     return json({ error: 'Invalid product selected.' }, 400);
   }
 
   const headers = buildHeaders(env.SUPABASE_SERVICE_ROLE_KEY);
+  const selectCols = reviewIds.length && includeImages
+    ? 'id,image_data_url'
+    : includeImages
+      ? 'id,product_slug,product_name,customer_name,rating,review_text,image_data_url,created_at'
+      : 'id,product_slug,product_name,customer_name,rating,review_text,created_at';
   const queryParts = [
-    'select=id,product_slug,product_name,customer_name,rating,review_text,image_data_url,created_at',
+    'select=' + selectCols,
     'status=eq.approved',
     'order=created_at.desc',
-    'limit=' + limit
+    'limit=' + (reviewIds.length ? reviewIds.length : limit)
   ];
   if (productSlug) {
     queryParts.push('product_slug=eq.' + encodeURIComponent(productSlug));
+  }
+  if (reviewIds.length) {
+    queryParts.push('id=in.(' + reviewIds.join(',') + ')');
   }
 
   try {

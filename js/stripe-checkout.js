@@ -39,10 +39,37 @@
     return slug ? "/Image/" + slug + "-1.webp" : "";
   }
 
-  function getCurrentProductImageUrl() {
-    var image = getPrimaryProductImage();
-    if (image && image.getAttribute("src")) return image.getAttribute("src");
-    return getProductImageUrlBySlug(getProductSlug());
+  /** Hero image for cart/checkout — never a shared-gallery or other PDP thumb. */
+  function getDefaultProductImageUrl(slug) {
+    slug = slug || getProductSlug();
+    if (!slug) return "";
+    return encodeMediaUrl(getProductImageUrlBySlug(slug));
+  }
+
+  function resolveDefaultProductImageUrl(slug) {
+    slug = slug || getProductSlug();
+    if (!slug) return Promise.resolve("");
+    return pickImageForSlot(slug, 1, "off", "").then(function (offSrc) {
+      if (offSrc) return offSrc;
+      return pickImageForSlot(slug, 1, "on", "");
+    }).then(function (url) {
+      return url || getDefaultProductImageUrl(slug);
+    });
+  }
+
+  function isNonProductCartImage(url, slug) {
+    var norm = normalizeImageUrl(url);
+    if (!norm) return true;
+    if (norm.indexOf("/shared-gallery/") !== -1) return true;
+    if (!slug) return false;
+    return norm.indexOf("/Image/" + slug + "-") !== 0;
+  }
+
+  function getCartItemImageUrl(item) {
+    var slug = item && item.slug ? item.slug : "";
+    var url = item && item.imageUrl ? item.imageUrl : "";
+    if (!isNonProductCartImage(url, slug)) return encodeMediaUrl(url);
+    return getDefaultProductImageUrl(slug);
   }
 
   function readCartItems() {
@@ -204,7 +231,7 @@
         var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
         var unit = Number(item && item.unitPriceUSD) || 0;
         var subtotal = safeQty * unit;
-        var imageUrl = String(item && item.imageUrl ? item.imageUrl : getProductImageUrlBySlug(item && item.slug));
+        var imageUrl = String(getCartItemImageUrl(item));
         return [
           '<li style="list-style:none;padding:10px 0;border-bottom:1px solid #eee;">',
           '<div style="display:flex;gap:12px;align-items:flex-start;">',
@@ -822,7 +849,7 @@
     return (items || []).map(function (item) {
       return {
         name: item && item.name ? item.name : "Product",
-        imageUrl: item && item.imageUrl ? item.imageUrl : getProductImageUrlBySlug(item && item.slug),
+        imageUrl: getCartItemImageUrl(item),
         sizeLabel: item && item.sizeLabel ? item.sizeLabel : sizeToLabel(item && item.size),
         size: item && item.size ? item.size : "",
         slug: item && item.slug ? item.slug : "",
@@ -886,6 +913,10 @@
         item.unitPriceUSD = amt;
         changed = true;
       }
+      if (isNonProductCartImage(item.imageUrl, item.slug)) {
+        item.imageUrl = getDefaultProductImageUrl(item.slug);
+        changed = true;
+      }
     });
     if (changed) writeCartItems(items);
   }
@@ -939,28 +970,30 @@
       var btn = event.target && event.target.closest("[data-stripe-action='checkout']");
       if (btn) btn.disabled = true;
 
-      goToPremiumCheckout({
-        lineItems: [{
+      resolveDefaultProductImageUrl(slug).then(function (imageUrl) {
+        goToPremiumCheckout({
+          lineItems: [{
+            priceId: priceId,
+            quantity: quantity,
+            productSlug: slug || "",
+            size: size || ""
+          }],
+          displayItems: [{
+            name: getProductName(),
+            imageUrl: imageUrl,
+            sizeLabel: sizeToLabel(size),
+            size: size,
+            slug: slug,
+            quantity: quantity,
+            unitPriceUSD: getSizePriceUSD(config, slug, size)
+          }],
           priceId: priceId,
           quantity: quantity,
-          productSlug: slug || "",
-          size: size || ""
-        }],
-        displayItems: [{
-          name: getProductName(),
-          imageUrl: getCurrentProductImageUrl(),
-          sizeLabel: sizeToLabel(size),
-          size: size,
-          slug: slug,
-          quantity: quantity,
-          unitPriceUSD: getSizePriceUSD(config, slug, size)
-        }],
-        priceId: priceId,
-        quantity: quantity,
-        productSlug: slug || undefined,
-        size: size || undefined,
-        successUrl: successUrl,
-        cancelUrl: cancelUrl
+          productSlug: slug || undefined,
+          size: size || undefined,
+          successUrl: successUrl,
+          cancelUrl: cancelUrl
+        });
       });
     };
   }
@@ -980,14 +1013,16 @@
 
     if (existing) {
       existing.quantity = (Number(existing.quantity) || 0) + quantity;
-      if (!existing.imageUrl) existing.imageUrl = getCurrentProductImageUrl();
+      if (isNonProductCartImage(existing.imageUrl, slug)) {
+        existing.imageUrl = getDefaultProductImageUrl(slug);
+      }
       if (priceId) existing.priceId = priceId;
     } else {
       items.push({
         key: itemKey,
         slug: slug,
         name: getProductName(),
-        imageUrl: getCurrentProductImageUrl(),
+        imageUrl: getDefaultProductImageUrl(slug),
         size: size,
         sizeLabel: sizeToLabel(size),
         quantity: quantity,
