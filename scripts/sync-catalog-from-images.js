@@ -326,7 +326,10 @@ function updateCollectionsAll(productsCfg, imageMap) {
       '            <p class="product-card-kicker">LED WALL ART</p>',
       '            <h3 class="product-card-title">' + name + '</h3>',
       '          </a>',
-      '          <p class="product-card-price">$' + Number(price).toFixed(2) + '</p>',
+      '          <div class="product-card-pricing">',
+      '            <p class="product-card-price-compare">$' + (Number(price) + 39).toFixed(2) + '</p>',
+      '            <p class="product-card-price"><span class="product-card-price-from">From</span> $' + Number(price).toFixed(2) + '</p>',
+      '          </div>',
       '        </div>',
       '      </article>'
     ].join('\n');

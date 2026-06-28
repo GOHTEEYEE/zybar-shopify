@@ -926,10 +926,15 @@
     return "30 x 45 cm";
   }
 
+  function isCompactStickyBar() {
+    return !!(window.matchMedia && window.matchMedia("(max-width: 640px)").matches);
+  }
+
   function applySizePriceToUi(config) {
     var size = getSelectedSize();
     var amount = getSizePriceUSD(config, getProductSlug(), size);
     var priceText = formatUsd(amount);
+    var sizeLabel = sizeToLabel(size);
 
     var mainPrice = document.querySelector(".product-price");
     if (mainPrice) mainPrice.textContent = priceText;
@@ -938,7 +943,11 @@
     if (stickyPrice) stickyPrice.textContent = priceText;
 
     var stickyMeta = document.querySelector(".pdp-sticky-meta");
-    if (stickyMeta) stickyMeta.textContent = sizeToLabel(size);
+    if (stickyMeta) {
+      stickyMeta.textContent = isCompactStickyBar()
+        ? sizeLabel + " · " + priceText
+        : sizeLabel;
+    }
   }
 
   function makeCheckout(stripe) {
@@ -1086,11 +1095,24 @@
     var sizeBtns = document.querySelectorAll(".product-size-options .size-option");
     sizeBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
-        setTimeout(function () {
-          applySizePriceToUi(config);
-        }, 0);
+        sizeBtns.forEach(function (b) {
+          b.classList.remove("selected");
+        });
+        btn.classList.add("selected");
+        applySizePriceToUi(config);
       });
     });
+    if (window.matchMedia) {
+      var stickyMq = window.matchMedia("(max-width: 640px)");
+      var onStickyLayoutChange = function () {
+        applySizePriceToUi(config);
+      };
+      if (typeof stickyMq.addEventListener === "function") {
+        stickyMq.addEventListener("change", onStickyLayoutChange);
+      } else if (typeof stickyMq.addListener === "function") {
+        stickyMq.addListener(onStickyLayoutChange);
+      }
+    }
   }
 
   function init() {
