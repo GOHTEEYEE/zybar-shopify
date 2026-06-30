@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Cart | ZYBAR</title>
+    <meta name="description" content="Review your ZYBAR cart — handcrafted LED automotive wall art." />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/js/nav-drawer.js" defer></script>
+    <script src="/js/zybar-my-env.js" defer></script>
+    <script src="/js/stripe-config.js"></script>
+    <script src="/js/pricing.js"></script>
+    <script src="/js/stripe-checkout.js" defer></script>
+    <script src="/js/cart-page.js" defer></script>
+  </head>
+  <body class="cart-page">
+    <div class="welcome-bar">Welcome to our store</div>
+    <header class="site-header">
+      <div class="container header-wrap">
+        <a class="brand zybar-logo" href="/">
+          <img
+            src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png"
+            alt="ZYBAR"
+            class="logo-img"
+            loading="eager"
+            width="1304"
+            height="287"
+          />
+        </a>
+        <nav class="nav main-nav">
+          <a href="/">Home</a>
+          <a href="/collections/all/">Catalog</a>
+          <a href="/contact.html">Contact</a>
+        </nav>
+        <div class="header-actions">
+          <span class="currency">USD ▾</span>
+          <a href="/cart/" class="icon-btn" aria-label="Cart">🛒</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="cart-main" id="cart-main" aria-labelledby="cart-page-title">
+      <div class="cart-main-inner">
+        <header class="cart-page-header">
+          <h1 class="cart-page-title" id="cart-page-title">Your Cart</h1>
+          <p class="cart-page-count" id="cart-page-count" hidden></p>
+        </header>
+        <div id="cart-root" class="cart-root"></div>
+      </div>
+    </main>
+
+    <div
+      id="cart-toast"
+      class="cart-toast"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      hidden
+    ></div>
+  </body>
+</html>

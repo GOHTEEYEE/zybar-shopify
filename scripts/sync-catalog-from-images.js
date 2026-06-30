@@ -10,6 +10,11 @@
  */
 const fs = require('fs');
 const path = require('path');
+const {
+  toDisplayNameFromSlug,
+  resolveLedColor,
+  formatNeonPosterCardTitle
+} = require('./lib/product-led-color');
 
 const root = path.join(__dirname, '..');
 const imageDir = path.join(root, 'Image');
@@ -17,18 +22,6 @@ const productsJsonPath = path.join(root, 'data', 'products.json');
 const productsDir = path.join(root, 'products');
 const collectionPath = path.join(root, 'collections', 'all', 'index.html');
 const sitemapPath = path.join(root, 'sitemap.xml');
-
-function toDisplayNameFromSlug(slug) {
-  return String(slug || '')
-    .split('-')
-    .filter(Boolean)
-    .map(function (part) {
-      if (/^[a-z]$/.test(part)) return part.toUpperCase();
-      if (/^\d+$/.test(part)) return part;
-      return part.charAt(0).toUpperCase() + part.slice(1);
-    })
-    .join(' ');
-}
 
 function getPrimaryImageMap() {
   const files = fs.readdirSync(imageDir);
@@ -76,7 +69,7 @@ function getPriceForCard(slug, productsCfg) {
     ? productsCfg.perProductPricesBySize[slug]['30x45']
     : null;
   if (per !== null) return per;
-  return Number(productsCfg.pricesBySize && productsCfg.pricesBySize['30x45']) || 110;
+  return Number(productsCfg.pricesBySize && productsCfg.pricesBySize['30x45']) || 76;
 }
 
 function productPageTemplate(slug, name, imagePath, price30) {
@@ -92,13 +85,14 @@ function productPageTemplate(slug, name, imagePath, price30) {
     '    <meta name="description" content="' + safeName + ' LED wall art by ZYBAR. Premium automotive light painting available in 30x45 and 40x60 cm." />',
     '    <link rel="canonical" href="https://zybar-ledcar.pages.dev/products/' + slug + '/" />',
     '    <link rel="stylesheet" href="/styles.css" />',
+    '    <script src="/js/nav-drawer.js" defer></script>',
     '  </head>',
     '  <body>',
     '    <header class="site-header">',
     '      <div class="container header-wrap">',
     '        <a class="brand zybar-logo" href="/"><img src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png" alt="ZYBAR" class="logo-img" loading="eager" width="1304" height="287" /></a>',
     '        <nav class="nav main-nav"><a href="/">Home</a><a href="/collections/all/">Catalog</a><a href="/contact.html">Contact</a></nav>',
-    '        <div class="header-actions"><span class="currency">USD ▾</span><a href="/collections/all/" class="icon-btn" aria-label="Cart">🛒</a></div>',
+    '        <div class="header-actions"><span class="currency">USD ▾</span><button type="button" class="icon-btn" aria-label="Search">⌕</button><a href="/collections/all/" class="icon-btn" aria-label="Cart">🛒</a></div>',
     '      </div>',
     '    </header>',
     '',
@@ -116,14 +110,10 @@ function productPageTemplate(slug, name, imagePath, price30) {
     '            <button type="button" class="wishlist-btn" aria-label="Add to wishlist">♡</button>',
     '          </div>',
     '          <ul class="product-features" aria-label="Product features">',
-    '            <li>🎨 Handmade LED Car Art</li>',
-    '            <li>💡 Multiple Lighting Modes with Memory Function</li>',
-    '            <li>📱 Remote Control – Brightness &amp; Speed Adjustable</li>',
-    '            <li>🔌 USB &amp; Battery Powered</li>',
-    '            <li>🔨 Easy Wall Mount – No Drilling Required</li>',
-    '            <li>🧱 Premium Acrylic Panel with Matte Backing</li>',
-    '            <li>🏁 Perfect for Garage, Office &amp; Man Cave</li>',
-    '            <li>📦 Delivered in Gift-Ready Premium Packaging</li>',
+    '            <li>Handmade LED automotive wall art</li>',
+    '            <li>Multiple lighting modes with memory function</li>',
+    '            <li>Remote control – brightness &amp; speed adjustable</li>',
+    '            <li>USB &amp; battery powered options</li>',
     '          </ul>',
     '          <span class="product-option-label">Size</span>',
     '          <div class="product-size-options">',
@@ -284,6 +274,8 @@ function productPageTemplate(slug, name, imagePath, price30) {
     '    </script>',
     '    <script src="https://js.stripe.com/v3/"></script>',
     '    <script src="/js/stripe-config.js"></script>',
+    '    <script src="/js/mini-cart-drawer.js"></script>',
+    '    <script src="/js/pdp-luxury-ui.js"></script>',
     '    <script src="/js/stripe-checkout.js"></script>',
     '    <script src="/js/customer-reviews.js"></script>',
     '    <script src="/js/image-hover-toggle.js"></script>',
@@ -294,7 +286,7 @@ function productPageTemplate(slug, name, imagePath, price30) {
   ].join('\n');
 }
 
-function updateCollectionsAll(productsCfg, imageMap) {
+async function updateCollectionsAll(productsCfg, imageMap) {
   let html = fs.readFileSync(collectionPath, 'utf8');
   const products = productsCfg.products || [];
 
@@ -308,9 +300,11 @@ function updateCollectionsAll(productsCfg, imageMap) {
     }
   );
 
-  const cards = products.map(function (p) {
+  const cardBlocks = await Promise.all(products.map(async function (p) {
     const slug = p.slug;
     const name = p.name;
+    const ledColor = await resolveLedColor(slug, name, { ledColor: p.ledColor });
+    const cardTitle = formatNeonPosterCardTitle(name, slug, ledColor);
     const price = getPriceForCard(slug, productsCfg);
     const paths = getCardImagePaths(slug, imageMap);
     const offAttr = paths.onSrc && paths.offSrc && paths.offSrc !== paths.cardSrc
@@ -324,7 +318,7 @@ function updateCollectionsAll(productsCfg, imageMap) {
       '        <div class="product-card-meta">',
       '          <a class="product-card-link" href="/products/' + slug + '/">',
       '            <p class="product-card-kicker">LED WALL ART</p>',
-      '            <h3 class="product-card-title">' + name + '</h3>',
+      '            <h3 class="product-card-title">' + cardTitle + '</h3>',
       '          </a>',
       '          <div class="product-card-pricing">',
       '            <p class="product-card-price-compare">$' + (Number(price) + 39).toFixed(2) + '</p>',
@@ -333,7 +327,8 @@ function updateCollectionsAll(productsCfg, imageMap) {
       '        </div>',
       '      </article>'
     ].join('\n');
-  }).join('\n');
+  }));
+  const cards = cardBlocks.join('\n');
 
   html = html.replace(
     /(<div class="products-grid">\n)[\s\S]*?(\n\s*<\/div>\n\s*<\/div>\n\s*<\/main>)/,
@@ -345,7 +340,7 @@ function updateCollectionsAll(productsCfg, imageMap) {
   fs.writeFileSync(collectionPath, html, 'utf8');
 }
 
-function run() {
+async function run() {
   const imageMap = getPrimaryImageMap();
   const imageSlugs = Array.from(imageMap.keys()).sort();
   const productsCfg = JSON.parse(fs.readFileSync(productsJsonPath, 'utf8'));
@@ -391,7 +386,7 @@ function run() {
     }
   });
 
-  updateCollectionsAll(productsCfg, imageMap);
+  await updateCollectionsAll(productsCfg, imageMap);
   updateSitemap(productsCfg);
 
   console.log('Added products to data/products.json:', added.length);
@@ -404,7 +399,10 @@ function run() {
   console.log('Updated sitemap.xml');
 }
 
-run();
+run().catch(function (err) {
+  console.error(err);
+  process.exit(1);
+});
 
 function updateSitemap(productsCfg) {
   const staticEntries = [

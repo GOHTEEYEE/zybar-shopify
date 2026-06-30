@@ -77,7 +77,6 @@
       if (!sid || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sid)) {
         sid = generateUUID();
         localStorage.setItem(STORAGE_KEYS.sessionId, sid);
-        ensureSessionRow(sid);
       }
       return sid;
     } catch (e) {
@@ -209,7 +208,7 @@
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Prefer': 'return=minimal'
+        'Prefer': 'return=minimal,resolution=merge-duplicates'
       },
       body: JSON.stringify({
         id: sessionId,
@@ -222,7 +221,8 @@
       }),
       keepalive: true
     }).then(function (r) {
-      if (!r.ok && r.status === 409) updateSessionActivity(sessionId);
+      if (!r.ok && r.status !== 409) return;
+      updateSessionActivity(sessionId);
     }).catch(function () {});
   }
 

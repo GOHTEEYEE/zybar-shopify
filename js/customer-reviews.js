@@ -366,7 +366,11 @@
     }
 
     function refresh() {
-      renderReviews(section, getCurrentList(), openModal);
+      var list = getCurrentList();
+      renderReviews(section, list, openModal);
+      if (window.ZYBAR && typeof window.ZYBAR.updatePdpLuxuryRating === "function") {
+        window.ZYBAR.updatePdpLuxuryRating(list);
+      }
     }
 
     function readSessionCachedReviews() {

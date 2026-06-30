@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-03T05:02:22.693Z",
+  "updatedAt": "2026-06-30T07:50:44.166Z",
   "sourceFolder": "shared-gallery/",
   "items": [
     {
@@ -22,6 +22,11 @@
     {
       "type": "image",
       "src": "/shared-gallery/IMG_3616.JPG"
+    },
+    {
+      "type": "video",
+      "src": "/shared-gallery/zybar-homepage.mp4",
+      "poster": ""
     }
   ]
 }

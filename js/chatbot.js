@@ -1,40 +1,6 @@
 (function () {
   'use strict';
 
-  function ensureCustomerReviewsNavLink() {
-    var navs = document.querySelectorAll('.nav.main-nav');
-    if (!navs || !navs.length) return;
-
-    Array.prototype.forEach.call(navs, function (nav) {
-      var links = nav.querySelectorAll('a[href]');
-      var hasReviewsLink = false;
-      var catalogLink = null;
-
-      Array.prototype.forEach.call(links, function (link) {
-        var href = (link.getAttribute('href') || '').trim();
-        if (href === '/customer-reviews.html') {
-          hasReviewsLink = true;
-        }
-        if (!catalogLink && href === '/collections/all/') {
-          catalogLink = link;
-        }
-      });
-
-      if (hasReviewsLink || !catalogLink) return;
-
-      var reviewsLink = document.createElement('a');
-      reviewsLink.href = '/customer-reviews.html';
-      reviewsLink.textContent = 'Customer Reviews';
-      if (catalogLink.nextElementSibling) {
-        nav.insertBefore(reviewsLink, catalogLink.nextElementSibling);
-      } else {
-        nav.appendChild(reviewsLink);
-      }
-    });
-  }
-
-  ensureCustomerReviewsNavLink();
-
   function isHomePage() {
     var path = window.location.pathname || '/';
     var normalized = path.replace(/\/+$/, '') || '/';

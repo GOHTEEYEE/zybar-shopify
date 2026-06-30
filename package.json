@@ -10,6 +10,8 @@
     "validate-stripe": "node scripts/validate-stripe-config.js",
     "release:prod": "npm run sync:shared-gallery && npm run sync-stripe && npm run validate-stripe && npx vercel --prod",
     "sync-products": "node scripts/sync-products-to-supabase.js",
+    "sync:catalog": "node scripts/detect-product-led-colors.js && node scripts/sync-catalog-from-images.js",
+    "detect-led-colors": "node scripts/detect-product-led-colors.js",
     "sync:shared-gallery": "node scripts/sync-shared-gallery.js",
     "compress:images": "node scripts/compress-images.js",
     "dev": "node scripts/sync-shared-gallery.js && node server.js"

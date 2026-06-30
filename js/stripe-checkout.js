@@ -20,14 +20,37 @@
     return "30x45";
   }
 
-  function getQuantity() {
-    var qtyEl = document.querySelector(".product-quantity span");
-    var qty = qtyEl ? parseInt(qtyEl.textContent, 10) : 1;
-    return Number.isFinite(qty) && qty > 0 ? qty : 1;
+  function getSelectedPowerType() {
+    var selected = document.querySelector(".product-power-options .power-type-option.selected");
+    if (selected && selected.getAttribute("data-power-type")) {
+      return selected.getAttribute("data-power-type");
+    }
+    return "usb";
   }
 
   function getConfig() {
     return window.ZYBAR_STRIPE_CONFIG || {};
+  }
+
+  function getPricing() {
+    return window.ZYBAR && window.ZYBAR.Pricing ? window.ZYBAR.Pricing : null;
+  }
+
+  function powerTypeToLabel(powerType) {
+    var pricing = getPricing();
+    if (pricing) return pricing.powerTypeToLabel(powerType);
+    if (powerType === "dual") return "USB + Battery";
+    return "USB Only";
+  }
+
+  function buildVariantKey(slug, size, powerType) {
+    return String(slug || "") + "::" + String(size || "") + "::" + String(powerType || "usb");
+  }
+
+  function getQuantity() {
+    var qtyEl = document.querySelector(".product-quantity span");
+    var qty = qtyEl ? parseInt(qtyEl.textContent, 10) : 1;
+    return Number.isFinite(qty) && qty > 0 ? qty : 1;
   }
 
   function getProductName() {
@@ -182,157 +205,46 @@
     if (existing) existing.remove();
   }
 
-  function createCartDialog(items) {
-    removeCartDialog();
-
-    var overlay = document.createElement("div");
-    overlay.id = "zybar-cart-dialog";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", "Shopping cart");
-    overlay.style.cssText = [
-      "position:fixed",
-      "inset:0",
-      "background:rgba(0,0,0,0.45)",
-      "z-index:3000",
-      "display:flex",
-      "align-items:flex-start",
-      "justify-content:flex-end",
-      "padding:16px",
-      "box-sizing:border-box"
-    ].join(";");
-
-    var panel = document.createElement("div");
-    panel.style.cssText = [
-      "width:min(100%,420px)",
-      "max-height:calc(100vh - 32px)",
-      "overflow:auto",
-      "background:#fff",
-      "border-radius:14px",
-      "box-shadow:0 24px 48px rgba(0,0,0,0.25)",
-      "padding:16px"
-    ].join(";");
-
-    var header = document.createElement("div");
-    header.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;";
-    header.innerHTML = '<h2 style="margin:0;font-size:18px;">Your cart</h2><button type="button" aria-label="Close cart" style="border:1px solid #ddd;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;">Close</button>';
-
-    var closeBtn = header.querySelector("button");
-    if (closeBtn) {
-      closeBtn.addEventListener("click", removeCartDialog);
-    }
-
-    var body = document.createElement("div");
-    if (!items.length) {
-      body.innerHTML = '<p style="margin:0 0 10px 0;color:#444;">Your cart is empty.</p>';
-    } else {
-      var listHtml = items.map(function (item) {
-        var qty = Number(item && item.quantity);
-        var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
-        var unit = Number(item && item.unitPriceUSD) || 0;
-        var subtotal = safeQty * unit;
-        var imageUrl = String(getCartItemImageUrl(item));
-        return [
-          '<li style="list-style:none;padding:10px 0;border-bottom:1px solid #eee;">',
-          '<div style="display:flex;gap:12px;align-items:flex-start;">',
-          '<img src="' + imageUrl + '" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:10px;background:#f4f4f4;flex-shrink:0;" />',
-          '<div style="min-width:0;">',
-          '<div style="font-weight:600;color:#111;">' + String(item && item.name ? item.name : "Product") + "</div>",
-          '<div style="font-size:13px;color:#666;">Size: ' + String(item && item.sizeLabel ? item.sizeLabel : "Default") + "</div>",
-          '<div style="display:flex;align-items:center;gap:8px;margin:6px 0 2px 0;">',
-          '<button type="button" data-cart-action="decrease" data-item-key="' + String(item && item.key ? item.key : "") + '" aria-label="Decrease quantity" style="width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:8px;cursor:pointer;">-</button>',
-          '<span style="font-size:14px;color:#222;min-width:62px;">Qty: ' + safeQty + "</span>",
-          '<button type="button" data-cart-action="increase" data-item-key="' + String(item && item.key ? item.key : "") + '" aria-label="Increase quantity" style="width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:8px;cursor:pointer;">+</button>',
-          '<button type="button" data-cart-action="remove" data-item-key="' + String(item && item.key ? item.key : "") + '" aria-label="Remove item" style="margin-left:6px;border:1px solid #f1c7c7;background:#fff5f5;color:#a40000;border-radius:8px;padding:5px 8px;cursor:pointer;font-size:12px;">Remove</button>',
-          "</div>",
-          '<div style="font-size:13px;color:#666;">Unit: ' + formatUsd(unit) + ' · Subtotal: ' + formatUsd(subtotal) + "</div>",
-          "</div>",
-          "</div>",
-          "</li>"
-        ].join("");
-      }).join("");
-
-      body.innerHTML = '<ul style="margin:0;padding:0;">' + listHtml + "</ul>";
-      body.addEventListener("click", function (event) {
-        var button = event.target && event.target.closest("button[data-cart-action]");
-        if (!button) return;
-        var action = button.getAttribute("data-cart-action");
-        var itemKey = button.getAttribute("data-item-key");
-        if (!itemKey) return;
-        if (action === "increase") {
-          createCartDialog(updateCartItemQuantity(itemKey, 1));
-          return;
-        }
-        if (action === "decrease") {
-          createCartDialog(updateCartItemQuantity(itemKey, -1));
-          return;
-        }
-        if (action === "remove") {
-          createCartDialog(removeCartItem(itemKey));
-        }
-      });
-    }
-
-    var footer = document.createElement("div");
-    var totalQty = getCartTotalCount();
-    var totalAmount = items.reduce(function (sum, item) {
-      var qty = Number(item && item.quantity);
-      var unit = Number(item && item.unitPriceUSD);
-      var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 0;
-      var safeUnit = Number.isFinite(unit) && unit > 0 ? unit : 0;
-      return sum + safeQty * safeUnit;
-    }, 0);
-
-    footer.style.cssText = "margin-top:12px;padding-top:12px;border-top:1px solid #eee;display:flex;justify-content:space-between;gap:12px;font-size:14px;";
-    footer.innerHTML = '<span>Total items: ' + totalQty + '</span><strong>Total: ' + formatUsd(totalAmount) + "</strong>";
-    var checkoutBtn = document.createElement("button");
-    checkoutBtn.type = "button";
-    checkoutBtn.textContent = "Pay with card";
-    checkoutBtn.style.cssText = "margin-top:12px;width:100%;border:0;border-radius:10px;padding:11px 14px;background:#111;color:#fff;font-weight:600;cursor:pointer;";
-    checkoutBtn.addEventListener("click", function () {
-      beginCartCheckout(items, checkoutBtn);
-    });
-
-    panel.appendChild(header);
-    panel.appendChild(body);
-    panel.appendChild(footer);
-    if (items.length) panel.appendChild(checkoutBtn);
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
-
-    overlay.addEventListener("click", function (event) {
-      if (event.target === overlay) removeCartDialog();
-    });
+  function createCartDialog() {
+    window.location.href = "/cart/";
   }
 
   function wireCartClick() {
     var cartLink = getCartLink();
     if (!cartLink) return;
-    cartLink.addEventListener("click", function (event) {
-      var items = readCartItems();
-      if (!items.length) return;
-      event.preventDefault();
-      createCartDialog(items);
-    });
+    cartLink.setAttribute("href", "/cart/");
   }
 
   function beginCartCheckout(items, button) {
+    var pricing = getPricing();
+    if (!pricing) {
+      alert("Pricing is not available. Please refresh the page.");
+      return;
+    }
     var config = getConfig();
     var successUrl = config.successUrl || (window.location.origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}");
     var cancelUrl = config.cancelUrl || window.location.href;
-    var validItems = (items || []).map(function (item) {
-      return {
-        priceId: String(item && item.priceId ? item.priceId : ""),
-        quantity: Number(item && item.quantity),
-        productSlug: String(item && item.slug ? item.slug : ""),
-        size: String(item && item.size ? item.size : "")
-      };
-    }).filter(function (item) {
-      return item.priceId && item.priceId.indexOf("REPLACE_ME") === -1 && Number.isFinite(item.quantity) && item.quantity > 0;
-    });
+    var shippingMethod = pricing.readShippingMethod();
+    var validItems = (items || [])
+      .map(function (item) {
+        if (!item) return null;
+        var size = pricing.normalizeSize(item.size);
+        var powerType = pricing.normalizePowerType(item.powerType);
+        var qty = Number(item.quantity);
+        if (!Number.isFinite(qty) || qty < 1) return null;
+        return {
+          quantity: qty,
+          productSlug: String(item.slug ? item.slug : ""),
+          size: size,
+          powerType: powerType,
+          name: String(item.name ? item.name : "Product"),
+          unitAmountUSD: pricing.calculateProductUnitPrice({ size: size, powerType: powerType })
+        };
+      })
+      .filter(Boolean);
 
     if (!validItems.length) {
-      alert("Your cart has no valid Stripe products yet. Please re-add items and try again.");
+      alert("Your cart is empty or has invalid items. Please re-add items and try again.");
       return;
     }
 
@@ -343,11 +255,19 @@
 
     goToPremiumCheckout({
       lineItems: validItems,
+      shippingMethod: shippingMethod,
       displayItems: buildDisplayItemsFromCart(
         (items || []).filter(function (item) {
-          return item && validItems.some(function (v) {
-            return v.productSlug === item.slug && v.size === item.size;
-          });
+          return (
+            item &&
+            validItems.some(function (v) {
+              return (
+                v.productSlug === item.slug &&
+                v.size === pricing.normalizeSize(item.size) &&
+                v.powerType === pricing.normalizePowerType(item.powerType)
+              );
+            })
+          );
         })
       ),
       successUrl: successUrl,
@@ -388,15 +308,30 @@
   }
 
   /** True only when the URL returns real image/video bytes (not SPA index.html). */
+  var imageExistenceCache = Object.create(null);
+
   function headMediaExists(url) {
+    var key = normalizeImageUrl(url);
+    if (!key) return Promise.resolve(false);
+    if (imageExistenceCache[key] === true) return Promise.resolve(true);
+    if (imageExistenceCache[key] === false) return Promise.resolve(false);
+
     var requestUrl = encodeMediaUrl(url);
     return fetch(requestUrl, { method: "HEAD", cache: "force-cache" })
       .then(function (res) {
-        if (!res || !res.ok) return false;
+        if (!res || !res.ok) {
+          imageExistenceCache[key] = false;
+          return false;
+        }
         var contentType = (res.headers.get("content-type") || "").toLowerCase();
-        return contentType.indexOf("image/") === 0 || contentType.indexOf("video/") === 0;
+        var ok = contentType.indexOf("image/") === 0 || contentType.indexOf("video/") === 0;
+        imageExistenceCache[key] = ok;
+        return ok;
       })
-      .catch(function () { return false; });
+      .catch(function () {
+        imageExistenceCache[key] = false;
+        return false;
+      });
   }
 
   function headImageExists(url) {
@@ -411,7 +346,7 @@
   }
 
   function pickImageForSlot(slug, index, variant, mainSrc) {
-    var exts = ["webp", "jpg", "jpeg", "png"];
+    var exts = ["webp", "jpg"];
     var suffix = variant === "on" ? "-on" : "";
     var logicalKey = slug + "-" + index + suffix;
     var mainNorm = normalizeImageUrl(mainSrc || "");
@@ -436,23 +371,24 @@
       var only = normalizeImageUrl(mainSrc);
       return Promise.resolve(only ? [encodeMediaUrl(only)] : []);
     }
-    var chain = Promise.resolve([]);
-    var i;
-    for (i = 1; i <= 8; i += 1) {
-      (function (slot) {
-        chain = chain.then(function (images) {
-          return pickImageForSlot(slug, slot, "off", mainSrc).then(function (offSrc) {
-            if (!offSrc) return images;
-            images.push(offSrc);
-            return pickImageForSlot(slug, slot, "on", mainSrc).then(function (onSrc) {
-              if (onSrc) images.push(onSrc);
-              return images;
-            });
-          });
+
+    var images = [];
+
+    function collectSlot(slot) {
+      if (slot > 8) return Promise.resolve(images);
+      return pickImageForSlot(slug, slot, "off", mainSrc).then(function (offSrc) {
+        if (!offSrc) return images;
+        images.push(offSrc);
+        return pickImageForSlot(slug, slot, "on", mainSrc).then(function (onSrc) {
+          if (onSrc && getImageLogicalKey(onSrc) !== getImageLogicalKey(offSrc)) {
+            images.push(onSrc);
+          }
+          return collectSlot(slot + 1);
         });
-      })(i);
+      });
     }
-    return chain;
+
+    return collectSlot(1);
   }
 
   function pickFirstExisting(basePath, exts) {
@@ -553,15 +489,33 @@
     });
   }
 
-  function getOrCreateGalleryVideo(inner) {
-    var video = inner.querySelector(".pdp-gallery-video");
-    if (video) return video;
-    video = document.createElement("video");
-    video.className = "pdp-gallery-video";
-    video.controls = true;
+  function configurePremiumVideo(video) {
+    if (!video) return;
+    video.controls = false;
+    video.autoplay = true;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.loop = true;
     video.playsInline = true;
     video.setAttribute("playsinline", "");
-    video.preload = "metadata";
+    video.setAttribute("webkit-playsinline", "");
+    video.preload = "auto";
+    video.setAttribute("controlsList", "nodownload noplaybackrate nofullscreen");
+    video.setAttribute("disablePictureInPicture", "");
+    video.setAttribute("disableRemotePlayback", "");
+    video.setAttribute("tabindex", "-1");
+    video.classList.add("zybar-premium-video");
+  }
+
+  function getOrCreateGalleryVideo(inner) {
+    var video = inner.querySelector(".pdp-gallery-video");
+    if (video) {
+      configurePremiumVideo(video);
+      return video;
+    }
+    video = document.createElement("video");
+    video.className = "pdp-gallery-video";
+    configurePremiumVideo(video);
     inner.appendChild(video);
     return video;
   }
@@ -569,6 +523,9 @@
   function showGalleryMedia(mainImage, inner, item) {
     if (!mainImage || !inner || !item) return;
     var video = getOrCreateGalleryVideo(inner);
+    var stage = inner.closest(".pdp-gallery-stage");
+    var zoomBtn = stage && stage.querySelector(".pdp-gallery-zoom");
+    var callout = stage && stage.querySelector(".pdp-gallery-callout");
     if (item.type === "video") {
       mainImage.style.display = "none";
       video.style.display = "block";
@@ -577,7 +534,10 @@
         if (item.poster) video.setAttribute("poster", item.poster);
         else video.removeAttribute("poster");
       }
+      video.muted = true;
       video.play().catch(function () {});
+      if (zoomBtn) zoomBtn.hidden = true;
+      if (callout) callout.classList.add("is-hidden");
       return;
     }
     video.pause();
@@ -586,6 +546,8 @@
     crossfadeSwapImage(mainImage, item.src, 500);
     var stickyThumb = document.querySelector(".pdp-sticky-thumb img");
     if (stickyThumb) crossfadeSwapImage(stickyThumb, item.src, 500);
+    if (zoomBtn) zoomBtn.hidden = false;
+    if (callout) callout.classList.remove("is-hidden");
   }
 
   function crossfadeSwapImage(imgEl, nextSrc, durationMs) {
@@ -697,8 +659,137 @@
       selectAt: selectGalleryAt,
       setIndex: function (index) {
         currentIndex = index;
+      },
+      getIndex: function () {
+        return currentIndex;
       }
     };
+  }
+
+  function getOrCreateGalleryLightbox() {
+    var existing = document.getElementById("pdp-gallery-lightbox");
+    if (existing) return existing;
+
+    var lightbox = document.createElement("div");
+    lightbox.id = "pdp-gallery-lightbox";
+    lightbox.className = "pdp-gallery-lightbox";
+    lightbox.setAttribute("aria-hidden", "true");
+
+    var closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "pdp-gallery-lightbox-close";
+    closeBtn.setAttribute("aria-label", "Close zoomed image");
+    closeBtn.innerHTML = "&times;";
+
+    var image = document.createElement("img");
+    image.alt = "";
+
+    lightbox.appendChild(closeBtn);
+    lightbox.appendChild(image);
+    document.body.appendChild(lightbox);
+
+    function closeLightbox() {
+      lightbox.classList.remove("is-open");
+      lightbox.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("pdp-gallery-lightbox-open");
+      image.removeAttribute("src");
+    }
+
+    closeBtn.addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", function (event) {
+      if (event.target === lightbox) closeLightbox();
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
+        closeLightbox();
+      }
+    });
+
+    lightbox.openWith = function (src) {
+      if (!src) return;
+      image.src = src;
+      lightbox.classList.add("is-open");
+      lightbox.setAttribute("aria-hidden", "false");
+      document.body.classList.add("pdp-gallery-lightbox-open");
+      closeBtn.focus();
+    };
+
+    return lightbox;
+  }
+
+  function setupGalleryStage(showcase, inner, mainImage) {
+    if (!showcase || !inner || showcase.querySelector(".pdp-gallery-stage")) {
+      return showcase && showcase.querySelector(".pdp-gallery-stage");
+    }
+
+    var stage = document.createElement("div");
+    stage.className = "pdp-gallery-stage";
+    showcase.insertBefore(stage, inner);
+    stage.appendChild(inner);
+
+    var zoomBtn = document.createElement("button");
+    zoomBtn.type = "button";
+    zoomBtn.className = "pdp-gallery-zoom";
+    zoomBtn.setAttribute("aria-label", "Zoom image");
+    zoomBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+      '<circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line>' +
+      "</svg>";
+    zoomBtn.addEventListener("click", function () {
+      var src = mainImage && mainImage.getAttribute("src");
+      if (!src || mainImage.style.display === "none") return;
+      getOrCreateGalleryLightbox().openWith(src);
+    });
+    stage.appendChild(zoomBtn);
+
+    var callout = document.createElement("div");
+    callout.className = "pdp-gallery-callout";
+    callout.innerHTML =
+      '<span class="pdp-gallery-callout-icon" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="7" y="2" width="10" height="20" rx="2"></rect><circle cx="12" cy="18" r="1"></circle>' +
+      "</svg></span>" +
+      '<span class="pdp-gallery-callout-text">Remote Control Included</span>';
+    stage.appendChild(callout);
+
+    return stage;
+  }
+
+  function createGalleryNav(thumbs) {
+    var nav = document.createElement("div");
+    nav.className = "pdp-gallery-nav";
+
+    var prev = document.createElement("button");
+    prev.type = "button";
+    prev.className = "pdp-gallery-arrow pdp-gallery-arrow--prev";
+    prev.setAttribute("aria-label", "Previous image");
+    prev.innerHTML = "&#8249;";
+
+    var next = document.createElement("button");
+    next.type = "button";
+    next.className = "pdp-gallery-arrow pdp-gallery-arrow--next";
+    next.setAttribute("aria-label", "Next image");
+    next.innerHTML = "&#8250;";
+
+    nav.appendChild(prev);
+    nav.appendChild(thumbs);
+    nav.appendChild(next);
+    return nav;
+  }
+
+  function wireGalleryArrows(nav, galleryNav, items) {
+    if (!nav || !galleryNav || !items || items.length < 2) return;
+
+    var prev = nav.querySelector(".pdp-gallery-arrow--prev");
+    var next = nav.querySelector(".pdp-gallery-arrow--next");
+    if (!prev || !next) return;
+
+    prev.addEventListener("click", function () {
+      galleryNav.selectAt(galleryNav.getIndex() - 1);
+    });
+    next.addEventListener("click", function () {
+      galleryNav.selectAt(galleryNav.getIndex() + 1);
+    });
   }
 
   function initProductThumbnailGallery() {
@@ -706,20 +797,24 @@
     var showcase = document.querySelector(".product-showcase-image");
     var inner = showcase && showcase.querySelector(".product-showcase-image-inner");
     if (!mainImage || !showcase || !inner) return;
-    if (showcase.querySelector(".pdp-gallery-thumbs")) return;
+    if (showcase.querySelector(".pdp-gallery-nav")) return;
+
+    setupGalleryStage(showcase, inner, mainImage);
 
     var slug = getProductSlug();
     var mainSrc = mainImage.getAttribute("src") || getProductImageUrlBySlug(slug);
     if (!mainSrc) return;
 
     resolveGalleryMedia(mainSrc, slug).then(function (items) {
-      if (!items || items.length < 1) return;
+      if (!items || items.length < 2) return;
 
       var thumbs = document.createElement("div");
       thumbs.className = "pdp-gallery-thumbs";
       thumbs.setAttribute("aria-label", "Product gallery");
 
       var galleryNav = wireGalleryKeyboard(items, mainImage, inner, thumbs, showcase);
+      var nav = createGalleryNav(thumbs);
+      wireGalleryArrows(nav, galleryNav, items);
 
       items.forEach(function (item, index) {
         var button = document.createElement("button");
@@ -765,7 +860,7 @@
         thumbs.appendChild(button);
       });
 
-      showcase.appendChild(thumbs);
+      showcase.appendChild(nav);
       var initial = items.filter(function (item) {
         return item.type === "image" && normalizeImageUrl(item.src) === normalizeImageUrl(mainSrc);
       })[0] || items[0];
@@ -842,19 +937,31 @@
   }
 
   function formatUsd(amount) {
+    var pricing = getPricing();
+    if (pricing) return pricing.formatUsd(amount);
     return "$" + Number(amount || 0).toFixed(2);
   }
 
   function buildDisplayItemsFromCart(items) {
+    var pricing = getPricing();
     return (items || []).map(function (item) {
+      var size = pricing ? pricing.normalizeSize(item && item.size) : item && item.size;
+      var powerType = pricing ? pricing.normalizePowerType(item && item.powerType) : item && item.powerType;
       return {
         name: item && item.name ? item.name : "Product",
         imageUrl: getCartItemImageUrl(item),
-        sizeLabel: item && item.sizeLabel ? item.sizeLabel : sizeToLabel(item && item.size),
-        size: item && item.size ? item.size : "",
+        sizeLabel: item && item.sizeLabel ? item.sizeLabel : sizeToLabel(size),
+        size: size,
+        powerType: powerType,
+        powerTypeLabel:
+          item && item.powerTypeLabel ? item.powerTypeLabel : powerTypeToLabel(powerType),
         slug: item && item.slug ? item.slug : "",
         quantity: item && item.quantity ? item.quantity : 1,
-        unitPriceUSD: item && item.unitPriceUSD ? item.unitPriceUSD : 0
+        unitPriceUSD: pricing
+          ? pricing.calculateProductUnitPrice({ size: size, powerType: powerType })
+          : item && item.unitPriceUSD
+            ? item.unitPriceUSD
+            : 0
       };
     });
   }
@@ -871,57 +978,58 @@
   }
 
   function getSizePriceUSD(config, slug, size) {
-    var perProduct = (config && config.perProductSizePricesUSD) || {};
-    if (slug && perProduct[slug] && typeof perProduct[slug][size] === "number") {
-      return perProduct[slug][size];
+    var pricing = getPricing();
+    if (pricing) {
+      return pricing.calculateProductUnitPrice({
+        size: size,
+        powerType: getSelectedPowerType()
+      });
     }
-    var map = (config && config.sizePricesUSD) || {};
-    if (typeof map[size] === "number") return map[size];
-    if (size === "40x60") return 150;
-    return 110;
+    return 76;
   }
 
-  function getPriceId(config, slug, size) {
-    if (!config) return "";
-    if (config.prices && config.prices[slug] && config.prices[slug][size]) {
-      var id = config.prices[slug][size];
-      return typeof id === "string" ? id.trim() : "";
-    }
-    if (config.sharedPriceIdsBySize && config.sharedPriceIdsBySize[size]) {
-      var shared = config.sharedPriceIdsBySize[size];
-      return typeof shared === "string" ? shared.trim() : "";
-    }
+  function getPriceId() {
     return "";
   }
 
-  /** Fix cart rows saved before price IDs existed or after config changed. */
+  /** Fix cart rows saved before pricing existed or after selections changed. */
   function repairCartItemsFromConfig() {
-    var config = getConfig();
-    if (!config || !config.prices) return;
+    var pricing = getPricing();
+    if (!pricing) return;
     var items = readCartItems();
     if (!items.length) return;
     var changed = false;
     items.forEach(function (item) {
       if (!item || !item.slug || !item.size) return;
-      var pid = getPriceId(config, item.slug, item.size);
-      if (pid && String(item.priceId || "") !== pid) {
-        item.priceId = pid;
-        changed = true;
-      }
-      var amt = getSizePriceUSD(config, item.slug, item.size);
-      if (typeof item.unitPriceUSD !== "number" || Math.abs(item.unitPriceUSD - amt) > 0.01) {
-        item.unitPriceUSD = amt;
-        changed = true;
+      var before = JSON.stringify({
+        key: item.key,
+        unitPriceUSD: item.unitPriceUSD,
+        powerType: item.powerType
+      });
+      pricing.repairCartItem(item);
+      var powerType = item.powerType || "usb";
+      var expectedKey = buildVariantKey(item.slug, item.size, powerType);
+      if (!item.key || item.key === item.slug + "::" + item.size) {
+        if (item.key !== expectedKey) {
+          item.key = expectedKey;
+        }
       }
       if (isNonProductCartImage(item.imageUrl, item.slug)) {
         item.imageUrl = getDefaultProductImageUrl(item.slug);
-        changed = true;
       }
+      var after = JSON.stringify({
+        key: item.key,
+        unitPriceUSD: item.unitPriceUSD,
+        powerType: item.powerType
+      });
+      if (before !== after) changed = true;
     });
     if (changed) writeCartItems(items);
   }
 
   function sizeToLabel(size) {
+    var pricing = getPricing();
+    if (pricing) return pricing.sizeToLabel(size);
     if (size === "40x60") return "40 x 60 cm";
     return "30 x 45 cm";
   }
@@ -931,10 +1039,15 @@
   }
 
   function applySizePriceToUi(config) {
+    var pricing = getPricing();
+    if (!pricing) return;
     var size = getSelectedSize();
-    var amount = getSizePriceUSD(config, getProductSlug(), size);
-    var priceText = formatUsd(amount);
+    var powerType = getSelectedPowerType();
+    var amount = pricing.calculateProductUnitPrice({ size: size, powerType: powerType });
+    var priceText = pricing.formatUsd(amount);
     var sizeLabel = sizeToLabel(size);
+    var powerLabel = powerTypeToLabel(powerType);
+    var variantLabel = sizeLabel + " · " + powerLabel;
 
     var mainPrice = document.querySelector(".product-price");
     if (mainPrice) mainPrice.textContent = priceText;
@@ -945,8 +1058,8 @@
     var stickyMeta = document.querySelector(".pdp-sticky-meta");
     if (stickyMeta) {
       stickyMeta.textContent = isCompactStickyBar()
-        ? sizeLabel + " · " + priceText
-        : sizeLabel;
+        ? variantLabel + " · " + priceText
+        : variantLabel;
     }
   }
 
@@ -954,24 +1067,19 @@
     return function (event) {
       event.preventDefault();
 
+      var pricing = getPricing();
+      if (!pricing) {
+        alert("Pricing is not available. Please refresh the page.");
+        return;
+      }
+
       var config = getConfig();
       var slug = getProductSlug();
       var size = getSelectedSize();
+      var powerType = getSelectedPowerType();
       var quantity = getQuantity();
-      var priceId = getPriceId(config, slug, size);
-
-      if (!priceId || priceId.indexOf("REPLACE_ME") !== -1) {
-        console.warn("[ZYBAR] Missing Stripe price ID", {
-          slug: slug,
-          size: size,
-          hasPricesMap: !!(config && config.prices),
-          keysForSlug: config && config.prices && config.prices[slug] ? Object.keys(config.prices[slug]) : []
-        });
-        alert(
-          "Stripe is not fully configured yet. Please add your real Stripe price IDs in /js/stripe-config.js"
-        );
-        return;
-      }
+      var unitAmountUSD = pricing.calculateProductUnitPrice({ size: size, powerType: powerType });
+      var shippingMethod = pricing.readShippingMethod();
 
       var successUrl = config.successUrl || (window.location.origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}");
       var cancelUrl = config.cancelUrl || window.location.href;
@@ -982,24 +1090,29 @@
       resolveDefaultProductImageUrl(slug).then(function (imageUrl) {
         goToPremiumCheckout({
           lineItems: [{
-            priceId: priceId,
             quantity: quantity,
             productSlug: slug || "",
-            size: size || ""
+            size: size || "",
+            powerType: powerType || "usb",
+            name: getProductName(),
+            unitAmountUSD: unitAmountUSD
           }],
+          shippingMethod: shippingMethod,
           displayItems: [{
             name: getProductName(),
             imageUrl: imageUrl,
             sizeLabel: sizeToLabel(size),
             size: size,
+            powerType: powerType,
+            powerTypeLabel: powerTypeToLabel(powerType),
             slug: slug,
             quantity: quantity,
-            unitPriceUSD: getSizePriceUSD(config, slug, size)
+            unitPriceUSD: unitAmountUSD
           }],
-          priceId: priceId,
           quantity: quantity,
           productSlug: slug || undefined,
           size: size || undefined,
+          powerType: powerType || undefined,
           successUrl: successUrl,
           cancelUrl: cancelUrl
         });
@@ -1008,13 +1121,15 @@
   }
 
   function addCurrentSelectionToCart() {
-    var config = getConfig();
+    var pricing = getPricing();
     var slug = getProductSlug();
     var size = getSelectedSize();
+    var powerType = getSelectedPowerType();
     var quantity = getQuantity();
-    var amount = getSizePriceUSD(config, slug, size);
-    var priceId = getPriceId(config, slug, size);
-    var itemKey = slug + "::" + size;
+    var amount = pricing
+      ? pricing.calculateProductUnitPrice({ size: size, powerType: powerType })
+      : 76;
+    var itemKey = buildVariantKey(slug, size, powerType);
     var items = readCartItems();
     var existing = items.filter(function (item) {
       return item && item.key === itemKey;
@@ -1025,7 +1140,10 @@
       if (isNonProductCartImage(existing.imageUrl, slug)) {
         existing.imageUrl = getDefaultProductImageUrl(slug);
       }
-      if (priceId) existing.priceId = priceId;
+      existing.powerType = powerType;
+      existing.powerTypeLabel = powerTypeToLabel(powerType);
+      existing.unitPriceUSD = amount;
+      existing.finishLabel = existing.finishLabel || "Premium Matte Acrylic";
     } else {
       items.push({
         key: itemKey,
@@ -1034,21 +1152,47 @@
         imageUrl: getDefaultProductImageUrl(slug),
         size: size,
         sizeLabel: sizeToLabel(size),
+        powerType: powerType,
+        powerTypeLabel: powerTypeToLabel(powerType),
+        finishLabel: "Premium Matte Acrylic",
         quantity: quantity,
-        unitPriceUSD: amount,
-        priceId: priceId || ""
+        unitPriceUSD: amount
       });
+      existing = items[items.length - 1];
     }
 
     writeCartItems(items);
     refreshCartBadge();
+    return existing;
+  }
+
+  function openMiniCartForItem(item) {
+    if (!item || !window.ZYBAR || !window.ZYBAR.MiniCartDrawer) return;
+    var drawer = window.ZYBAR.MiniCartDrawer;
+    var payload = {
+      item: item,
+      cartCount: getCartTotalCount(),
+      onCheckout: function (button) {
+        beginCartCheckout(readCartItems(), button);
+      },
+      onViewCart: function () {
+        drawer.close();
+        window.location.href = "/cart/";
+      }
+    };
+    if (typeof drawer.isOpen === "function" && drawer.isOpen()) {
+      drawer.update(payload);
+    } else {
+      drawer.open(payload);
+    }
   }
 
   function makeAddToCart() {
     return function (event) {
       event.preventDefault();
-      addCurrentSelectionToCart();
+      var addedItem = addCurrentSelectionToCart();
       animateFlyToCart();
+      openMiniCartForItem(addedItem);
       var button = event.currentTarget;
       if (!button) return;
       var original = button.getAttribute("data-cart-original-label") || button.textContent;
@@ -1089,6 +1233,50 @@
     });
   }
 
+  function wirePowerTypeUi(config) {
+    var powerBtns = document.querySelectorAll(".product-power-options .power-type-option");
+    if (!powerBtns.length) return;
+    powerBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        powerBtns.forEach(function (b) {
+          b.classList.remove("selected");
+        });
+        btn.classList.add("selected");
+        applySizePriceToUi(config);
+      });
+    });
+  }
+
+  function injectPowerTypeOption() {
+    if (!getProductSlug()) return;
+    if (document.querySelector(".product-power-options")) return;
+    var sizeOptions = document.querySelector(".product-size-options");
+    if (!sizeOptions || !sizeOptions.parentNode) return;
+
+    var optionsHost = sizeOptions.parentNode;
+    var powerGroup = document.createElement("div");
+    powerGroup.className = "pdp-luxury-power-group";
+
+    var label = document.createElement("span");
+    label.className = "product-option-label";
+    label.textContent = "Power Type";
+
+    var options = document.createElement("div");
+    options.className = "product-power-options";
+    options.innerHTML =
+      '<button type="button" class="power-type-option selected" data-power-type="usb">USB Only</button>' +
+      '<button type="button" class="power-type-option" data-power-type="dual">USB + Battery</button>';
+
+    powerGroup.appendChild(label);
+    powerGroup.appendChild(options);
+
+    if (sizeOptions.nextElementSibling) {
+      optionsHost.insertBefore(powerGroup, sizeOptions.nextElementSibling);
+    } else {
+      optionsHost.appendChild(powerGroup);
+    }
+  }
+
   function wireSizePriceUi(config) {
     // Keep displayed price synced with selected size (30x45 / 40x60).
     applySizePriceToUi(config);
@@ -1116,9 +1304,14 @@
   }
 
   function init() {
+    if (window.ZYBAR && typeof window.ZYBAR.initPdpLuxuryUi === "function") {
+      window.ZYBAR.initPdpLuxuryUi();
+    }
     repairCartItemsFromConfig();
     var config = getConfig();
+    injectPowerTypeOption();
     wireSizePriceUi(config);
+    wirePowerTypeUi(config);
     initProductThumbnailGallery();
     refreshCartBadge();
     wireCartClick();
@@ -1128,6 +1321,20 @@
       ? window.Stripe(config.publishableKey) : null;
     wireButtons(stripe);
   }
+
+  window.ZYBAR = window.ZYBAR || {};
+  window.ZYBAR.Cart = {
+    readCartItems: readCartItems,
+    writeCartItems: writeCartItems,
+    updateCartItemQuantity: updateCartItemQuantity,
+    removeCartItem: removeCartItem,
+    beginCartCheckout: beginCartCheckout,
+    refreshCartBadge: refreshCartBadge,
+    getCartItemImageUrl: getCartItemImageUrl,
+    formatUsd: formatUsd,
+    getCartTotalCount: getCartTotalCount,
+    buildDisplayItemsFromCart: buildDisplayItemsFromCart
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

@@ -6,6 +6,8 @@
 
   var PENDING_KEY = "zybar.checkout.pending";
   var CART_KEY = "zybar.cart.items";
+  var ANIM_MS = 200;
+  var shippingRefreshTimer = null;
 
   var state = {
     subtotal: 0,
@@ -17,17 +19,124 @@
     clientSecret: "",
     stripeCheckout: null,
     paymentMode: "custom",
-    returnUrl: ""
+    returnUrl: "",
+    pending: null
   };
 
   function getConfig() {
     return window.ZYBAR_STRIPE_CONFIG || {};
   }
 
+  function getPricing() {
+    return window.ZYBAR && window.ZYBAR.Pricing ? window.ZYBAR.Pricing : null;
+  }
+
   function formatUsd(amount) {
+    var pricing = getPricing();
+    if (pricing) return pricing.formatUsd(amount);
     var n = Number(amount);
     if (!Number.isFinite(n)) return "$0.00";
     return "$" + n.toFixed(2);
+  }
+
+  function getSelectedShippingMethod() {
+    var checked = document.querySelector('input[name="shippingMethod"]:checked');
+    if (checked && checked.value) return checked.value;
+    var pricing = getPricing();
+    return pricing ? pricing.readShippingMethod() : "standard";
+  }
+
+  function setShippingRadio(method) {
+    var pricing = getPricing();
+    var normalized = pricing ? pricing.normalizeShippingMethod(method) : method || "standard";
+    document.querySelectorAll('input[name="shippingMethod"]').forEach(function (radio) {
+      radio.checked = radio.value === normalized;
+    });
+    syncShippingCardStates();
+    updateShippingPriceLabels();
+  }
+
+  function syncShippingCardStates() {
+    document.querySelectorAll(".checkout-shipping-option").forEach(function (card) {
+      var radio = card.querySelector('input[name="shippingMethod"]');
+      var selected = !!(radio && radio.checked);
+      card.classList.toggle("is-selected", selected);
+    });
+  }
+
+  function persistShippingSelection(method) {
+    var pricing = getPricing();
+    var normalized = pricing ? pricing.normalizeShippingMethod(method) : method || "standard";
+    if (pricing) pricing.writeShippingMethod(normalized);
+    if (state.pending) {
+      state.pending.shippingMethod = normalized;
+      try {
+        window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(state.pending));
+      } catch (_) {}
+    }
+  }
+
+  function parseMoney(text) {
+    var n = parseFloat(String(text || "").replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function moneyEase(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  function animateMoney(el, from, to, duration) {
+    if (!el) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      el.textContent = formatUsd(to);
+      el.setAttribute("data-value", String(to));
+      return;
+    }
+    el.classList.add("is-updating");
+    var start = performance.now();
+    function frame(now) {
+      var t = Math.min(1, (now - start) / (duration || ANIM_MS));
+      var val = from + (to - from) * moneyEase(t);
+      el.textContent = formatUsd(val);
+      if (t < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        el.textContent = formatUsd(to);
+        el.setAttribute("data-value", String(to));
+        el.classList.remove("is-updating");
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function animateMoneyEl(el, to) {
+    if (!el) return;
+    var from = parseFloat(el.getAttribute("data-value") || "0");
+    if (!Number.isFinite(from)) from = parseMoney(el.textContent);
+    animateMoney(el, from, to, ANIM_MS);
+  }
+
+  function animateCheckoutTotals() {
+    document.querySelectorAll('[data-total="shipping"]').forEach(function (el) {
+      animateMoneyEl(el, state.shipping);
+    });
+    document.querySelectorAll('[data-total="grand"]').forEach(function (el) {
+      animateMoneyEl(el, state.total);
+    });
+    var mobileTotal = document.getElementById("checkout-mobile-total");
+    if (mobileTotal) animateMoneyEl(mobileTotal, state.total);
+  }
+
+  function updateShippingPriceLabels() {
+    var pricing = getPricing();
+    if (!pricing) return;
+    document.querySelectorAll("[data-shipping-price]").forEach(function (el) {
+      var option = el.closest(".checkout-shipping-option");
+      var radio = option ? option.querySelector('input[name="shippingMethod"]') : null;
+      if (!radio) return;
+      var cost = pricing.getShippingCostUSD(radio.value);
+      el.textContent = formatUsd(cost);
+    });
   }
 
   function escapeHtml(text) {
@@ -89,7 +198,9 @@
     var lineTotal = safeQty * safeUnit;
     var imageUrl = item.imageUrl || (item.slug ? "/Image/" + item.slug + "-1.webp" : "");
     var titles = splitProductTitle(item.name);
-    var variant = item.sizeLabel || item.size || "";
+    var sizePart = item.sizeLabel || item.size || "";
+    var powerPart = item.powerTypeLabel || "";
+    var variant = sizePart && powerPart ? sizePart + " · " + powerPart : sizePart || powerPart || "";
 
     return [
       '<article class="checkout-line-item">',
@@ -112,6 +223,23 @@
   }
 
   function calcTotals(displayItems) {
+    var pricing = getPricing();
+    var shippingMethod = getSelectedShippingMethod();
+    if (pricing) {
+      var order = pricing.calculateOrderTotals({
+        items: displayItems || [],
+        shippingMethod: shippingMethod,
+        taxUSD: state.tax,
+        discountUSD: state.discount
+      });
+      state.subtotal = order.subtotal;
+      state.shipping = order.shipping;
+      state.tax = order.tax;
+      state.discount = order.discount;
+      state.total = order.total;
+      return state;
+    }
+
     var subtotal = 0;
     (displayItems || []).forEach(function (item) {
       var qty = Number(item.quantity);
@@ -134,18 +262,31 @@
         : "";
 
     return [
-      '<div class="checkout-total-row"><span>Subtotal</span><span>' + formatUsd(state.subtotal) + "</span></div>",
-      '<div class="checkout-total-row"><span>Shipping</span><span>' +
-        (state.shipping > 0 ? formatUsd(state.shipping) : "Free") +
+      '<div class="checkout-total-row"><span>Subtotal</span><span class="checkout-money" data-total="subtotal" data-value="' +
+        state.subtotal +
+        '">' +
+        formatUsd(state.subtotal) +
+        "</span></div>",
+      '<div class="checkout-total-row"><span>Shipping</span><span class="checkout-money" data-total="shipping" data-value="' +
+        state.shipping +
+        '">' +
+        formatUsd(state.shipping) +
         "</span></div>",
       taxRow,
       state.discount > 0
         ? '<div class="checkout-total-row"><span>Discount</span><span>-' + formatUsd(state.discount) + "</span></div>"
         : "",
-      '<div class="checkout-total-row checkout-total-row--grand"><span>Total</span><span>' +
+      '<div class="checkout-total-row checkout-total-row--grand"><span>Total</span><span class="checkout-money" data-total="grand" data-value="' +
+        state.total +
+        '">' +
         formatUsd(state.total) +
         "</span></div>"
     ].join("");
+  }
+
+  function updateOrderTotalsAnimated() {
+    calcTotals(state.displayItems);
+    animateCheckoutTotals();
   }
 
   function renderOrderSummary(displayItems) {
@@ -165,7 +306,10 @@
     if (totals) totals.innerHTML = totalsHtml;
     if (mobileList) mobileList.innerHTML = html;
     if (mobileTotals) mobileTotals.innerHTML = totalsHtml;
-    if (mobileTotal) mobileTotal.textContent = formatUsd(state.total);
+    if (mobileTotal) {
+      mobileTotal.setAttribute("data-value", String(state.total));
+      mobileTotal.textContent = formatUsd(state.total);
+    }
 
     var cartCount = document.getElementById("checkout-cart-count");
     if (cartCount) {
@@ -216,8 +360,13 @@
 
   function createCheckoutSession(pending) {
     var config = getConfig();
+    var pricing = getPricing();
     var apiBase = config.apiBaseUrl || window.location.origin;
     var origin = window.location.origin;
+    var shippingMethod =
+      pending.shippingMethod ||
+      getSelectedShippingMethod() ||
+      (pricing ? pricing.readShippingMethod() : "standard");
     var successUrl =
       pending.successUrl ||
       config.successUrl ||
@@ -234,10 +383,12 @@
         embedded: true,
         custom: true,
         lineItems: pending.lineItems,
+        shippingMethod: shippingMethod,
         priceId: pending.priceId,
         quantity: pending.quantity,
         productSlug: pending.productSlug,
         size: pending.size,
+        powerType: pending.powerType,
         successUrl: successUrl,
         cancelUrl: pending.cancelUrl || origin + "/checkout/",
         returnUrl: returnUrl
@@ -247,6 +398,67 @@
         return { ok: res.ok, data: data };
       });
     });
+  }
+
+  function mountStripeFromSessionResult(result) {
+    if (!result.ok || !result.data) {
+      showError(
+        (result.data && result.data.error) ||
+          "Could not start checkout. Please go back and try again."
+      );
+      return Promise.resolve();
+    }
+    if (result.data.url && !result.data.clientSecret) {
+      window.location.href = result.data.url;
+      return Promise.resolve();
+    }
+    if (!result.data.clientSecret) {
+      showError("Could not start checkout. Please go back and try again.");
+      return Promise.resolve();
+    }
+
+    var config = getConfig();
+    var pk = config.publishableKey || "";
+    if (!pk || !window.Stripe) {
+      showError("Stripe is not configured.");
+      return Promise.resolve();
+    }
+    var stripe = window.Stripe(pk);
+
+    if (result.data.checkoutMode !== "custom") {
+      return mountEmbeddedCheckout(stripe, result.data.clientSecret);
+    }
+
+    return mountCustomCheckout(result.data.clientSecret).catch(function () {
+      return mountEmbeddedCheckout(stripe, result.data.clientSecret);
+    });
+  }
+
+  function refreshCheckoutSession() {
+    if (!state.pending) return Promise.resolve();
+    var pricing = getPricing();
+    var shippingMethod = getSelectedShippingMethod();
+    persistShippingSelection(shippingMethod);
+    try {
+      window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(state.pending));
+    } catch (_) {}
+
+    var payBtn = document.getElementById("checkout-pay-btn");
+    if (payBtn) payBtn.disabled = true;
+
+    var paymentMount = document.getElementById("checkout-payment-element");
+    if (paymentMount) paymentMount.innerHTML = "";
+    var expressMount = document.getElementById("checkout-express-element");
+    if (expressMount) expressMount.innerHTML = "";
+    state.stripeCheckout = null;
+
+    return createCheckoutSession(state.pending)
+      .then(mountStripeFromSessionResult)
+      .catch(function (err) {
+        console.error(err);
+        showError((err && err.message) || "Could not update shipping. Please refresh and try again.");
+        if (payBtn) payBtn.disabled = false;
+      });
   }
 
   function mountCustomCheckout(clientSecret) {
@@ -337,7 +549,12 @@
       city: (document.getElementById("checkout-city") || {}).value || "",
       state: (document.getElementById("checkout-state") || {}).value || "",
       postcode: (document.getElementById("checkout-postcode") || {}).value || "",
-      country: (document.getElementById("checkout-country") || {}).value || "MY"
+      country:
+        (window.ZYBAR &&
+          window.ZYBAR.CountrySelector &&
+          window.ZYBAR.CountrySelector.getValue()) ||
+        (document.getElementById("checkout-country") || {}).value ||
+        "MY"
     };
   }
 
@@ -431,6 +648,33 @@
       });
   }
 
+  function scheduleShippingRefresh() {
+    if (shippingRefreshTimer) clearTimeout(shippingRefreshTimer);
+    shippingRefreshTimer = setTimeout(function () {
+      shippingRefreshTimer = null;
+      refreshCheckoutSession();
+    }, 350);
+  }
+
+  function handleShippingChange(method) {
+    persistShippingSelection(method);
+    syncShippingCardStates();
+    updateOrderTotalsAnimated();
+    scheduleShippingRefresh();
+  }
+
+  function wireShippingMethod() {
+    updateShippingPriceLabels();
+    syncShippingCardStates();
+
+    document.querySelectorAll('input[name="shippingMethod"]').forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        if (!radio.checked) return;
+        handleShippingChange(radio.value);
+      });
+    });
+  }
+
   function wireBillingToggle() {
     var fields = document.getElementById("checkout-billing-fields");
     document.querySelectorAll('input[name="billingAddress"]').forEach(function (radio) {
@@ -494,48 +738,35 @@
           (successUrl.indexOf("?") === -1 ? "?" : "&") +
           "session_id={CHECKOUT_SESSION_ID}";
 
+    state.pending = pending;
+    var pricing = getPricing();
+    if (pricing) {
+      var method = pending.shippingMethod || pricing.readShippingMethod();
+      pricing.writeShippingMethod(method);
+      setShippingRadio(method);
+      if (Array.isArray(pending.displayItems)) {
+        pending.displayItems = pending.displayItems.map(function (item) {
+          var copy = Object.assign({}, item);
+          copy.unitPriceUSD = pricing.calculateProductUnitPrice({
+            size: copy.size,
+            powerType: copy.powerType
+          });
+          return copy;
+        });
+      }
+    }
+
     renderOrderSummary(pending.displayItems);
     wireBillingToggle();
     wireMobileSummary();
     wireDiscount();
+    wireShippingMethod();
 
     var form = document.getElementById("checkout-form");
     if (form) form.addEventListener("submit", handlePaySubmit);
 
     createCheckoutSession(pending)
-      .then(function (result) {
-        if (!result.ok || !result.data) {
-          showError(
-            (result.data && result.data.error) ||
-              "Could not start checkout. Please go back and try again."
-          );
-          return;
-        }
-        if (result.data.url && !result.data.clientSecret) {
-          window.location.href = result.data.url;
-          return;
-        }
-        if (!result.data.clientSecret) {
-          showError("Could not start checkout. Please go back and try again.");
-          return;
-        }
-
-        var config = getConfig();
-        var pk = config.publishableKey || "";
-        if (!pk || !window.Stripe) {
-          showError("Stripe is not configured.");
-          return;
-        }
-        var stripe = window.Stripe(pk);
-
-        if (result.data.checkoutMode !== "custom") {
-          return mountEmbeddedCheckout(stripe, result.data.clientSecret);
-        }
-
-        return mountCustomCheckout(result.data.clientSecret).catch(function () {
-          return mountEmbeddedCheckout(stripe, result.data.clientSecret);
-        });
-      })
+      .then(mountStripeFromSessionResult)
       .catch(function (err) {
         console.error(err);
         showError((err && err.message) || "Something went wrong. Please refresh and try again.");

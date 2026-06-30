@@ -1,150 +1,185 @@
 {
   "currency": "usd",
   "pricesBySize": {
-    "30x45": 110,
-    "40x60": 150
+    "30x45": 76,
+    "40x60": 91
   },
   "perProductPricesBySize": {},
   "products": [
     {
       "slug": "audi-r8-gt3",
-      "name": "Audi R8 GT3"
+      "name": "Audi R8 GT3",
+      "ledColor": "Red"
     },
     {
       "slug": "audi-r8-white",
-      "name": "Audi R8 – White"
+      "name": "Audi R8 – White",
+      "ledColor": "White"
     },
     {
       "slug": "audi-r8-yellow",
-      "name": "Audi R8 – Yellow"
+      "name": "Audi R8 – Yellow",
+      "ledColor": "Yellow"
     },
     {
       "slug": "audi-rs6",
-      "name": "Audi RS6"
+      "name": "Audi RS6",
+      "ledColor": "Multi"
     },
     {
       "slug": "b-dodge-hellcat-02",
-      "name": "B Dodge Hellcat 02"
+      "name": "B Dodge Hellcat 02",
+      "ledColor": "Multi"
     },
     {
       "slug": "b-dodge-hellcat-03",
-      "name": "B Dodge Hellcat 03"
+      "name": "B Dodge Hellcat 03",
+      "ledColor": "Blue"
     },
     {
       "slug": "b-ferrari-f40",
-      "name": "B Ferrari F40"
+      "name": "B Ferrari F40",
+      "ledColor": "Red"
     },
     {
       "slug": "b-maserati-mc20",
-      "name": "B Maserati MC20"
+      "name": "B Maserati MC20",
+      "ledColor": "Red"
     },
     {
       "slug": "b-nissan-gt-r35",
-      "name": "B Nissan Gt R35"
+      "name": "B Nissan Gt R35",
+      "ledColor": "Red"
     },
     {
       "slug": "b-yamaha-r1",
-      "name": "B Yamaha R1"
+      "name": "B Yamaha R1",
+      "ledColor": "Blue"
     },
     {
       "slug": "bmw-classic-3-0",
-      "name": "Bmw Classic 3 0"
+      "name": "Bmw Classic 3 0",
+      "ledColor": "Yellow"
     },
     {
       "slug": "bmw-m1000rr",
-      "name": "Bmw M1000rr"
+      "name": "Bmw M1000rr",
+      "ledColor": "Multi"
     },
     {
       "slug": "bmw-m2-neon",
-      "name": "Bmw M2 Neon"
+      "name": "Bmw M2 Neon",
+      "ledColor": "Yellow"
     },
     {
       "slug": "bmw-m4",
-      "name": "Bmw M4"
+      "name": "Bmw M4",
+      "ledColor": "Multi"
     },
     {
       "slug": "bmw-m4-black",
-      "name": "Bmw M4 Black"
+      "name": "Bmw M4 Black",
+      "ledColor": "White"
     },
     {
       "slug": "bmw-m5-e39",
-      "name": "Bmw M5 E39"
+      "name": "Bmw M5 E39",
+      "ledColor": "Purple"
     },
     {
       "slug": "bugatti-tailights",
-      "name": "Bugatti Tailights"
+      "name": "Bugatti Tailights",
+      "ledColor": "Red"
     },
     {
       "slug": "c-ford-mustang-gt350r",
-      "name": "C Ford Mustang Gt350r"
+      "name": "C Ford Mustang Gt350r",
+      "ledColor": "Red"
     },
     {
       "slug": "c-lamborghini-oragne",
-      "name": "C Lamborghini Oragne"
+      "name": "C Lamborghini Oragne",
+      "ledColor": "Orange"
     },
     {
       "slug": "dark-colour-audi",
-      "name": "Dark Colour Audi"
+      "name": "Dark Colour Audi",
+      "ledColor": "White"
     },
     {
       "slug": "dodge-srt-hellcat-01",
-      "name": "Dodge Srt Hellcat 01"
+      "name": "Dodge Srt Hellcat 01",
+      "ledColor": "Orange"
     },
     {
       "slug": "ferrari-488",
-      "name": "Ferrari 488"
+      "name": "Ferrari 488",
+      "ledColor": "Red"
     },
     {
       "slug": "ferrari-f8",
-      "name": "Ferrari F8"
+      "name": "Ferrari F8",
+      "ledColor": "Red"
     },
     {
       "slug": "lambrghini-svj-tailights",
-      "name": "Lambrghini Svj Tailights"
+      "name": "Lambrghini Svj Tailights",
+      "ledColor": "Red"
     },
     {
       "slug": "mercedes-benz-amg-1",
-      "name": "Mercedes Benz Amg 1"
+      "name": "Mercedes Benz Amg 1",
+      "ledColor": "Red"
     },
     {
       "slug": "mercedes-benz-cls-amg63",
-      "name": "Mercedes Benz Cls Amg63"
+      "name": "Mercedes Benz Cls Amg63",
+      "ledColor": "Red"
     },
     {
       "slug": "mercedes-benz-g63-double-tail-2",
-      "name": "Mercedes Benz G63 Double Tail 2"
+      "name": "Mercedes Benz G63 Double Tail 2",
+      "ledColor": "White"
     },
     {
       "slug": "nissan-gtr",
-      "name": "Nissan Gtr"
+      "name": "Nissan Gtr",
+      "ledColor": "Red"
     },
     {
       "slug": "porsche-gt3-rs",
-      "name": "Porsche Gt3 Rs"
+      "name": "Porsche Gt3 Rs",
+      "ledColor": "Red"
     },
     {
       "slug": "porsche-gt3-rs-green",
-      "name": "Porsche Gt3 Rs Green"
+      "name": "Porsche Gt3 Rs Green",
+      "ledColor": "Green"
     },
     {
       "slug": "porsche-gt3-rs-grey",
-      "name": "Porsche Gt3 Rs Grey"
+      "name": "Porsche Gt3 Rs Grey",
+      "ledColor": "White"
     },
     {
       "slug": "porsche-r",
-      "name": "Porsche R"
+      "name": "Porsche R",
+      "ledColor": "Red"
     },
     {
       "slug": "toyota-supra",
-      "name": "Toyota Supra"
+      "name": "Toyota Supra",
+      "ledColor": "Red"
     },
     {
       "slug": "xa-ferrari-motorcycle-1",
-      "name": "Xa Ferrari Motorcycle 1"
+      "name": "Xa Ferrari Motorcycle 1",
+      "ledColor": "Multi"
     },
     {
       "slug": "xd-bmw-headlights-motorcycle",
-      "name": "Xd Bmw Headlights Motorcycle"
+      "name": "Xd Bmw Headlights Motorcycle",
+      "ledColor": "Yellow"
     }
   ]
 }

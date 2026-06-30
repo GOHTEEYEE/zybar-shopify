@@ -75,6 +75,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
+    <script src="/js/nav-drawer.js" defer></script>
     <script>
       window.ZYBAR_SEO = {
         title: "Luxury LED Car Wall Art | Automotive Light Painting | ZYBAR",
@@ -110,103 +111,196 @@
     </header>
 
     <main>
-      <section class="poster-hero">
-        <div class="poster-hero-inner">
-          <img src="/Poster/7483b279-8b37-4e6c-aed8-6a75ca86d093.png" alt="ZYBAR luxury LED car wall art hero – automotive light painting" class="poster-hero-img" loading="eager" width="1536" height="1024" />
-          <div class="poster-hero-overlay">
-            <h1>ZYBAR | Premium LED Automotive Wall Art</h1>
-            <p>LED automotive wall art from ZYBAR</p>
-            <a class="btn btn-shop" href="/collections/all/">Shop all</a>
+      <section class="poster-hero poster-hero--adaptive" id="hero-scroll" aria-label="ZYBAR hero">
+        <div class="poster-hero-desktop">
+          <div class="poster-hero-split">
+            <div class="poster-hero-split-panel poster-hero-split-panel--day">
+              <span class="poster-hero-split-label">Day</span>
+              <img
+                src="/Poster/day.jpg"
+                alt="ZYBAR LED wall art in daylight"
+                class="poster-hero-img poster-hero-img--day-split"
+                loading="eager"
+                width="1920"
+                height="1080"
+              />
+            </div>
+            <div class="poster-hero-split-divider" aria-hidden="true"></div>
+            <div class="poster-hero-split-panel poster-hero-split-panel--night">
+              <span class="poster-hero-split-label">Night</span>
+              <img
+                src="/Poster/night.jpg"
+                alt="ZYBAR LED wall art illuminated at night"
+                class="poster-hero-img poster-hero-img--night-split"
+                loading="eager"
+                width="1920"
+                height="1080"
+              />
+            </div>
           </div>
+        </div>
+
+        <div class="poster-hero-mobile">
+          <div class="poster-hero-pin">
+            <div class="poster-hero-inner">
+              <div class="poster-hero-compare" id="heroCompare">
+                <div class="poster-hero-compare-stack">
+                  <img
+                    src="/Poster/day.jpg"
+                    alt=""
+                    class="poster-hero-compare-img poster-hero-compare-img--day"
+                    loading="eager"
+                    width="1920"
+                    height="1080"
+                  />
+                  <img
+                    src="/Poster/night.jpg"
+                    alt=""
+                    class="poster-hero-compare-img poster-hero-compare-img--night"
+                    id="heroCompareNight"
+                    loading="eager"
+                    width="1920"
+                    height="1080"
+                  />
+                </div>
+                <div
+                  class="poster-hero-compare-handle"
+                  id="heroCompareHandle"
+                  role="slider"
+                  tabindex="0"
+                  aria-label="Compare day and night artwork"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow="0"
+                >
+                  <span class="poster-hero-compare-line" aria-hidden="true"></span>
+                  <span class="poster-hero-compare-knob" aria-hidden="true"></span>
+                </div>
+              </div>
+              <div class="poster-hero-overlay poster-hero-overlay--mobile">
+                <div class="poster-hero-copy">
+                  <p class="poster-hero-eyebrow">Illuminated Automotive Art</p>
+                  <h1 class="poster-hero-heading">
+                    <span>Legendary Cars.</span>
+                    <span>Living Light.</span>
+                  </h1>
+                  <p class="poster-hero-lead">Handcrafted in Japan for the modern collector.</p>
+                  <a class="poster-hero-cta" href="/collections/all/">Explore Collection</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="poster-hero-overlay poster-hero-overlay--desktop">
+          <div class="poster-hero-copy">
+            <p class="poster-hero-eyebrow">Illuminated Automotive Art</p>
+            <h1 class="poster-hero-heading">
+              <span>Legendary Cars.</span>
+              <span>Living Light.</span>
+            </h1>
+            <p class="poster-hero-lead">Handcrafted in Japan for the modern collector.</p>
+            <a class="poster-hero-cta" href="/collections/all/">Explore Collection</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="brand-story" aria-labelledby="brand-story-heading">
+        <div class="brand-story-inner">
+          <p class="brand-story-eyebrow">Handcrafted since 2023 &bull; Made in Japan &#127471;&#127477;</p>
+          <h2 class="brand-story-heading" id="brand-story-heading">
+            <span>Illuminate</span>
+            <span>Your Passion</span>
+          </h2>
+          <div class="brand-story-body">
+            <p>Every artwork is handcrafted in Japan to transform legendary automobiles into premium illuminated wall art. Designed for collectors and modern interiors, each piece combines precision lighting, premium materials, and museum-quality craftsmanship to celebrate the world's most iconic cars.</p>
+          </div>
+          <a href="/collections/all/" class="brand-story-cta">Shop Collection</a>
+        </div>
+      </section>
+
+      <section class="home-video-showcase" aria-label="ZYBAR product video">
+        <div class="home-video-showcase-wrap">
+          <video
+            class="home-showcase-video zybar-premium-video"
+            src="/shared-gallery/zybar-homepage.mp4"
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="auto"
+            controlslist="nodownload noplaybackrate nofullscreen"
+            disablepictureinpicture
+            disableremoteplayback
+            tabindex="-1"
+            aria-hidden="true"
+          ></video>
+        </div>
+      </section>
+
+      <section class="trending-section" aria-labelledby="trending-title" id="trending">
+        <div class="trending-head-wrap">
+          <header class="trending-header">
+            <h2 class="trending-title" id="trending-title">Trending This Week</h2>
+            <a class="trending-view-all" href="/collections/all/">View All</a>
+          </header>
+          <div class="trending-divider" aria-hidden="true"></div>
+        </div>
+        <div class="trending-carousel" id="trending-carousel" tabindex="0" aria-label="Trending products carousel">
+          <div class="trending-carousel-track" id="trending-carousel-track"></div>
+        </div>
+        <div class="trending-nav" aria-label="Carousel navigation">
+          <button type="button" class="trending-nav-btn trending-nav-prev" id="trending-nav-prev" aria-label="Previous products">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <p class="trending-nav-status" aria-live="polite">
+            <span class="trending-nav-current" id="trending-nav-current">1</span>
+            <span class="trending-nav-sep">/</span>
+            <span class="trending-nav-total" id="trending-nav-total">1</span>
+          </p>
+          <button type="button" class="trending-nav-btn trending-nav-next" id="trending-nav-next" aria-label="Next products">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <div class="trending-foot">
+          <a href="/collections/all/" class="trending-view-all-foot">View All</a>
         </div>
       </section>
 
       <section class="trust-bar" aria-label="Global trust and guarantees">
         <div class="trust-bar-inner">
-          <div class="trust-bar-item">
+          <article class="trust-bar-item">
             <span class="trust-bar-icon" aria-hidden="true">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             </span>
-            <span class="trust-bar-text">Worldwide Shipping</span>
-          </div>
-          <div class="trust-bar-item">
+            <h3 class="trust-bar-title">Worldwide Shipping</h3>
+            <span class="trust-bar-rule" aria-hidden="true"></span>
+            <p class="trust-bar-desc">Fast and reliable shipping to over 100+ countries.</p>
+          </article>
+          <article class="trust-bar-item">
             <span class="trust-bar-icon" aria-hidden="true">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             </span>
-            <span class="trust-bar-text">100,000+ Global Fans</span>
-          </div>
-          <div class="trust-bar-item">
+            <h3 class="trust-bar-title">100,000+ Global Fans</h3>
+            <span class="trust-bar-rule" aria-hidden="true"></span>
+            <p class="trust-bar-desc">Trusted by over 100,000 enthusiasts worldwide.</p>
+          </article>
+          <article class="trust-bar-item">
             <span class="trust-bar-icon" aria-hidden="true">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
             </span>
-            <span class="trust-bar-text">Premium Quality Guaranteed</span>
-          </div>
-          <div class="trust-bar-item">
+            <h3 class="trust-bar-title">Premium Quality Guaranteed</h3>
+            <span class="trust-bar-rule" aria-hidden="true"></span>
+            <p class="trust-bar-desc">Crafted with precision. Built to stand out.</p>
+          </article>
+          <article class="trust-bar-item">
             <span class="trust-bar-icon" aria-hidden="true">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </span>
-            <span class="trust-bar-text">30-Day Easy Returns</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="trending-section section" aria-labelledby="trending-title" id="trending">
-        <div class="container">
-          <header class="trending-header">
-            <h2 class="trending-title" id="trending-title">TRENDING THIS WEEK</h2>
-            <a class="trending-view-all" href="/collections/all/">View All</a>
-          </header>
-          <div class="trending-divider"></div>
-          <div class="trending-grid products-grid">
-            <article class="product-card">
-              <a class="product-image-link" href="/products/audi-r8-white/">
-                <img class="product-image" src="/Image/audi-r8-white-1-on.webp" data-off-src="/Image/audi-r8-white-1.webp" alt="Audi R8 – White - LED Light Painting Wall Art" loading="lazy" width="990" height="990" />
-              </a>
-              <div class="product-card-meta">
-                <a class="product-card-link" href="/products/audi-r8-white/">
-                  <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">Audi R8 – White</h3>
-                </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
-              </div>
-            </article>
-            <article class="product-card">
-              <a class="product-image-link" href="/products/audi-rs6/">
-                <img class="product-image" src="/Image/audi-rs6-1-on.webp" data-off-src="/Image/audi-rs6-1.webp" alt="Audi RS6 - LED Light Painting Wall Art" loading="lazy" width="990" height="990" />
-              </a>
-              <div class="product-card-meta">
-                <a class="product-card-link" href="/products/audi-rs6/">
-                  <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">Audi RS6</h3>
-                </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
-              </div>
-            </article>
-            <article class="product-card">
-              <a class="product-image-link" href="/products/b-ferrari-f40/">
-                <img class="product-image" src="/Image/b-ferrari-f40-1-on.webp" data-off-src="/Image/b-ferrari-f40-1.webp" alt="B Ferrari F40 - LED Light Painting Wall Art" loading="lazy" width="990" height="990" />
-              </a>
-              <div class="product-card-meta">
-                <a class="product-card-link" href="/products/b-ferrari-f40/">
-                  <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">B Ferrari F40</h3>
-                </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
-              </div>
-            </article>
-            <article class="product-card">
-              <a class="product-image-link" href="/products/b-maserati-mc20/">
-                <img class="product-image" src="/Image/b-maserati-mc20-1-on.webp" data-off-src="/Image/b-maserati-mc20-1.webp" alt="B Maserati MC20 - LED Light Painting Wall Art" loading="lazy" width="990" height="990" />
-              </a>
-              <div class="product-card-meta">
-                <a class="product-card-link" href="/products/b-maserati-mc20/">
-                  <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">B Maserati MC20</h3>
-                </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
-              </div>
-            </article>
-          </div>
+            <h3 class="trust-bar-title">30-Day Easy Returns</h3>
+            <span class="trust-bar-rule" aria-hidden="true"></span>
+            <p class="trust-bar-desc">Not in love? Return it within 30 days. No hassle.</p>
+          </article>
         </div>
       </section>
 
@@ -225,6 +319,35 @@
               <img src="/Poster/caris expensive but dream is priceless .png" alt="ZYBAR premium LED automotive wall art - collector garage decor" class="brand-impact-img" loading="lazy" width="2345" height="1684" />
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="bestseller-section" aria-labelledby="bestseller-title" id="bestseller">
+        <div class="trending-head-wrap">
+          <header class="trending-header">
+            <h2 class="trending-title" id="bestseller-title">Best Sellers</h2>
+            <a class="trending-view-all" href="/collections/all/">View All</a>
+          </header>
+          <div class="trending-divider" aria-hidden="true"></div>
+        </div>
+        <div class="trending-carousel" id="bestseller-carousel" tabindex="0" aria-label="Best sellers carousel">
+          <div class="trending-carousel-track" id="bestseller-carousel-track"></div>
+        </div>
+        <div class="trending-nav" aria-label="Best sellers carousel navigation">
+          <button type="button" class="trending-nav-btn trending-nav-prev" id="bestseller-nav-prev" aria-label="Previous products">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <p class="trending-nav-status" aria-live="polite">
+            <span class="trending-nav-current" id="bestseller-nav-current">1</span>
+            <span class="trending-nav-sep">/</span>
+            <span class="trending-nav-total" id="bestseller-nav-total">1</span>
+          </p>
+          <button type="button" class="trending-nav-btn trending-nav-next" id="bestseller-nav-next" aria-label="Next products">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <div class="trending-foot">
+          <a href="/collections/all/" class="trending-view-all-foot">View All</a>
         </div>
       </section>
 
@@ -388,9 +511,9 @@
               <div class="product-card-meta">
                 <a class="product-card-link" href="/products/audi-r8-white/">
                   <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">Audi R8 - White</h3>
+                  <h3 class="product-card-title">Audi R8 NEON Poster(White LED)</h3>
                 </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
+                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $76.00</p></div>
               </div>
             </article>
             <article class="product-card">
@@ -400,9 +523,9 @@
               <div class="product-card-meta">
                 <a class="product-card-link" href="/products/audi-r8-yellow/">
                   <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">Audi R8 - Yellow</h3>
+                  <h3 class="product-card-title">Audi R8 NEON Poster(Yellow LED)</h3>
                 </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
+                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $76.00</p></div>
               </div>
             </article>
             <article class="product-card">
@@ -412,9 +535,9 @@
               <div class="product-card-meta">
                 <a class="product-card-link" href="/products/audi-r8-gt3/">
                   <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">Audi R8 GT3</h3>
+                  <h3 class="product-card-title">Audi R8 GT3 NEON Poster(Red LED)</h3>
                 </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
+                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $76.00</p></div>
               </div>
             </article>
             <article class="product-card">
@@ -424,9 +547,9 @@
               <div class="product-card-meta">
                 <a class="product-card-link" href="/products/audi-rs6/">
                   <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">Audi RS6</h3>
+                  <h3 class="product-card-title">Audi RS6 NEON Poster(Multi LED)</h3>
                 </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
+                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $76.00</p></div>
               </div>
             </article>
             <article class="product-card">
@@ -436,9 +559,9 @@
               <div class="product-card-meta">
                 <a class="product-card-link" href="/products/b-dodge-hellcat-02/">
                   <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">B Dodge Hellcat 02</h3>
+                  <h3 class="product-card-title">B Dodge Hellcat 02 NEON Poster(Multi LED)</h3>
                 </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
+                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $76.00</p></div>
               </div>
             </article>
             <article class="product-card">
@@ -448,9 +571,9 @@
               <div class="product-card-meta">
                 <a class="product-card-link" href="/products/b-dodge-hellcat-03/">
                   <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">B Dodge Hellcat 03</h3>
+                  <h3 class="product-card-title">B Dodge Hellcat 03 NEON Poster(Blue LED)</h3>
                 </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
+                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $76.00</p></div>
               </div>
             </article>
             <article class="product-card">
@@ -460,9 +583,9 @@
               <div class="product-card-meta">
                 <a class="product-card-link" href="/products/b-ferrari-f40/">
                   <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">B Ferrari F40</h3>
+                  <h3 class="product-card-title">B Ferrari F40 NEON Poster(Red LED)</h3>
                 </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
+                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $76.00</p></div>
               </div>
             </article>
             <article class="product-card">
@@ -472,9 +595,9 @@
               <div class="product-card-meta">
                 <a class="product-card-link" href="/products/b-maserati-mc20/">
                   <p class="product-card-kicker">LED WALL ART</p>
-                  <h3 class="product-card-title">B Maserati MC20</h3>
+                  <h3 class="product-card-title">B Maserati MC20 NEON Poster(Red LED)</h3>
                 </a>
-                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $110.00</p></div>
+                <div class="product-card-pricing"><p class="product-card-price-compare">$149.00</p><p class="product-card-price"><span class="product-card-price-from">From</span> $76.00</p></div>
               </div>
             </article>
           </div>
@@ -684,6 +807,10 @@
     </script>
     <script src="/js/analytics.js?v=2" async></script>
       <script src="/js/image-hover-toggle.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js" defer></script>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/ScrollTrigger.min.js" defer></script>
+      <script src="/js/hero-scroll.js" defer></script>
+      <script src="/js/trending-carousel.js" defer></script>
       <script src="/js/chatbot.js"></script>
   </body>
 </html>

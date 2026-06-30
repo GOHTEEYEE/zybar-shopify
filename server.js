@@ -10,6 +10,7 @@ const express = require('express');
 const Stripe = require('stripe');
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
+const Pricing = require('./lib/pricing.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -115,15 +116,73 @@ function getConfiguredPriceId(productSlug, size) {
   }
 }
 
+function buildDynamicStripeLineItems(lineItems, shippingMethod) {
+  const rows = Array.isArray(lineItems) ? lineItems : [];
+  const stripeItems = [];
+
+  rows.forEach(function (item) {
+    if (!item || typeof item !== 'object') return;
+    const qty = Number(item.quantity);
+    if (!Number.isFinite(qty) || qty < 1) return;
+
+    const size = Pricing.normalizeSize(item.size);
+    const powerType = Pricing.normalizePowerType(item.powerType);
+    const unitUSD =
+      typeof item.unitAmountUSD === 'number' && Number.isFinite(item.unitAmountUSD)
+        ? Pricing.roundMoney(item.unitAmountUSD)
+        : Pricing.calculateProductUnitPrice({ size: size, powerType: powerType });
+    const slug = typeof item.productSlug === 'string' ? item.productSlug.trim() : '';
+    const baseName =
+      typeof item.name === 'string' && item.name.trim()
+        ? item.name.trim()
+        : slug
+          ? 'ZYBAR ' + slug.replace(/-/g, ' ')
+          : 'ZYBAR LED Wall Art';
+    const variantLabel = Pricing.sizeToLabel(size) + ' · ' + Pricing.powerTypeToLabel(powerType);
+
+    stripeItems.push({
+      price_data: {
+        currency: 'usd',
+        unit_amount: Pricing.toCents(unitUSD),
+        product_data: {
+          name: baseName + ' (' + variantLabel + ')',
+          metadata: {
+            slug: slug,
+            size: size,
+            powerType: powerType
+          }
+        }
+      },
+      quantity: Math.floor(qty)
+    });
+  });
+
+  const shipUSD = Pricing.getShippingCostUSD(shippingMethod);
+  if (shipUSD > 0) {
+    stripeItems.push({
+      price_data: {
+        currency: 'usd',
+        unit_amount: Pricing.toCents(shipUSD),
+        product_data: {
+          name: Pricing.shippingMethodToLabel(shippingMethod)
+        }
+      },
+      quantity: 1
+    });
+  }
+
+  return stripeItems;
+}
+
 const chatbotProductCatalog = [
-  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi RS6', slug: 'audi-rs6', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Dodge Hellcat 02', slug: 'b-dodge-hellcat-02', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Dodge Hellcat 03', slug: 'b-dodge-hellcat-03', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Ferrari F40', slug: 'b-ferrari-f40', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Maserati MC20', slug: 'b-maserati-mc20', price: '$110.00', sizes: '30 x 45 cm, 40 x 60 cm' }
+  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi RS6', slug: 'audi-rs6', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Dodge Hellcat 02', slug: 'b-dodge-hellcat-02', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Dodge Hellcat 03', slug: 'b-dodge-hellcat-03', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Ferrari F40', slug: 'b-ferrari-f40', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Maserati MC20', slug: 'b-maserati-mc20', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' }
 ];
 const allowedProductSlugs = new Set(chatbotProductCatalog.map(function (item) { return item.slug; }));
 
@@ -406,6 +465,11 @@ if (isZybarMy) {
 }
 
 // ----- Static files -----
+app.get('/favicon.ico', function (req, res) {
+  res.type('png');
+  res.sendFile(path.join(__dirname, 'Poster', '7483b279-8b37-4e6c-aed8-6a75ca86d093.png'));
+});
+
 app.use(express.static(path.join(__dirname)));
 
 // ----- Webhook: raw body only (must be before express.json()) -----
@@ -1170,8 +1234,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
     returnUrl,
     productSlug,
     size,
+    powerType,
     embedded,
-    custom
+    custom,
+    shippingMethod,
+    unitAmountUSD,
+    name
   } = req.body || {};
   const isEmbedded = embedded === true || embedded === 'true';
   const isCustom = custom === true || custom === 'true';
@@ -1185,47 +1253,78 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 
   let stripeLineItems = [];
+  const resolvedShippingMethod = Pricing.normalizeShippingMethod(shippingMethod);
+
   if (Array.isArray(lineItems) && lineItems.length) {
-    stripeLineItems = lineItems
+    const normalizedLineItems = lineItems
       .map(function (item) {
         if (!item || typeof item !== 'object') return null;
-        const itemPriceId = typeof item.priceId === 'string' ? item.priceId.trim() : '';
         const itemQty = Number(item.quantity);
         const itemProductSlug = typeof item.productSlug === 'string' ? item.productSlug.trim() : '';
         const itemSize = typeof item.size === 'string' ? item.size.trim() : '';
-        if (!itemPriceId || !Number.isFinite(itemQty) || itemQty < 1) return null;
+        const itemPowerType = typeof item.powerType === 'string' ? item.powerType.trim() : '';
+        const itemName = typeof item.name === 'string' ? item.name.trim() : '';
+        if (!Number.isFinite(itemQty) || itemQty < 1) return null;
         return {
-          price: itemPriceId,
           quantity: Math.floor(itemQty),
           productSlug: itemProductSlug,
-          size: itemSize
+          size: itemSize,
+          powerType: itemPowerType || 'usb',
+          name: itemName,
+          unitAmountUSD:
+            typeof item.unitAmountUSD === 'number' && Number.isFinite(item.unitAmountUSD)
+              ? item.unitAmountUSD
+              : undefined
         };
       })
       .filter(Boolean);
-    stripeLineItems = await Promise.all(
-      stripeLineItems.map(async function (item) {
-        const configuredPrice = getConfiguredPriceId(item.productSlug, item.size);
-        const requestedPrice = configuredPrice || item.price;
-        const resolvedPrice = await resolveActivePriceId(requestedPrice);
-        return { price: resolvedPrice, quantity: item.quantity };
-      })
-    );
+
+    stripeLineItems = buildDynamicStripeLineItems(normalizedLineItems, resolvedShippingMethod);
+
     if (!stripeLineItems.length) {
-      return res.status(400).json({ error: 'Invalid request: lineItems must contain valid priceId and quantity' });
+      return res.status(400).json({ error: 'Invalid request: lineItems must contain valid quantity and variant data' });
     }
   } else {
-    if (!priceId || typeof quantity !== 'number' || quantity < 1) {
-      return res.status(400).json({ error: 'Invalid request: priceId and quantity (number >= 1) required' });
+    const itemQty = Number(quantity);
+    if (!Number.isFinite(itemQty) || itemQty < 1) {
+      return res.status(400).json({ error: 'Invalid request: quantity (number >= 1) required' });
     }
-    const configuredPrice = getConfiguredPriceId(productSlug, size);
-    const requestedPrice = configuredPrice || priceId;
-    const resolvedPrice = await resolveActivePriceId(requestedPrice);
-    stripeLineItems = [{ price: resolvedPrice, quantity: Math.floor(quantity) }];
+    stripeLineItems = buildDynamicStripeLineItems(
+      [
+        {
+          quantity: Math.floor(itemQty),
+          productSlug: typeof productSlug === 'string' ? productSlug.trim() : '',
+          size: typeof size === 'string' ? size.trim() : '',
+          powerType: typeof powerType === 'string' ? powerType.trim() : 'usb',
+          name: typeof name === 'string' ? name.trim() : '',
+          unitAmountUSD:
+            typeof unitAmountUSD === 'number' && Number.isFinite(unitAmountUSD) ? unitAmountUSD : undefined
+        }
+      ],
+      resolvedShippingMethod
+    );
   }
 
   const metadata = {};
   if (productSlug) metadata.productSlug = String(productSlug);
   if (size) metadata.size = String(size);
+  if (powerType) metadata.powerType = String(powerType);
+  metadata.shippingMethod = resolvedShippingMethod;
+  if (Array.isArray(lineItems) && lineItems.length > 1) {
+    const variantDetails = lineItems
+      .map(function (item) {
+        if (!item || typeof item !== 'object') return null;
+        const slug = typeof item.productSlug === 'string' ? item.productSlug.trim() : '';
+        const itemSize = typeof item.size === 'string' ? item.size.trim() : '';
+        const itemPower = typeof item.powerType === 'string' ? item.powerType.trim() : 'usb';
+        if (!slug && !itemSize) return null;
+        return { productSlug: slug, size: itemSize, powerType: itemPower || 'usb' };
+      })
+      .filter(Boolean);
+    if (variantDetails.length) metadata.variantDetails = JSON.stringify(variantDetails);
+  } else if (Array.isArray(lineItems) && lineItems.length === 1 && lineItems[0] && lineItems[0].powerType) {
+    metadata.powerType = String(lineItems[0].powerType);
+  }
   const totalQty = stripeLineItems.reduce(function (sum, item) {
     return sum + (Number(item.quantity) || 0);
   }, 0);

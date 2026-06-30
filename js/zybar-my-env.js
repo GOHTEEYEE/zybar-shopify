@@ -36,8 +36,12 @@
     document.title = 'ZYBAR.MY (BETA/TESTING) | LED Car Art – Automotive Light Artwork';
     var logo = document.querySelector('.zybar-logo img, .brand img');
     if (logo) logo.setAttribute('alt', 'ZYBAR.MY (BETA/TESTING)');
-    var heroText = document.querySelector('.poster-hero-overlay p');
-    if (heroText && heroText.textContent.indexOf('ZYBAR') !== -1) heroText.textContent = 'LED automotive wall art from ZYBAR.MY (BETA/TESTING)';
+    var heroTexts = document.querySelectorAll(".poster-hero-lead");
+    heroTexts.forEach(function (heroText) {
+      if (heroText && heroText.textContent.indexOf("ZYBAR") !== -1) {
+        heroText.textContent = "Handcrafted in Japan for the modern collector. (ZYBAR.MY BETA)";
+      }
+    });
     var foot = document.querySelector('footer a[href="/"]');
     if (foot && foot.textContent === 'ZYBAR') foot.textContent = 'ZYBAR.MY';
     var brandLink = document.querySelector('.site-header .brand.zybar-logo, .site-header .brand');

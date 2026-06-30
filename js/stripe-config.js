@@ -19,7 +19,7 @@
       "/purchase-confirmation.html",
     cancelUrl: "",
     apiBaseUrl: "",
-    sizePricesUSD: {"30x45":110,"40x60":150},
+    sizePricesUSD: {"30x45":76,"40x60":91},
     perProductSizePricesUSD: {},
     sharedPriceIdsBySize: {
       "30x45": "",
