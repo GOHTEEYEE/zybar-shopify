@@ -6,17 +6,8 @@
   "use strict";
   var CART_STORAGE_KEY = "zybar.cart.items";
   var CHECKOUT_PENDING_KEY = "zybar.checkout.pending";
-
-  // Prevent Add to Cart anchors from navigating before handlers attach.
-  document.addEventListener(
-    "click",
-    function (event) {
-      var button = event.target && event.target.closest(".product-add-cart, .pdp-sticky-cta");
-      if (!button) return;
-      event.preventDefault();
-    },
-    true
-  );
+  var cartDelegationBound = false;
+  var checkoutStripe = null;
 
   function guardAddToCartLinks() {
     document.querySelectorAll(".product-add-cart, .pdp-sticky-cta").forEach(function (button) {
@@ -1266,24 +1257,103 @@
     }
   }
 
-  function makeAddToCart() {
-    return function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      var addedItem = addCurrentSelectionToCart();
-      animateFlyToCart();
-      openMiniCartForItem(addedItem);
-      var button = event.currentTarget;
-      if (!button) return;
-      var original = button.getAttribute("data-cart-original-label") || button.textContent;
-      if (!button.getAttribute("data-cart-original-label")) {
-        button.setAttribute("data-cart-original-label", original);
+  function runAddToCart(button) {
+    var addedItem = addCurrentSelectionToCart();
+    animateFlyToCart();
+    openMiniCartForItem(addedItem);
+    if (!button) return;
+    var original = button.getAttribute("data-cart-original-label") || button.textContent;
+    if (!button.getAttribute("data-cart-original-label")) {
+      button.setAttribute("data-cart-original-label", original);
+    }
+    button.textContent = "Added to cart";
+    window.setTimeout(function () {
+      button.textContent = button.getAttribute("data-cart-original-label") || original;
+    }, 1200);
+  }
+
+  function bindCartDelegation(stripe) {
+    if (cartDelegationBound) {
+      checkoutStripe = stripe || checkoutStripe;
+      return;
+    }
+    cartDelegationBound = true;
+    checkoutStripe = stripe || null;
+
+    document.addEventListener("click", function (event) {
+      var addBtn = event.target && event.target.closest(".product-add-cart, .pdp-sticky-cta");
+      if (addBtn && isAddToCartButton(addBtn)) {
+        event.preventDefault();
+        event.stopPropagation();
+        runAddToCart(addBtn);
+        return;
       }
-      button.textContent = "Added to cart";
-      setTimeout(function () {
-        button.textContent = button.getAttribute("data-cart-original-label") || original;
-      }, 1200);
-    };
+
+      var checkoutBtn = event.target && event.target.closest("[data-stripe-action='checkout']");
+      if (!checkoutBtn || isAddToCartButton(checkoutBtn)) return;
+      event.preventDefault();
+      if (checkoutStripe) {
+        makeCheckout(checkoutStripe)(event);
+      }
+    });
+  }
+
+  var variantUiBound = false;
+
+  function wireVariantUi(config) {
+    applySizePriceToUi(config);
+    if (variantUiBound) return;
+    variantUiBound = true;
+
+    document.addEventListener("click", function (event) {
+      var sizeBtn = event.target && event.target.closest(".product-size-options .size-option");
+      if (sizeBtn) {
+        document.querySelectorAll(".product-size-options .size-option").forEach(function (b) {
+          b.classList.remove("selected");
+        });
+        sizeBtn.classList.add("selected");
+        applySizePriceToUi(config);
+        if (window.ZYBAR && window.ZYBAR.Analytics) {
+          window.ZYBAR.Analytics.trackVariantSelection(getProductSlug(), {
+            size: sizeBtn.getAttribute("data-size"),
+            power_type: getSelectedPowerType()
+          });
+        }
+        return;
+      }
+
+      var powerBtn = event.target && event.target.closest(".product-power-options .power-type-option");
+      if (!powerBtn) return;
+      document.querySelectorAll(".product-power-options .power-type-option").forEach(function (b) {
+        b.classList.remove("selected");
+      });
+      powerBtn.classList.add("selected");
+      applySizePriceToUi(config);
+      if (window.ZYBAR && window.ZYBAR.Analytics) {
+        window.ZYBAR.Analytics.trackVariantSelection(getProductSlug(), {
+          size: getSelectedSize(),
+          power_type: powerBtn.getAttribute("data-power-type")
+        });
+      }
+    });
+
+    if (window.matchMedia) {
+      var stickyMq = window.matchMedia("(max-width: 640px)");
+      var onStickyLayoutChange = function () {
+        applySizePriceToUi(config);
+      };
+      if (typeof stickyMq.addEventListener === "function") {
+        stickyMq.addEventListener("change", onStickyLayoutChange);
+      } else if (typeof stickyMq.addListener === "function") {
+        stickyMq.addListener(onStickyLayoutChange);
+      }
+    }
+  }
+
+  function refreshPricingUi(config) {
+    injectPowerTypeOption();
+    refreshPowerTypeLabels();
+    wireVariantUi(config || getConfig());
   }
 
   function isAddToCartButton(button) {
@@ -1294,11 +1364,8 @@
   function wireButtons(stripe) {
     var slug = getProductSlug();
     var buttons = document.querySelectorAll("[data-stripe-action='checkout']");
-    var onCheckout = makeCheckout(stripe);
-    var onAddToCart = makeAddToCart();
 
     buttons.forEach(function (button) {
-      // Reuse analytics pipeline for checkout clicks.
       if (!button.hasAttribute("data-analytics-add-to-cart")) {
         button.setAttribute("data-analytics-add-to-cart", "");
       }
@@ -1307,18 +1374,20 @@
       }
       if (isAddToCartButton(button)) {
         normalizeAddToCartButton(button);
-        button.addEventListener("click", onAddToCart);
-      } else {
-        button.addEventListener("click", onCheckout);
       }
     });
+
+    bindCartDelegation(stripe);
   }
 
   function injectPowerTypeOption() {
     if (!getProductSlug()) return;
     if (document.querySelector(".product-power-options")) return;
+
+    var optionsHost = document.querySelector(".pdp-luxury-options");
     var sizeOptions = document.querySelector(".product-size-options");
-    if (!sizeOptions || !sizeOptions.parentNode) return;
+    if (!optionsHost && (!sizeOptions || !sizeOptions.parentNode)) return;
+    if (!optionsHost) optionsHost = sizeOptions.parentNode;
 
     var pricing = getPricing();
     var upgrades = [];
@@ -1341,7 +1410,6 @@
       ];
     }
 
-    var optionsHost = sizeOptions.parentNode;
     var powerGroup = document.createElement("div");
     powerGroup.className = "pdp-luxury-power-group";
 
@@ -1366,12 +1434,7 @@
 
     powerGroup.appendChild(label);
     powerGroup.appendChild(options);
-
-    if (sizeOptions.nextElementSibling) {
-      optionsHost.insertBefore(powerGroup, sizeOptions.nextElementSibling);
-    } else {
-      optionsHost.appendChild(powerGroup);
-    }
+    optionsHost.appendChild(powerGroup);
   }
 
   function refreshPowerTypeLabels() {
@@ -1385,68 +1448,14 @@
     });
   }
 
-  function wirePowerTypeUi(config) {
-    injectPowerTypeOption();
-    refreshPowerTypeLabels();
-    var powerBtns = document.querySelectorAll(".product-power-options .power-type-option");
-    if (!powerBtns.length) return;
-    powerBtns.forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        powerBtns.forEach(function (b) {
-          b.classList.remove("selected");
-        });
-        btn.classList.add("selected");
-        applySizePriceToUi(config);
-        if (window.ZYBAR && window.ZYBAR.Analytics) {
-          window.ZYBAR.Analytics.trackVariantSelection(getProductSlug(), {
-            size: getSelectedSize(),
-            power_type: btn.getAttribute("data-power-type")
-          });
-        }
-      });
-    });
-  }
-
-  function wireSizePriceUi(config) {
-    // Keep displayed price synced with selected size (30x45 / 40x60).
-    applySizePriceToUi(config);
-    var sizeBtns = document.querySelectorAll(".product-size-options .size-option");
-    sizeBtns.forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        sizeBtns.forEach(function (b) {
-          b.classList.remove("selected");
-        });
-        btn.classList.add("selected");
-        applySizePriceToUi(config);
-        if (window.ZYBAR && window.ZYBAR.Analytics) {
-          window.ZYBAR.Analytics.trackVariantSelection(getProductSlug(), {
-            size: btn.getAttribute("data-size"),
-            power_type: getSelectedPowerType()
-          });
-        }
-      });
-    });
-    if (window.matchMedia) {
-      var stickyMq = window.matchMedia("(max-width: 640px)");
-      var onStickyLayoutChange = function () {
-        applySizePriceToUi(config);
-      };
-      if (typeof stickyMq.addEventListener === "function") {
-        stickyMq.addEventListener("change", onStickyLayoutChange);
-      } else if (typeof stickyMq.addListener === "function") {
-        stickyMq.addListener(onStickyLayoutChange);
-      }
-    }
-  }
-
   function boot() {
+    guardAddToCartLinks();
     if (window.ZYBAR && typeof window.ZYBAR.initPdpLuxuryUi === "function") {
       window.ZYBAR.initPdpLuxuryUi();
     }
     repairCartItemsFromConfig();
     var config = getConfig();
-    wireSizePriceUi(config);
-    wirePowerTypeUi(config);
+    refreshPricingUi(config);
     initProductThumbnailGallery();
     refreshCartBadge();
     wireCartClick();
@@ -1479,15 +1488,16 @@
   };
 
   function start() {
+    boot();
     var pricing = getPricing();
     if (pricing && typeof pricing.load === "function") {
-      pricing.load().then(boot).catch(function (err) {
+      pricing.load().then(function () {
+        refreshPricingUi(getConfig());
+      }).catch(function (err) {
         console.error(err);
-        boot();
+        refreshPricingUi(getConfig());
       });
-      return;
     }
-    boot();
   }
 
   if (document.readyState === "loading") {

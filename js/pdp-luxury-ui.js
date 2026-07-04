@@ -433,8 +433,17 @@
       if (qty) qty.classList.add("pdp-luxury-qty-hidden");
       var addBtn = cartRow.querySelector(".product-add-cart");
       if (addBtn) {
-        addBtn.classList.add("pdp-luxury-cta");
-        addBtn.textContent = "Add to Cart";
+        if (addBtn.tagName === "A") {
+          var cartButton = document.createElement("button");
+          cartButton.type = "button";
+          cartButton.className = addBtn.className;
+          cartButton.setAttribute("data-stripe-action", "checkout");
+          cartButton.textContent = "Add to Cart";
+          addBtn = cartButton;
+        } else {
+          addBtn.classList.add("pdp-luxury-cta");
+          addBtn.textContent = "Add to Cart";
+        }
         buy.appendChild(addBtn);
       }
       cartRow.classList.add("pdp-luxury-cart-row-hidden");
@@ -465,10 +474,4 @@
   window.ZYBAR = window.ZYBAR || {};
   window.ZYBAR.initPdpLuxuryUi = initPdpLuxuryUi;
   window.ZYBAR.updatePdpLuxuryRating = updatePdpLuxuryRating;
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initPdpLuxuryUi);
-  } else {
-    initPdpLuxuryUi();
-  }
 })();

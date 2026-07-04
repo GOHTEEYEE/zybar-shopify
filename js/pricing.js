@@ -36,26 +36,105 @@
     return config.apiBaseUrl || window.location.origin;
   }
 
+  function applyProductsJsonFallback(catalog, json) {
+    if (!json || typeof json !== 'object') return catalog;
+    var defaults = json.pricesBySize || {};
+    var perProduct = json.perProductPricesBySize || {};
+    catalog.products = catalog.products || {};
+    (json.products || []).forEach(function (product) {
+      if (!product || !product.slug) return;
+      var slug = String(product.slug);
+      var priceMap = perProduct[slug] || defaults;
+      var existing = catalog.products[slug];
+      var prices = {
+        '30x45': Number(priceMap['30x45']) || 0,
+        '40x60': Number(priceMap['40x60']) || 0
+      };
+      if (!existing) {
+        catalog.products[slug] = {
+          slug: slug,
+          name: product.name || slug,
+          prices: prices
+        };
+        return;
+      }
+      existing.prices = existing.prices || {};
+      if (!Number(existing.prices['30x45'])) existing.prices['30x45'] = prices['30x45'];
+      if (!Number(existing.prices['40x60'])) existing.prices['40x60'] = prices['40x60'];
+    });
+    return catalog;
+  }
+
+  function applyLocalDefaults(catalog) {
+    if (!catalog.shippingMethods || !catalog.shippingMethods.length) {
+      catalog.shippingMethods = [
+        {
+          code: 'standard',
+          label: 'Standard Shipping',
+          description: 'Estimated delivery: 14–18 business days',
+          priceUsd: 20,
+          isDefault: true
+        },
+        {
+          code: 'priority',
+          label: 'Priority Shipping',
+          description: 'Estimated delivery: 7–14 business days',
+          priceUsd: 25,
+          isDefault: false
+        }
+      ];
+    }
+    if (!catalog.powerUpgrades || !Object.keys(catalog.powerUpgrades).length) {
+      catalog.powerUpgrades = {
+        usb: { label: 'USB Only', priceUsd: 0 },
+        dual: { label: 'USB + Battery', priceUsd: 12 }
+      };
+    }
+    return catalog;
+  }
+
+  function loadProductsJson() {
+    return fetch('/data/products.json', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      .then(function (res) {
+        return res.ok ? res.json() : null;
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
+  function buildApiFromCatalog(raw, json) {
+    var c = getCalc();
+    if (!c) throw new Error('Pricing calculator not loaded');
+    var catalog = applyLocalDefaults(applyProductsJsonFallback(normalizeCatalog(raw), json));
+    api = c.createPricingApi(catalog);
+    loadedAt = Date.now();
+    installApi(api);
+    return api;
+  }
+
   function fetchCatalog(force) {
     var now = Date.now();
     if (!force && api && now - loadedAt < CACHE_TTL_MS) {
       return Promise.resolve(api);
     }
-    return fetch(apiBase() + '/api/pricing', {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store'
-    })
-      .then(function (res) {
-        if (!res.ok) throw new Error('Pricing unavailable (' + res.status + ')');
-        return res.json();
+    return loadProductsJson().then(function (json) {
+      return fetch(apiBase() + '/api/pricing', {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store'
       })
-      .then(function (raw) {
-        var c = getCalc();
-        if (!c) throw new Error('Pricing calculator not loaded');
-        api = c.createPricingApi(normalizeCatalog(raw));
-        loadedAt = Date.now();
-        return api;
-      });
+        .then(function (res) {
+          if (!res.ok) throw new Error('Pricing unavailable (' + res.status + ')');
+          return res.json();
+        })
+        .then(function (raw) {
+          return buildApiFromCatalog(raw, json);
+        })
+        .catch(function (err) {
+          console.warn('[Pricing] API unavailable, using products.json fallback.', err.message || err);
+          return buildApiFromCatalog(null, json);
+        });
+    });
   }
 
   function load(force) {
@@ -127,7 +206,9 @@
   window.ZYBAR = window.ZYBAR || {};
   window.ZYBAR.Pricing = stubApi();
 
-  load().then(installApi).catch(function (err) {
-    console.error('[Pricing]', err.message || err);
-  });
+  load()
+    .then(function () {})
+    .catch(function (err) {
+      console.error('[Pricing]', err.message || err);
+    });
 })();
