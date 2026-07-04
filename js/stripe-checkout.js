@@ -7,6 +7,32 @@
   var CART_STORAGE_KEY = "zybar.cart.items";
   var CHECKOUT_PENDING_KEY = "zybar.checkout.pending";
 
+  // Prevent Add to Cart anchors from navigating before handlers attach.
+  document.addEventListener(
+    "click",
+    function (event) {
+      var button = event.target && event.target.closest(".product-add-cart, .pdp-sticky-cta");
+      if (!button) return;
+      event.preventDefault();
+    },
+    true
+  );
+
+  function guardAddToCartLinks() {
+    document.querySelectorAll(".product-add-cart, .pdp-sticky-cta").forEach(function (button) {
+      if (button.tagName === "A") {
+        button.setAttribute("href", "#");
+        button.setAttribute("role", "button");
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", guardAddToCartLinks);
+  } else {
+    guardAddToCartLinks();
+  }
+
   function getProductSlug() {
     var path = (window.location && window.location.pathname) || "";
     // Accept both `/products/slug/` and `/products/slug` URLs.
@@ -1221,9 +1247,8 @@
       onCheckout: function (button) {
         beginCartCheckout(readCartItems(), button);
       },
-      onViewCart: function () {
-        drawer.close();
-        window.location.href = "/cart/";
+      onContinueShopping: function () {
+        // Stay on the current product page with selections preserved.
       }
     };
     if (typeof drawer.isOpen === "function" && drawer.isOpen()) {
@@ -1233,9 +1258,18 @@
     }
   }
 
+  function normalizeAddToCartButton(button) {
+    if (!button) return;
+    if (button.tagName === "A") {
+      button.setAttribute("href", "#");
+      button.setAttribute("role", "button");
+    }
+  }
+
   function makeAddToCart() {
     return function (event) {
       event.preventDefault();
+      event.stopPropagation();
       var addedItem = addCurrentSelectionToCart();
       animateFlyToCart();
       openMiniCartForItem(addedItem);
@@ -1272,6 +1306,7 @@
         button.setAttribute("data-product-id", slug);
       }
       if (isAddToCartButton(button)) {
+        normalizeAddToCartButton(button);
         button.addEventListener("click", onAddToCart);
       } else {
         button.addEventListener("click", onCheckout);

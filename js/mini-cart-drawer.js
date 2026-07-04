@@ -21,6 +21,24 @@
       .replace(/"/g, "&quot;");
   }
 
+  function formatUsd(amount) {
+    var pricing = window.ZYBAR && window.ZYBAR.Pricing;
+    if (pricing && typeof pricing.formatUsd === "function") {
+      return pricing.formatUsd(amount);
+    }
+    var n = Number(amount);
+    if (!Number.isFinite(n)) return "$0.00";
+    return "$" + n.toFixed(2);
+  }
+
+  function lineSubtotal(item) {
+    var qty = Number(item && item.quantity);
+    var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    var unit = Number(item && item.unitPriceUSD);
+    var safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
+    return safeUnit * safeQty;
+  }
+
   function loadCatalog() {
     if (catalogCache) return Promise.resolve(catalogCache);
     if (catalogPromise) return catalogPromise;
@@ -127,8 +145,8 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' +
       "</span>" +
       '<div class="mini-cart-header-copy">' +
-      '<h2 class="mini-cart-title" id="mini-cart-title">Added to Cart</h2>' +
-      '<p class="mini-cart-subtitle">Your artwork has been successfully added.</p>' +
+      '<h2 class="mini-cart-title" id="mini-cart-title">Item added to your cart</h2>' +
+      '<p class="mini-cart-subtitle">✓ Item added to your cart.</p>' +
       "</div>" +
       "</div>" +
       '<button type="button" class="mini-cart-close" aria-label="Close">' +
@@ -178,13 +196,16 @@
 
   function renderBody(item) {
     var slug = item && item.slug ? item.slug : "";
-    var ledColor = (item && item.ledColor) || getLedColorForSlug(slug) || "—";
-    var finish = (item && item.finishLabel) || "Premium Matte Acrylic";
     var size = formatSizeLabel(item);
+    var power =
+      (item && item.powerTypeLabel) ||
+      (item && item.powerType ? String(item.powerType) : "") ||
+      "—";
     var qty = Number(item && item.quantity);
     var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
     var imageUrl = item && item.imageUrl ? item.imageUrl : slug ? "/Image/" + slug + "-1.webp" : "";
     var name = (item && item.name) || "Product";
+    var subtotal = formatUsd(lineSubtotal(item));
 
     return (
       '<article class="mini-cart-product">' +
@@ -198,10 +219,15 @@
       escapeHtml(name) +
       "</h3>" +
       '<div class="mini-cart-spec">' +
-      buildSpecRow("Finish", finish, 0) +
-      buildSpecRow("LED Color", ledColor, 1) +
-      buildSpecRow("Size", size, 2) +
-      buildSpecRow("Quantity", String(safeQty), 3) +
+      buildSpecRow("Size", size, 0) +
+      buildSpecRow("Power", power, 1) +
+      buildSpecRow("Quantity", String(safeQty), 2) +
+      "</div>" +
+      '<div class="mini-cart-subtotal-row">' +
+      '<span class="mini-cart-subtotal-label">Subtotal</span>' +
+      '<span class="mini-cart-subtotal-value">' +
+      escapeHtml(subtotal) +
+      "</span>" +
       "</div>" +
       "</div>" +
       "</article>" +
@@ -209,38 +235,24 @@
     );
   }
 
-  function renderFooter(cartCount) {
-    var count = Number(cartCount) || 0;
-    var viewCartLabel = "View Cart" + (count > 0 ? " (" + count + ")" : "");
+  function renderFooter() {
     return (
       '<div class="mini-cart-actions">' +
       '<button type="button" class="mini-cart-btn mini-cart-btn--primary" data-mini-cart-checkout>Checkout</button>' +
-      '<button type="button" class="mini-cart-btn mini-cart-btn--secondary" data-mini-cart-view-cart>' +
-      escapeHtml(viewCartLabel) +
-      "</button>" +
-      '<button type="button" class="mini-cart-continue" data-mini-cart-continue>Continue Shopping</button>' +
+      '<button type="button" class="mini-cart-btn mini-cart-btn--secondary" data-mini-cart-continue>Continue Shopping</button>' +
       "</div>"
     );
   }
 
   function wireFooterActions(drawer, options) {
     var checkoutBtn = drawer.querySelector("[data-mini-cart-checkout]");
-    var viewCartBtn = drawer.querySelector("[data-mini-cart-view-cart]");
     var continueBtn = drawer.querySelector("[data-mini-cart-continue]");
 
     if (checkoutBtn) {
       checkoutBtn.onclick = function () {
+        closeMiniCartDrawer();
         if (options && typeof options.onCheckout === "function") {
           options.onCheckout(checkoutBtn);
-        }
-      };
-    }
-    if (viewCartBtn) {
-      viewCartBtn.onclick = function () {
-        if (options && typeof options.onViewCart === "function") {
-          options.onViewCart();
-        } else {
-          closeMiniCartDrawer();
         }
       };
     }
@@ -254,7 +266,7 @@
     }
   }
 
-  function renderDrawer(item, cartCount, options, shouldAnimate) {
+  function renderDrawer(item, options, shouldAnimate) {
     var drawer = ensureDrawerDom();
     var body = drawer.querySelector("[data-mini-cart-body]");
     var footer = drawer.querySelector("[data-mini-cart-footer]");
@@ -262,7 +274,7 @@
     if (!body || !footer || !scroll) return;
 
     body.innerHTML = renderBody(item);
-    footer.innerHTML = renderFooter(cartCount);
+    footer.innerHTML = renderFooter();
     wireFooterActions(drawer, options);
 
     scroll.classList.remove("is-animated");
@@ -280,7 +292,7 @@
       var drawer = ensureDrawerDom();
       var wasOpen = state.isOpen;
 
-      renderDrawer(options.item, options.cartCount, options, !wasOpen);
+      renderDrawer(options.item, options, !wasOpen);
 
       if (!wasOpen) {
         drawer.hidden = false;
@@ -306,7 +318,7 @@
     if (!options || !options.item) return;
     state.options = options;
     loadCatalog().then(function () {
-      renderDrawer(options.item, options.cartCount, options, false);
+      renderDrawer(options.item, options, false);
     });
   }
 

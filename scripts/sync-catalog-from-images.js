@@ -126,7 +126,7 @@ function productPageTemplate(slug, name, imagePath, price30) {
     '              <span>1</span>',
     '              <button type="button" aria-label="Increase quantity">+</button>',
     '            </div>',
-    '            <a href="/collections/all/" class="product-add-cart" data-stripe-action="checkout">Add to cart</a>',
+    '            <a href="#" class="product-add-cart" data-stripe-action="checkout">Add to cart</a>',
     '          </div>',
     '          <a href="/collections/all/" class="product-paypal" data-stripe-action="checkout">Pay with card</a>',
     '          <a href="/collections/all/" class="product-more-payment">More payment options</a>',
