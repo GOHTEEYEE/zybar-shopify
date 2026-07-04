@@ -1,313 +1,456 @@
 /**
- * Admin Analytics — quick summary bar (Shopify-style), charts synced to date range
+ * Admin Analytics Hub — overview, funnel, cart, abandoned, revenue, products, geo, devices
  */
 window.renderAdminanalytics = function (container) {
   if (!container) return;
-  var sb = window.supabase;
-  if (!sb) {
-    container.innerHTML = '<p class="admin-error">Supabase not configured.</p>';
-    return;
-  }
 
+  var activeTab = 'overview';
   var rangeDays = 30;
-  var charts = { pageViews: null, visitors: null, topPages: null };
+  var charts = {};
+  var refreshTimer = null;
 
-  var calendarIcon = '<svg class="admin-analytics-filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
-  var chevronDown = '<svg class="admin-analytics-filter-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-  var channelIcon = '<svg class="admin-analytics-filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 15V5M7 5l-3 3M7 5l3 3"/><path d="M17 9v10M17 19l-3-3M17 19l3-3"/></svg>';
+  var hash = (window.location.hash || '#analytics').slice(1);
+  var parts = hash.split('/');
+  if (parts[1]) activeTab = parts[1];
 
-  container.innerHTML =
-    '<h2 class="admin-page-title">Analytics</h2>' +
-    '<div class="admin-analytics-toolbar">' +
-    '  <label class="admin-analytics-filter-pill">' +
-    calendarIcon +
-    '    <select id="analyticsRangeSelect" aria-label="Date range">' +
-    '      <option value="7">Last 7 days</option>' +
-    '      <option value="14">Last 14 days</option>' +
-    '      <option value="30" selected>The past 30 days</option>' +
-    '    </select>' +
-    chevronDown +
-    '  </label>' +
-    '  <span class="admin-analytics-filter-pill admin-analytics-filter-pill-static" title="All traffic">' +
-    channelIcon +
-    '    <span>All channels</span>' +
-    '  </span>' +
-    '</div>' +
-    '<div class="admin-analytics-summary-card">' +
-    '  <div class="admin-analytics-summary-grid">' +
-    '    <div class="admin-analytics-metric">' +
-    '      <div class="admin-analytics-metric-top"><span class="admin-analytics-metric-label" title="Checkout sessions started">Sessions</span><div class="admin-analytics-spark" id="analyticsSparkSessions"></div></div>' +
-    '      <div class="admin-analytics-metric-value"><span class="admin-kpi-value" id="analyticsKpiSessions">—</span></div>' +
-    '      <div class="admin-analytics-metric-trend"><span class="admin-kpi-change" id="analyticsKpiSessionsChange">—</span><span class="admin-analytics-vs">vs prior period</span></div>' +
-    '    </div>' +
-    '    <div class="admin-analytics-metric">' +
-    '      <div class="admin-analytics-metric-top"><span class="admin-analytics-metric-label" title="Stripe checkout (test mode)">Total sales</span><div class="admin-analytics-spark" id="analyticsSparkSales"></div></div>' +
-    '      <div class="admin-analytics-metric-value admin-kpi-value-wrap"><span class="admin-kpi-currency" id="analyticsKpiSalesCurrency">US$</span><span class="admin-kpi-value" id="analyticsKpiSales">—</span></div>' +
-    '      <div class="admin-analytics-metric-trend"><span class="admin-kpi-change" id="analyticsKpiSalesChange">—</span><span class="admin-analytics-vs">vs prior period</span></div>' +
-    '    </div>' +
-    '    <div class="admin-analytics-metric">' +
-    '      <div class="admin-analytics-metric-top"><span class="admin-analytics-metric-label">Orders</span><div class="admin-analytics-spark" id="analyticsSparkOrders"></div></div>' +
-    '      <div class="admin-analytics-metric-value"><span class="admin-kpi-value" id="analyticsKpiOrders">—</span></div>' +
-    '      <div class="admin-analytics-metric-trend"><span class="admin-kpi-change" id="analyticsKpiOrdersChange">—</span><span class="admin-analytics-vs">vs prior period</span></div>' +
-    '    </div>' +
-    '    <div class="admin-analytics-metric">' +
-    '      <div class="admin-analytics-metric-top"><span class="admin-analytics-metric-label" title="Orders ÷ sessions">Conversion rate</span><div class="admin-analytics-spark" id="analyticsSparkConv"></div></div>' +
-    '      <div class="admin-analytics-metric-value"><span class="admin-kpi-value" id="analyticsKpiConv">—</span></div>' +
-    '      <div class="admin-analytics-metric-trend"><span class="admin-kpi-change" id="analyticsKpiConvChange">—</span><span class="admin-analytics-vs">vs prior period</span></div>' +
-    '    </div>' +
-    '  </div>' +
-    '  <span class="admin-analytics-summary-bar-chevron" aria-hidden="true">' + chevronDown + '</span>' +
-    '</div>' +
-    '<div class="admin-card"><h3>Page views per day</h3><div class="chart-container"><canvas id="chartPageViews"></canvas></div></div>' +
-    '<div class="admin-card"><h3>Unique visitors per day</h3><div class="chart-container"><canvas id="chartVisitors"></canvas></div></div>' +
-    '<div class="admin-card"><h3>Top pages</h3><div class="chart-container"><canvas id="chartTopPages"></canvas></div></div>';
+  var tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'funnel', label: 'Conversion Funnel' },
+    { id: 'cart', label: 'Cart Analytics' },
+    { id: 'abandoned', label: 'Abandoned Cart' },
+    { id: 'revenue', label: 'Revenue' },
+    { id: 'products', label: 'Products' },
+    { id: 'orders', label: 'Orders' },
+    { id: 'customers', label: 'Customers' },
+    { id: 'countries', label: 'Countries' },
+    { id: 'devices', label: 'Devices' }
+  ];
 
-  function isoDate(d) {
-    return d.toISOString().slice(0, 10);
+  function apiBase() {
+    return window.location.origin;
   }
 
-  function rollingRanges(days) {
+  function fetchJson(path) {
+    return fetch(apiBase() + path + (path.indexOf('?') === -1 ? '?' : '&') + 'days=' + rangeDays)
+      .then(function (r) { return r.json(); })
+      .catch(function () { return null; });
+  }
+
+  function rpc(name, params) {
+    var sb = window.supabase;
+    if (!sb) return Promise.resolve(null);
+    return sb.rpc(name, params).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    }).catch(function () { return null; });
+  }
+
+  function dateRange() {
     var end = new Date();
     end.setHours(23, 59, 59, 999);
     var start = new Date(end);
-    start.setDate(start.getDate() - (days - 1));
+    start.setDate(start.getDate() - (rangeDays - 1));
     start.setHours(0, 0, 0, 0);
-    var endPrev = new Date(start);
-    endPrev.setDate(endPrev.getDate() - 1);
-    endPrev.setHours(23, 59, 59, 999);
-    var startPrev = new Date(endPrev);
-    startPrev.setDate(startPrev.getDate() - (days - 1));
-    startPrev.setHours(0, 0, 0, 0);
-    return { start: start, end: end, startPrev: startPrev, endPrev: endPrev };
+    var endExcl = new Date(end.getTime() + 86400000);
+    return { start: start.toISOString(), end: endExcl.toISOString() };
   }
 
-  function destroyCharts() {
-    ['pageViews', 'visitors', 'topPages'].forEach(function (k) {
-      if (charts[k]) {
-        charts[k].destroy();
-        charts[k] = null;
-      }
-    });
-  }
-
-  function drawSparkline(elId, values) {
-    var el = document.getElementById(elId);
-    if (!el || !values || values.length === 0) return;
-    var max = Math.max.apply(null, values);
-    if (max === 0) max = 1;
-    var w = 80;
-    var h = 40;
-    var n = values.length;
-    var xs = [];
-    var ys = [];
-    for (var i = 0; i < n; i++) {
-      xs.push((i / (n - 1 || 1)) * w);
-      ys.push(h - (values[i] / max) * h);
-    }
-    var path = 'M ' + xs[0] + ',' + ys[0];
-    for (var j = 1; j < n; j++) {
-      var dx = xs[j] - xs[j - 1];
-      path += ' C ' + (xs[j - 1] + dx / 2) + ',' + ys[j - 1] + ' ' + (xs[j] - dx / 2) + ',' + ys[j] + ' ' + xs[j] + ',' + ys[j];
-    }
-    el.innerHTML = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><path fill="none" stroke="#2c6ecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="' + path + '"/></svg>';
+  function formatUsdCents(cents) {
+    var n = Number(cents) || 0;
+    return 'US$' + (n / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function formatNum(n) {
+    n = Number(n) || 0;
     if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
     if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
     return String(n);
   }
 
-  function pctChange(curr, prev) {
-    if (prev === 0) return curr > 0 ? 100 : 0;
-    return Math.round(((curr - prev) / prev) * 100);
+  function pct(a, b) {
+    if (!b) return '0%';
+    return ((a / b) * 100).toFixed(1) + '%';
   }
 
-  function renderChange(elId, pct) {
-    var el = document.getElementById(elId);
-    if (!el) return;
-    if (pct == null || isNaN(pct)) {
-      el.textContent = '\u2014';
-      el.className = 'admin-kpi-change';
+  function destroyCharts() {
+    Object.keys(charts).forEach(function (k) {
+      if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+    });
+  }
+
+  function kpiCard(label, value, sub) {
+    return (
+      '<div class="admin-kpi-card admin-kpi-card--static">' +
+      '<div class="admin-kpi-card-inner">' +
+      '<div class="admin-kpi-card-top"><span class="admin-kpi-label">' + label + '</span></div>' +
+      '<div class="admin-kpi-value-wrap"><span class="admin-kpi-value">' + value + '</span></div>' +
+      (sub ? '<div class="admin-kpi-card-bottom"><span class="admin-kpi-vs-label">' + sub + '</span></div>' : '') +
+      '</div></div>'
+    );
+  }
+
+  function renderShell() {
+    var tabHtml = tabs.map(function (t) {
+      return '<button type="button" class="admin-analytics-tab' + (t.id === activeTab ? ' is-active' : '') + '" data-tab="' + t.id + '">' + t.label + '</button>';
+    }).join('');
+
+    container.innerHTML =
+      '<h2 class="admin-page-title">Analytics</h2>' +
+      '<div class="admin-analytics-toolbar">' +
+      '<label class="admin-analytics-filter-pill">' +
+      '<select id="analyticsHubRange" aria-label="Date range">' +
+      '<option value="7">Last 7 days</option>' +
+      '<option value="14">Last 14 days</option>' +
+      '<option value="30" selected>Last 30 days</option>' +
+      '<option value="90">Last 90 days</option>' +
+      '</select></label>' +
+      '<button type="button" class="admin-btn-secondary" id="analyticsHubRefresh">Refresh</button>' +
+      '</div>' +
+      '<nav class="admin-analytics-tabs" aria-label="Analytics sections">' + tabHtml + '</nav>' +
+      '<div id="analyticsHubContent" class="admin-analytics-hub-content"><div class="admin-loading">Loading…</div></div>';
+
+    var rangeEl = document.getElementById('analyticsHubRange');
+    if (rangeEl) {
+      rangeEl.value = String(rangeDays);
+      rangeEl.addEventListener('change', function () {
+        rangeDays = parseInt(rangeEl.value, 10) || 30;
+        loadTab();
+      });
+    }
+    document.getElementById('analyticsHubRefresh').addEventListener('click', loadTab);
+    container.querySelectorAll('.admin-analytics-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        activeTab = btn.getAttribute('data-tab');
+        window.location.hash = 'analytics/' + activeTab;
+        container.querySelectorAll('.admin-analytics-tab').forEach(function (b) {
+          b.classList.toggle('is-active', b === btn);
+        });
+        loadTab();
+      });
+    });
+  }
+
+  function renderOverview(data) {
+    data = data || {};
+    var conv = data.visitors > 0 ? ((data.orders / data.visitors) * 100).toFixed(2) + '%' : '0%';
+    var aov = data.orders > 0 ? formatUsdCents(data.revenue_cents / data.orders) : '—';
+
+    return (
+      '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
+      kpiCard("Today's scope visitors", formatNum(data.visitors), 'Unique visitors') +
+      kpiCard('Product views', formatNum(data.product_views), 'In range') +
+      kpiCard('Add to cart', formatNum(data.add_to_cart), 'Events') +
+      kpiCard('Checkout started', formatNum(data.checkout_started), 'Events') +
+      kpiCard('Orders', formatNum(data.orders), 'Completed') +
+      kpiCard('Conversion rate', conv, 'Orders ÷ visitors') +
+      kpiCard('Revenue', formatUsdCents(data.revenue_cents), 'Gross') +
+      kpiCard('Avg order value', aov, 'Per order') +
+      '</div>' +
+      '<div class="admin-card"><h3>Activity trends</h3><div class="chart-container"><canvas id="chartHubOverview"></canvas></div></div>'
+    );
+  }
+
+  function renderFunnel(steps) {
+    steps = Array.isArray(steps) ? steps : [];
+    var html = '<div class="admin-funnel">';
+    steps.forEach(function (step, i) {
+      var prev = i > 0 ? steps[i - 1].count : null;
+      var rate = prev ? pct(step.count, prev) : '100%';
+      var label = String(step.step || '').replace(/_/g, ' ');
+      html +=
+        '<div class="admin-funnel-step">' +
+        '<div class="admin-funnel-step-label">' + label + '</div>' +
+        '<div class="admin-funnel-step-value">' + formatNum(step.count) + '</div>' +
+        (i > 0 ? '<div class="admin-funnel-step-rate">' + rate + ' from previous</div>' : '') +
+        '</div>';
+      if (i < steps.length - 1) html += '<div class="admin-funnel-arrow" aria-hidden="true">↓</div>';
+    });
+    html += '</div>';
+    html += '<div class="admin-card"><h3>Funnel visualization</h3><div class="chart-container"><canvas id="chartHubFunnel"></canvas></div></div>';
+    return html;
+  }
+
+  function renderCartAnalytics(data) {
+    data = data || {};
+    var topProducts = (data.top_products || []).map(function (p) {
+      return '<tr><td>' + (p.product_name || p.product_id) + '</td><td>' + p.total_qty + '</td></tr>';
+    }).join('') || '<tr><td colspan="2">No data yet</td></tr>';
+
+    return (
+      '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
+      kpiCard('Total add to cart', formatNum(data.total_add_to_cart), '') +
+      kpiCard('Unique cart sessions', formatNum(data.unique_cart_sessions), '') +
+      kpiCard('Avg cart value', formatUsdCents(data.avg_cart_value_cents), '') +
+      kpiCard('Products per cart', String(data.avg_items_per_cart || '—'), 'Average') +
+      '</div>' +
+      '<div class="admin-grid-2">' +
+      '<div class="admin-card"><h3>Most added products</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>' + topProducts + '</tbody></table></div></div>' +
+      '<div class="admin-card"><h3>Top sizes</h3>' + listFromRows(data.top_sizes, 'size') + '</div>' +
+      '<div class="admin-card"><h3>Top power types</h3>' + listFromRows(data.top_power_types, 'power_type') + '</div>' +
+      '<div class="admin-card"><h3>Top LED colors</h3>' + listFromRows(data.top_led_colors, 'led_color') + '</div>' +
+      '</div>' +
+      '<div class="admin-card"><h3>Add to cart trend</h3><div class="chart-container"><canvas id="chartHubCart"></canvas></div></div>'
+    );
+  }
+
+  function listFromRows(rows, key) {
+    rows = rows || [];
+    if (!rows.length) return '<p class="admin-muted">No data yet</p>';
+    return '<ul class="admin-stat-list">' + rows.map(function (r) {
+      return '<li><span>' + (r[key] || '—') + '</span><strong>' + r.total_qty + '</strong></li>';
+    }).join('') + '</ul>';
+  }
+
+  function renderAbandoned(carts) {
+    carts = Array.isArray(carts) ? carts : [];
+    var rows = carts.map(function (c) {
+      var customer = c.customer_id || ('Anonymous · ' + String(c.visitor_id || '').slice(0, 12));
+      var products = Array.isArray(c.products) ? c.products.map(function (p) {
+        return (p.product_name || p.product_id) + ' ×' + p.quantity;
+      }).join(', ') : '—';
+      return (
+        '<tr>' +
+        '<td><code>' + String(c.cart_id || '').slice(0, 8) + '…</code></td>' +
+        '<td>' + customer + '</td>' +
+        '<td>' + formatDate(c.created_at) + '</td>' +
+        '<td>' + formatDate(c.last_activity_at) + '</td>' +
+        '<td>' + products + '</td>' +
+        '<td>' + formatUsdCents(c.cart_value_cents) + '</td>' +
+        '<td><span class="admin-badge">' + (c.status || '—') + '</span></td>' +
+        '<td>' + (c.recovery_status || 'none') + '</td>' +
+        '</tr>'
+      );
+    }).join('') || '<tr><td colspan="8">No abandoned carts</td></tr>';
+
+    return (
+      '<div class="admin-card">' +
+      '<h3>Abandoned carts</h3>' +
+      '<p class="admin-muted">Carts with items and no purchase after 24 hours of inactivity.</p>' +
+      '<div class="admin-table-wrap"><table class="admin-table admin-table--compact">' +
+      '<thead><tr><th>Cart</th><th>Customer</th><th>Created</th><th>Last activity</th><th>Products</th><th>Value</th><th>Status</th><th>Recovery</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div></div>'
+    );
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return iso; }
+  }
+
+  function renderRevenue(trends) {
+    trends = trends || {};
+    return (
+      '<div class="admin-grid-2">' +
+      '<div class="admin-card"><h3>Revenue trend</h3><div class="chart-container"><canvas id="chartHubRevenue"></canvas></div></div>' +
+      '<div class="admin-card"><h3>Orders trend</h3><div class="chart-container"><canvas id="chartHubOrders"></canvas></div></div>' +
+      '<div class="admin-card"><h3>Checkout trend</h3><div class="chart-container"><canvas id="chartHubCheckout"></canvas></div></div>' +
+      '<div class="admin-card"><h3>Conversion rate trend</h3><div class="chart-container"><canvas id="chartHubConvRate"></canvas></div></div>' +
+      '</div>'
+    );
+  }
+
+  function renderProducts(data) {
+    data = data || {};
+    function table(title, rows, cols) {
+      var body = (rows || []).map(function (r) {
+        return '<tr>' + cols.map(function (c) { return '<td>' + (r[c.key] != null ? r[c.key] : '—') + '</td>'; }).join('') + '</tr>';
+      }).join('') || '<tr><td colspan="' + cols.length + '">No data</td></tr>';
+      return '<div class="admin-card"><h3>' + title + '</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+        cols.map(function (c) { return '<th>' + c.label + '</th>'; }).join('') +
+        '</tr></thead><tbody>' + body + '</tbody></table></div></div>';
+    }
+    return '<div class="admin-grid-2">' +
+      table('Most viewed', data.most_viewed, [{ key: 'product_id', label: 'Product' }, { key: 'views', label: 'Views' }]) +
+      table('Most added to cart', data.most_added, [{ key: 'product_id', label: 'Product' }, { key: 'adds', label: 'Adds' }]) +
+      table('Highest revenue', (data.highest_revenue || []).map(function (r) {
+        return { product_id: r.product_id, revenue: formatUsdCents(r.revenue_cents), orders: r.orders };
+      }), [{ key: 'product_id', label: 'Product' }, { key: 'revenue', label: 'Revenue' }, { key: 'orders', label: 'Orders' }]) +
+      '</div>';
+  }
+
+  function renderOrdersTable() {
+    return '<div class="admin-card" id="analyticsOrdersHost"><div class="admin-loading">Loading orders…</div></div>';
+  }
+
+  function renderCustomersNote() {
+    return '<div class="admin-card"><h3>Customers</h3><p class="admin-muted">Customer profiles are derived from completed orders. Open the <a href="#customers">Customers</a> section for full order history and contact details.</p></div>';
+  }
+
+  function renderDistribution(title, items, chartId) {
+    items = items || [];
+    return '<div class="admin-card"><h3>' + title + '</h3><div class="chart-container"><canvas id="' + chartId + '"></canvas></div></div>';
+  }
+
+  function drawLineChart(id, labels, values, label) {
+    var el = document.getElementById(id);
+    if (!el || typeof Chart === 'undefined') return;
+    if (charts[id]) { charts[id].destroy(); }
+    charts[id] = new Chart(el, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{ label: label, data: values, borderColor: '#2c6ecb', backgroundColor: 'rgba(44,110,203,0.08)', fill: true, tension: 0.35 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  function drawBarChart(id, labels, values, label) {
+    var el = document.getElementById(id);
+    if (!el || typeof Chart === 'undefined') return;
+    if (charts[id]) { charts[id].destroy(); }
+    charts[id] = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{ label: label, data: values, backgroundColor: 'rgba(44,110,203,0.75)' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  function drawDoughnut(id, items) {
+    var el = document.getElementById(id);
+    if (!el || typeof Chart === 'undefined') return;
+    if (charts[id]) { charts[id].destroy(); }
+    charts[id] = new Chart(el, {
+      type: 'doughnut',
+      data: {
+        labels: items.map(function (i) { return i.label; }),
+        datasets: [{ data: items.map(function (i) { return i.value; }), backgroundColor: ['#2c6ecb', '#5b9bd5', '#8bb8e8', '#b8d4f0', '#d4e6f7', '#3498db', '#2980b9'] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+
+  function seriesLabelsValues(series) {
+    series = series || [];
+    return {
+      labels: series.map(function (p) { return String(p.date || '').slice(5); }),
+      values: series.map(function (p) { return p.value; })
+    };
+  }
+
+  function loadTab() {
+    destroyCharts();
+    var host = document.getElementById('analyticsHubContent');
+    if (!host) return;
+    host.innerHTML = '<div class="admin-loading">Loading…</div>';
+
+    var range = dateRange();
+
+    if (activeTab === 'overview') {
+      Promise.all([
+        fetchJson('/api/analytics/overview'),
+        fetchJson('/api/analytics/trends')
+      ]).then(function (res) {
+        host.innerHTML = renderOverview(res[0]);
+        var trends = res[1] || {};
+        var visitors = seriesLabelsValues(trends.visitors);
+        drawLineChart('chartHubOverview', visitors.labels, visitors.values, 'Visitors');
+      });
       return;
     }
-    el.className = 'admin-kpi-change ' + (pct >= 0 ? 'admin-kpi-up' : 'admin-kpi-down');
-    el.textContent = (pct >= 0 ? '+' : '') + pct + '%';
-  }
 
-  function loadSummary() {
-    var r = rollingRanges(rangeDays);
-    var startStr = isoDate(r.start);
-    var endExcl = new Date(r.end.getTime() + 86400000);
-    var endExclStr = isoDate(endExcl);
-    var startPrevStr = isoDate(r.startPrev);
-    var endPrevExcl = new Date(r.endPrev.getTime() + 86400000);
-    var endPrevExclStr = isoDate(endPrevExcl);
+    if (activeTab === 'funnel') {
+      fetchJson('/api/analytics/funnel').then(function (data) {
+        var steps = (data && data.steps) || [];
+        host.innerHTML = renderFunnel(steps);
+        drawBarChart('chartHubFunnel', steps.map(function (s) { return String(s.step).replace(/_/g, ' '); }), steps.map(function (s) { return s.count; }), 'Count');
+      });
+      return;
+    }
 
-    Promise.all([
-      sb.from('sessions').select('started_at').gte('started_at', startStr).lt('started_at', endExclStr),
-      sb.from('sessions').select('started_at').gte('started_at', startPrevStr).lt('started_at', endPrevExclStr),
-      sb.from('orders').select('created_at, amount_total_cents').eq('test_mode', true).gte('created_at', startStr).lt('created_at', endExclStr),
-      sb.from('orders').select('created_at, amount_total_cents').eq('test_mode', true).gte('created_at', startPrevStr).lt('created_at', endPrevExclStr)
-    ]).then(function (results) {
-      var sessionsData = (results[0] && results[0].data) || [];
-      var sessionsPrevData = (results[1] && results[1].data) || [];
-      var ordersData = (results[2] && results[2].data) || [];
-      var ordersPrevData = (results[3] && results[3].data) || [];
+    if (activeTab === 'cart') {
+      Promise.all([fetchJson('/api/analytics/carts'), fetchJson('/api/analytics/trends')]).then(function (res) {
+        host.innerHTML = renderCartAnalytics(res[0]);
+        var atc = seriesLabelsValues((res[1] || {}).add_to_cart);
+        drawLineChart('chartHubCart', atc.labels, atc.values, 'Add to cart');
+      });
+      return;
+    }
 
-      var sessions = sessionsData.length;
-      var sessionsPrev = sessionsPrevData.length;
-      var orders = ordersData.length;
-      var ordersPrev = ordersPrevData.length;
-      var salesCents = ordersData.reduce(function (sum, row) { return sum + (row.amount_total_cents || 0); }, 0);
-      var salesPrevCents = ordersPrevData.reduce(function (sum, row) { return sum + (row.amount_total_cents || 0); }, 0);
-      var conv = sessions > 0 ? (orders / sessions) * 100 : 0;
-      var convPrev = sessionsPrev > 0 ? (ordersPrev / sessionsPrev) * 100 : 0;
+    if (activeTab === 'abandoned') {
+      fetch(apiBase() + '/api/analytics/abandoned?limit=100').then(function (r) { return r.json(); }).then(function (data) {
+        host.innerHTML = renderAbandoned((data && data.carts) || []);
+      });
+      return;
+    }
 
-      var pctSessions = pctChange(sessions, sessionsPrev);
-      var pctOrders = pctChange(orders, ordersPrev);
-      var pctSales = salesPrevCents > 0 ? Math.round(((salesCents - salesPrevCents) / salesPrevCents) * 100) : (salesCents > 0 ? 100 : 0);
-      var pctConv = convPrev > 0 ? Math.round(((conv - convPrev) / convPrev) * 100) : (conv > 0 ? 100 : 0);
+    if (activeTab === 'revenue') {
+      fetchJson('/api/analytics/trends').then(function (trends) {
+        host.innerHTML = renderRevenue(trends);
+        var rev = seriesLabelsValues(trends.revenue);
+        var ord = seriesLabelsValues(trends.orders);
+        var chk = seriesLabelsValues(trends.checkout);
+        var vis = seriesLabelsValues(trends.visitors);
+        drawLineChart('chartHubRevenue', rev.labels, rev.values.map(function (v) { return v / 100; }), 'Revenue USD');
+        drawLineChart('chartHubOrders', ord.labels, ord.values, 'Orders');
+        drawLineChart('chartHubCheckout', chk.labels, chk.values, 'Checkouts');
+        var conv = vis.values.map(function (v, i) {
+          return v > 0 ? ((ord.values[i] || 0) / v * 100) : 0;
+        });
+        drawLineChart('chartHubConvRate', vis.labels, conv, 'Conversion %');
+      });
+      return;
+    }
 
-      var sales = salesCents / 100;
-      document.getElementById('analyticsKpiSessions').textContent = formatNum(sessions);
-      document.getElementById('analyticsKpiSales').textContent = sales.toFixed(2);
-      document.getElementById('analyticsKpiOrders').textContent = formatNum(orders);
-      document.getElementById('analyticsKpiConv').textContent = conv.toFixed(2) + '%';
+    if (activeTab === 'products') {
+      fetchJson('/api/analytics/products').then(function (data) {
+        host.innerHTML = renderProducts(data);
+      });
+      return;
+    }
 
-      renderChange('analyticsKpiSessionsChange', pctSessions);
-      renderChange('analyticsKpiSalesChange', pctSales);
-      renderChange('analyticsKpiOrdersChange', pctOrders);
-      renderChange('analyticsKpiConvChange', pctConv);
-
-      var byDaySessions = {};
-      var byDayOrders = {};
-      var byDaySales = {};
-      for (var d = new Date(r.start); d <= r.end; d.setDate(d.getDate() + 1)) {
-        var k = isoDate(new Date(d));
-        byDaySessions[k] = 0;
-        byDayOrders[k] = 0;
-        byDaySales[k] = 0;
+    if (activeTab === 'orders') {
+      host.innerHTML = renderOrdersTable();
+      var sb = window.supabase;
+      if (sb) {
+        sb.from('orders').select('*').order('created_at', { ascending: false }).limit(50).then(function (res) {
+          var orders = res.data || [];
+          var rows = orders.map(function (o) {
+            return '<tr><td>' + formatDate(o.created_at) + '</td><td>' + (o.customer_email || '—') + '</td><td>' + (o.product_slug || '—') + '</td><td>' + formatUsdCents(o.amount_total_cents) + '</td><td>' + (o.status || '') + '</td></tr>';
+          }).join('') || '<tr><td colspan="5">No orders</td></tr>';
+          document.getElementById('analyticsOrdersHost').innerHTML =
+            '<h3>Recent orders</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Date</th><th>Email</th><th>Product</th><th>Total</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+        });
       }
-      sessionsData.forEach(function (row) {
-        var key = (row.started_at || '').slice(0, 10);
-        if (byDaySessions[key] !== undefined) byDaySessions[key]++;
-      });
-      ordersData.forEach(function (row) {
-        var key = (row.created_at || '').slice(0, 10);
-        if (byDayOrders[key] !== undefined) {
-          byDayOrders[key]++;
-          byDaySales[key] += (row.amount_total_cents || 0) / 100;
+      return;
+    }
+
+    if (activeTab === 'customers') {
+      host.innerHTML = renderCustomersNote();
+      return;
+    }
+
+    if (activeTab === 'countries' || activeTab === 'devices') {
+      fetchJson('/api/analytics/distributions').then(function (data) {
+        data = data || {};
+        if (activeTab === 'countries') {
+          host.innerHTML = renderDistribution('Country distribution', data.countries, 'chartHubCountries');
+          drawDoughnut('chartHubCountries', (data.countries || []).map(function (c) { return { label: c.label, value: c.value }; }));
+        } else {
+          host.innerHTML = renderDistribution('Device distribution', data.devices, 'chartHubDevices');
+          drawDoughnut('chartHubDevices', (data.devices || []).map(function (d) { return { label: d.label, value: d.value }; }));
         }
       });
-      var days = Object.keys(byDaySessions).sort();
-      var sparkSessions = days.map(function (key) { return byDaySessions[key] || 0; });
-      var sparkOrders = days.map(function (key) { return byDayOrders[key] || 0; });
-      var sparkSales = days.map(function (key) { return byDaySales[key] || 0; });
-      var sparkConv = days.map(function (key) {
-        var s = byDaySessions[key] || 0;
-        var o = byDayOrders[key] || 0;
-        return s > 0 ? (o / s) * 100 : 0;
-      });
-      drawSparkline('analyticsSparkSessions', sparkSessions);
-      drawSparkline('analyticsSparkSales', sparkSales);
-      drawSparkline('analyticsSparkOrders', sparkOrders);
-      drawSparkline('analyticsSparkConv', sparkConv);
-    }).catch(function () {
-      document.getElementById('analyticsKpiSessions').textContent = '0';
-      document.getElementById('analyticsKpiSales').textContent = '0.00';
-      document.getElementById('analyticsKpiOrders').textContent = '0';
-      document.getElementById('analyticsKpiConv').textContent = '0%';
-      ['analyticsKpiSessionsChange', 'analyticsKpiSalesChange', 'analyticsKpiOrdersChange', 'analyticsKpiConvChange'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) {
-          el.textContent = '\u2014';
-          el.className = 'admin-kpi-change';
-        }
-      });
-    });
+      return;
+    }
+
+    host.innerHTML = '<p class="admin-error">Unknown analytics section.</p>';
   }
 
-  function loadCharts() {
-    var r = rollingRanges(rangeDays);
-    var startStr = isoDate(r.start);
-    var endExcl = new Date(r.end.getTime() + 86400000);
-    var endExclStr = isoDate(endExcl);
-
-    sb.from('page_views').select('created_at, visitor_id, page_url').gte('created_at', startStr).lt('created_at', endExclStr)
-      .then(function (res) {
-        var data = (res && res.data) || [];
-        var byDay = {};
-        var dayKeys = [];
-        for (var d = new Date(r.start); d <= r.end; d.setDate(d.getDate() + 1)) {
-          var k = isoDate(new Date(d));
-          dayKeys.push(k);
-          byDay[k] = { views: 0, visitors: new Set() };
-        }
-        data.forEach(function (row) {
-          var k = (row.created_at || '').slice(0, 10);
-          if (byDay[k]) {
-            byDay[k].views++;
-            byDay[k].visitors.add(row.visitor_id);
-          }
-        });
-
-        var labels = dayKeys.map(function (k) { return k.slice(5); });
-        var viewsData = dayKeys.map(function (k) { return (byDay[k] && byDay[k].views) || 0; });
-        var visitorsData = dayKeys.map(function (k) { return (byDay[k] && byDay[k].visitors.size) || 0; });
-
-        destroyCharts();
-
-        var elPv = document.getElementById('chartPageViews');
-        var elVis = document.getElementById('chartVisitors');
-        var elTop = document.getElementById('chartTopPages');
-        if (!elPv || !elVis || !elTop) return;
-
-        charts.pageViews = new Chart(elPv, {
-          type: 'line',
-          data: { labels: labels, datasets: [{ label: 'Page views', data: viewsData, borderColor: '#4f7cff', fill: true, tension: 0.3 }] },
-          options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-        });
-        charts.visitors = new Chart(elVis, {
-          type: 'line',
-          data: { labels: labels, datasets: [{ label: 'Unique visitors', data: visitorsData, borderColor: '#10b981', fill: true, tension: 0.3 }] },
-          options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-        });
-
-        var urlMap = {};
-        data.forEach(function (row) {
-          var u = row.page_url || '/';
-          urlMap[u] = (urlMap[u] || 0) + 1;
-        });
-        var urlKeys = Object.keys(urlMap).sort(function (a, b) { return urlMap[b] - urlMap[a]; }).slice(0, 8);
-        charts.topPages = new Chart(elTop, {
-          type: 'bar',
-          data: {
-            labels: urlKeys.map(function (u) { return u.length > 30 ? u.slice(0, 30) + '\u2026' : u; }),
-            datasets: [{ label: 'Views', data: urlKeys.map(function (k) { return urlMap[k]; }), backgroundColor: '#4f7cff' }]
-          },
-          options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true } } }
-        });
-      })
-      .catch(function () {
-        destroyCharts();
-        var wrap = document.getElementById('chartPageViews');
-        if (wrap && wrap.parentElement) wrap.parentElement.innerHTML = '<p class="admin-error">Failed to load data.</p>';
-      });
+  if (window.ZYBAR_MY_TEST && window.MOCK_DATA && window.MOCK_DATA.analyticsHub) {
+    renderShell();
+    document.getElementById('analyticsHubContent').innerHTML = '<p class="admin-muted">Analytics mock mode — connect Supabase migration for live cart data.</p>';
+    return;
   }
 
-  function refreshAll() {
-    loadSummary();
-    loadCharts();
-  }
+  renderShell();
+  loadTab();
 
-  var sel = document.getElementById('analyticsRangeSelect');
-  if (sel) {
-    sel.addEventListener('change', function () {
-      rangeDays = parseInt(sel.value, 10) || 30;
-      refreshAll();
-    });
-  }
-
-  refreshAll();
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadTab, 60000);
 };

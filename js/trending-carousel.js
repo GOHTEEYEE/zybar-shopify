@@ -37,11 +37,12 @@
     return "/Image/" + slug + "-1-on.webp";
   }
 
-  function buildCard(product, titleMap) {
+  function buildCard(product, titleMap, pricing) {
     var slug = product.slug;
     var href = "/products/" + slug + "/";
     var title = formatCardTitle(product, titleMap);
     var imgSrc = productImageSrc(slug);
+    var prices = getCardPrices(pricing, slug);
 
     var article = document.createElement("article");
     article.className = "trending-card";
@@ -54,17 +55,40 @@
         '<a class="trending-card-link" href="' + href + '">' +
           '<h3 class="trending-card-title">' + title + "</h3>" +
         "</a>" +
-        '<p class="trending-card-compare">$149.00</p>' +
-        '<p class="trending-card-price"><span class="trending-card-from">From</span> $76.00</p>' +
+        (prices.compare
+          ? '<p class="trending-card-compare">' + prices.compare + "</p>"
+          : "") +
+        '<p class="trending-card-price"><span class="trending-card-from">From</span> ' +
+        (prices.price || "—") +
+        "</p>" +
       "</div>";
 
     return article;
   }
 
-  function populateTrack(track, products, titleMap) {
+  function getCardPrices(pricing, slug) {
+    if (!pricing || typeof pricing.getCatalog !== "function") {
+      return { compare: "", price: "" };
+    }
+    var catalog = pricing.getCatalog();
+    var product = catalog && catalog.products && catalog.products[slug];
+    if (!product || !product.prices) {
+      return { compare: "", price: "" };
+    }
+    var p30 = Number(product.prices["30x45"]) || 0;
+    var p40 = Number(product.prices["40x60"]) || 0;
+    var from = p30 || p40;
+    var compare = p40 > p30 ? p40 : "";
+    return {
+      compare: compare ? pricing.formatUsd(compare) : "",
+      price: from ? pricing.formatUsd(from) : ""
+    };
+  }
+
+  function populateTrack(track, products, titleMap, pricing) {
     var fragment = document.createDocumentFragment();
     products.forEach(function (product) {
-      fragment.appendChild(buildCard(product, titleMap));
+      fragment.appendChild(buildCard(product, titleMap, pricing));
     });
     track.appendChild(fragment);
   }
@@ -210,22 +234,29 @@
       window.requestAnimationFrame(updateNav);
     });
 
-    populateTrack(track, config.products, config.titleMap);
+    populateTrack(track, config.products, config.titleMap, config.pricing);
     updateNav();
   }
 
   function initProductCarousels() {
+    var pricingPromise =
+      window.ZYBAR && window.ZYBAR.Pricing && typeof window.ZYBAR.Pricing.load === "function"
+        ? window.ZYBAR.Pricing.load()
+        : Promise.resolve(window.ZYBAR && window.ZYBAR.Pricing ? window.ZYBAR.Pricing : null);
+
     Promise.all([
       fetch("/data/products.json").then(function (res) {
         return res.ok ? res.json() : null;
       }),
       fetch("/data/product-display-titles.json").then(function (res) {
         return res.ok ? res.json() : {};
-      })
+      }),
+      pricingPromise
     ])
       .then(function (results) {
         var data = results[0];
         var titleMap = results[1] || {};
+        var pricing = results[2];
         var products = data && Array.isArray(data.products) ? data.products : [];
         if (!products.length) return;
 
@@ -243,7 +274,8 @@
           currentId: "trending-nav-current",
           totalId: "trending-nav-total",
           products: trendingProducts,
-          titleMap: titleMap
+          titleMap: titleMap,
+          pricing: pricing
         });
 
         initCarousel({
@@ -254,7 +286,8 @@
           currentId: "bestseller-nav-current",
           totalId: "bestseller-nav-total",
           products: bestsellerProducts,
-          titleMap: titleMap
+          titleMap: titleMap,
+          pricing: pricing
         });
       })
       .catch(function () {});

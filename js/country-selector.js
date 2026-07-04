@@ -179,11 +179,18 @@
       if (!state.open) return;
       state.open = false;
       dropdown.hidden = true;
-      if (backdrop) backdrop.hidden = true;
+      dropdown.setAttribute("aria-hidden", "true");
+      if (backdrop) {
+        backdrop.hidden = true;
+        backdrop.setAttribute("aria-hidden", "true");
+      }
       trigger.setAttribute("aria-expanded", "false");
       container.classList.remove("is-open");
       searchInput.value = "";
+      searchInput.blur();
       state.activeIndex = -1;
+      state.scrollTop = 0;
+      if (listWrap) listWrap.scrollTop = 0;
       applyFilter("");
     }
 
@@ -191,9 +198,14 @@
       if (state.open) return;
       state.open = true;
       dropdown.hidden = false;
-      if (backdrop) backdrop.hidden = false;
+      dropdown.setAttribute("aria-hidden", "false");
+      if (backdrop) {
+        backdrop.hidden = false;
+        backdrop.setAttribute("aria-hidden", "false");
+      }
       trigger.setAttribute("aria-expanded", "true");
       container.classList.add("is-open");
+      searchInput.value = "";
       applyFilter("");
       scrollSelectedIntoView();
       window.setTimeout(function () {
@@ -291,7 +303,21 @@
       var country = state.filtered[index];
       setSelected(country, true);
       closeDropdown();
-      trigger.focus();
+      window.requestAnimationFrame(function () {
+        trigger.focus();
+      });
+    }
+
+    var pointerDragged = false;
+
+    function selectFromOption(option, event) {
+      if (!option || !state.open) return;
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      var index = Number(option.getAttribute("data-index"));
+      if (Number.isFinite(index)) selectByIndex(index);
     }
 
     function moveActive(delta) {
@@ -351,11 +377,30 @@
       renderVisibleRows();
     });
 
+    listWrap.addEventListener("pointerdown", function () {
+      pointerDragged = false;
+    });
+
+    listWrap.addEventListener(
+      "pointermove",
+      function () {
+        pointerDragged = true;
+      },
+      { passive: true }
+    );
+
     list.addEventListener("click", function (event) {
       var option = event.target && event.target.closest(".country-select-option");
       if (!option) return;
-      var index = Number(option.getAttribute("data-index"));
-      if (Number.isFinite(index)) selectByIndex(index);
+      selectFromOption(option, event);
+    });
+
+    list.addEventListener("pointerup", function (event) {
+      if (event.pointerType !== "touch") return;
+      if (pointerDragged) return;
+      var option = event.target && event.target.closest(".country-select-option");
+      if (!option) return;
+      selectFromOption(option, event);
     });
 
     list.addEventListener("mousemove", function (event) {
@@ -406,6 +451,9 @@
       setValue: function (code) {
         var country = findCountry(state.countries, code);
         if (country) setSelected(country, true);
+      },
+      isOpen: function () {
+        return state.open;
       },
       open: openDropdown,
       close: closeDropdown

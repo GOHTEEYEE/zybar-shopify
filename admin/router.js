@@ -127,7 +127,8 @@
       return;
     }
     var hash = (window.location.hash || '#dashboard').slice(1) || 'dashboard';
-    setPage(hash);
+    var page = hash.split('/')[0] || 'dashboard';
+    setPage(page);
   }
 
   window.addEventListener('hashchange', route);

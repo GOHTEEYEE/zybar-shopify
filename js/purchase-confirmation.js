@@ -113,6 +113,13 @@
         if (result.ok && result.body) {
           renderOrder(result.body);
           showStatus("");
+          if (window.ZYBAR && window.ZYBAR.Analytics) {
+            window.ZYBAR.Analytics.trackPaymentSuccess({
+              session_id: sessionId,
+              amount_cents: result.body.totalCents,
+              order_number: result.body.orderNumber
+            });
+          }
           return;
         }
         if (result.status === 402 && attempt < 8) {

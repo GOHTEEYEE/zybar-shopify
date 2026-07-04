@@ -238,7 +238,12 @@
           size: size,
           powerType: powerType,
           name: String(item.name ? item.name : "Product"),
-          unitAmountUSD: pricing.calculateProductUnitPrice({ size: size, powerType: powerType })
+          unitAmountUSD: pricing.calculateProductUnitPrice({
+            slug: String(item.slug ? item.slug : ""),
+            productSlug: String(item.slug ? item.slug : ""),
+            size: size,
+            powerType: powerType
+          })
         };
       })
       .filter(Boolean);
@@ -251,6 +256,13 @@
     if (button) {
       button.disabled = true;
       button.textContent = "Redirecting...";
+    }
+
+    var cartValue = validItems.reduce(function (sum, item) {
+      return sum + (Number(item.unitAmountUSD) || 0) * (Number(item.quantity) || 1);
+    }, 0);
+    if (window.ZYBAR && window.ZYBAR.Analytics) {
+      window.ZYBAR.Analytics.trackBeginCheckout(items, cartValue);
     }
 
     goToPremiumCheckout({
@@ -958,7 +970,12 @@
         slug: item && item.slug ? item.slug : "",
         quantity: item && item.quantity ? item.quantity : 1,
         unitPriceUSD: pricing
-          ? pricing.calculateProductUnitPrice({ size: size, powerType: powerType })
+          ? pricing.calculateProductUnitPrice({
+            slug: item.slug || item.productSlug || "",
+            productSlug: item.slug || item.productSlug || "",
+            size: size,
+            powerType: powerType
+          })
           : item && item.unitPriceUSD
             ? item.unitPriceUSD
             : 0
@@ -967,6 +984,12 @@
   }
 
   function goToPremiumCheckout(payload) {
+    if (window.ZYBAR && window.ZYBAR.Analytics) {
+      var attr = window.ZYBAR.Analytics.getAttribution();
+      payload.visitorId = attr.visitorId;
+      payload.sessionId = attr.sessionId;
+      payload.cartId = attr.cartId;
+    }
     try {
       window.sessionStorage.setItem(CHECKOUT_PENDING_KEY, JSON.stringify(payload));
     } catch (err) {
@@ -981,11 +1004,13 @@
     var pricing = getPricing();
     if (pricing) {
       return pricing.calculateProductUnitPrice({
+        slug: slug || getProductSlug(),
+        productSlug: slug || getProductSlug(),
         size: size,
         powerType: getSelectedPowerType()
       });
     }
-    return 76;
+    return 0;
   }
 
   function getPriceId() {
@@ -1043,7 +1068,13 @@
     if (!pricing) return;
     var size = getSelectedSize();
     var powerType = getSelectedPowerType();
-    var amount = pricing.calculateProductUnitPrice({ size: size, powerType: powerType });
+    var slug = getProductSlug();
+    var amount = pricing.calculateProductUnitPrice({
+      slug: slug,
+      productSlug: slug,
+      size: size,
+      powerType: powerType
+    });
     var priceText = pricing.formatUsd(amount);
     var sizeLabel = sizeToLabel(size);
     var powerLabel = powerTypeToLabel(powerType);
@@ -1078,7 +1109,12 @@
       var size = getSelectedSize();
       var powerType = getSelectedPowerType();
       var quantity = getQuantity();
-      var unitAmountUSD = pricing.calculateProductUnitPrice({ size: size, powerType: powerType });
+      var unitAmountUSD = pricing.calculateProductUnitPrice({
+        slug: slug || "",
+        productSlug: slug || "",
+        size: size,
+        powerType: powerType
+      });
       var shippingMethod = pricing.readShippingMethod();
 
       var successUrl = config.successUrl || (window.location.origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}");
@@ -1127,8 +1163,13 @@
     var powerType = getSelectedPowerType();
     var quantity = getQuantity();
     var amount = pricing
-      ? pricing.calculateProductUnitPrice({ size: size, powerType: powerType })
-      : 76;
+      ? pricing.calculateProductUnitPrice({
+          slug: slug,
+          productSlug: slug,
+          size: size,
+          powerType: powerType
+        })
+      : 0;
     var itemKey = buildVariantKey(slug, size, powerType);
     var items = readCartItems();
     var existing = items.filter(function (item) {
@@ -1163,6 +1204,11 @@
 
     writeCartItems(items);
     refreshCartBadge();
+
+    if (window.ZYBAR && window.ZYBAR.Analytics) {
+      window.ZYBAR.Analytics.trackAddToCart(existing, items);
+    }
+
     return existing;
   }
 
@@ -1233,25 +1279,32 @@
     });
   }
 
-  function wirePowerTypeUi(config) {
-    var powerBtns = document.querySelectorAll(".product-power-options .power-type-option");
-    if (!powerBtns.length) return;
-    powerBtns.forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        powerBtns.forEach(function (b) {
-          b.classList.remove("selected");
-        });
-        btn.classList.add("selected");
-        applySizePriceToUi(config);
-      });
-    });
-  }
-
   function injectPowerTypeOption() {
     if (!getProductSlug()) return;
     if (document.querySelector(".product-power-options")) return;
     var sizeOptions = document.querySelector(".product-size-options");
     if (!sizeOptions || !sizeOptions.parentNode) return;
+
+    var pricing = getPricing();
+    var upgrades = [];
+    if (pricing && typeof pricing.getCatalog === "function") {
+      var catalog = pricing.getCatalog();
+      var pu = catalog && catalog.powerUpgrades ? catalog.powerUpgrades : {};
+      upgrades = Object.keys(pu).map(function (key) {
+        var entry = pu[key] || {};
+        return {
+          powerType: key,
+          label: entry.label || key,
+          priceUsd: Number(entry.priceUsd) || 0
+        };
+      });
+    }
+    if (!upgrades.length) {
+      upgrades = [
+        { powerType: "usb", label: "USB Only", priceUsd: 0 },
+        { powerType: "dual", label: "USB + Battery", priceUsd: 0 }
+      ];
+    }
 
     var optionsHost = sizeOptions.parentNode;
     var powerGroup = document.createElement("div");
@@ -1263,9 +1316,18 @@
 
     var options = document.createElement("div");
     options.className = "product-power-options";
-    options.innerHTML =
-      '<button type="button" class="power-type-option selected" data-power-type="usb">USB Only</button>' +
-      '<button type="button" class="power-type-option" data-power-type="dual">USB + Battery</button>';
+    upgrades.forEach(function (upgrade, index) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "power-type-option" + (index === 0 ? " selected" : "");
+      btn.setAttribute("data-power-type", upgrade.powerType);
+      var text = upgrade.label;
+      if (upgrade.priceUsd > 0 && pricing) {
+        text += " (+" + pricing.formatUsd(upgrade.priceUsd) + ")";
+      }
+      btn.textContent = text;
+      options.appendChild(btn);
+    });
 
     powerGroup.appendChild(label);
     powerGroup.appendChild(options);
@@ -1275,6 +1337,39 @@
     } else {
       optionsHost.appendChild(powerGroup);
     }
+  }
+
+  function refreshPowerTypeLabels() {
+    var pricing = getPricing();
+    if (!pricing) return;
+    document.querySelectorAll(".product-power-options .power-type-option").forEach(function (btn) {
+      var powerType = btn.getAttribute("data-power-type") || "usb";
+      var label = pricing.powerTypeToLabel(powerType);
+      var extra = pricing.getPowerUpgradeUSD(powerType);
+      btn.textContent = extra > 0 ? label + " (+" + pricing.formatUsd(extra) + ")" : label;
+    });
+  }
+
+  function wirePowerTypeUi(config) {
+    injectPowerTypeOption();
+    refreshPowerTypeLabels();
+    var powerBtns = document.querySelectorAll(".product-power-options .power-type-option");
+    if (!powerBtns.length) return;
+    powerBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        powerBtns.forEach(function (b) {
+          b.classList.remove("selected");
+        });
+        btn.classList.add("selected");
+        applySizePriceToUi(config);
+        if (window.ZYBAR && window.ZYBAR.Analytics) {
+          window.ZYBAR.Analytics.trackVariantSelection(getProductSlug(), {
+            size: getSelectedSize(),
+            power_type: btn.getAttribute("data-power-type")
+          });
+        }
+      });
+    });
   }
 
   function wireSizePriceUi(config) {
@@ -1288,6 +1383,12 @@
         });
         btn.classList.add("selected");
         applySizePriceToUi(config);
+        if (window.ZYBAR && window.ZYBAR.Analytics) {
+          window.ZYBAR.Analytics.trackVariantSelection(getProductSlug(), {
+            size: btn.getAttribute("data-size"),
+            power_type: getSelectedPowerType()
+          });
+        }
       });
     });
     if (window.matchMedia) {
@@ -1303,20 +1404,18 @@
     }
   }
 
-  function init() {
+  function boot() {
     if (window.ZYBAR && typeof window.ZYBAR.initPdpLuxuryUi === "function") {
       window.ZYBAR.initPdpLuxuryUi();
     }
     repairCartItemsFromConfig();
     var config = getConfig();
-    injectPowerTypeOption();
     wireSizePriceUi(config);
     wirePowerTypeUi(config);
     initProductThumbnailGallery();
     refreshCartBadge();
     wireCartClick();
 
-    // Wire checkout buttons: they call the backend API, so Stripe.js is optional for redirect flow
     var stripe = (window.Stripe && config.publishableKey && config.publishableKey.indexOf("REPLACE_ME") === -1)
       ? window.Stripe(config.publishableKey) : null;
     wireButtons(stripe);
@@ -1333,12 +1432,32 @@
     getCartItemImageUrl: getCartItemImageUrl,
     formatUsd: formatUsd,
     getCartTotalCount: getCartTotalCount,
-    buildDisplayItemsFromCart: buildDisplayItemsFromCart
+    buildDisplayItemsFromCart: buildDisplayItemsFromCart,
+    readShippingMethod: function () {
+      var pricing = getPricing();
+      return pricing ? pricing.readShippingMethod() : "standard";
+    },
+    writeShippingMethod: function (method) {
+      var pricing = getPricing();
+      if (pricing) pricing.writeShippingMethod(method);
+    }
   };
 
+  function start() {
+    var pricing = getPricing();
+    if (pricing && typeof pricing.load === "function") {
+      pricing.load().then(boot).catch(function (err) {
+        console.error(err);
+        boot();
+      });
+      return;
+    }
+    boot();
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", start);
   } else {
-    init();
+    start();
   }
 })();

@@ -1,57 +1,29 @@
 /**
- * ZYBAR Analytics - Frontend tracking script
- * Load asynchronously to avoid blocking page load.
- * Sends events to Supabase (anon key). Configure SUPABASE_URL and SUPABASE_ANON_KEY below.
+ * ZYBAR Analytics — visitor sessions, funnel events, cart sessions, conversion tracking.
+ * Exposes window.ZYBAR.Analytics for cart/checkout hooks.
  */
 (function () {
   'use strict';
 
-  // ---------- Configuration (replace with your Supabase project values) ----------
   var SUPABASE_URL = window.ZYBAR_ANALYTICS_URL || '';
   var SUPABASE_ANON_KEY = window.ZYBAR_ANALYTICS_ANON_KEY || '';
-  var SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  var SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+  var API_BASE = (window.ZYBAR_STRIPE_CONFIG && window.ZYBAR_STRIPE_CONFIG.apiBaseUrl) || '';
 
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.warn('[Analytics] SUPABASE_URL or SUPABASE_ANON_KEY not set. Tracking disabled.');
-    return;
-  }
-
-  var STORAGE_KEYS = {
+  var STORAGE = {
     visitorId: 'zybar_visitor_id',
     sessionId: 'zybar_session_id',
-    lastActivity: 'zybar_last_activity'
+    cartId: 'zybar_cart_analytics_id',
+    lastActivity: 'zybar_last_activity',
+    recentDedup: 'zybar_analytics_dedup'
   };
 
-  function getVisitorId() {
-    try {
-      var id = localStorage.getItem(STORAGE_KEYS.visitorId);
-      if (!id) {
-        id = 'v_' + Math.random().toString(36).slice(2) + '_' + Date.now().toString(36);
-        localStorage.setItem(STORAGE_KEYS.visitorId, id);
-      }
-      return id;
-    } catch (e) {
-      return 'v_anon_' + Date.now();
-    }
+  var recentDedupCache = {};
+
+  function enabled() {
+    return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
   }
 
-  function isSessionExpired() {
-    try {
-      var last = localStorage.getItem(STORAGE_KEYS.lastActivity);
-      if (!last) return true;
-      return Date.now() - parseInt(last, 10) > SESSION_TIMEOUT_MS;
-    } catch (e) {
-      return true;
-    }
-  }
-
-  function touchSession() {
-    try {
-      localStorage.setItem(STORAGE_KEYS.lastActivity, String(Date.now()));
-    } catch (e) {}
-  }
-
-  /** Generate a valid UUID v4 so Supabase sessions.id (UUID) accepts it */
   function generateUUID() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     var hex = '0123456789abcdef';
@@ -65,23 +37,72 @@
     return s;
   }
 
+  function getVisitorId() {
+    try {
+      var id = localStorage.getItem(STORAGE.visitorId);
+      if (!id) {
+        id = 'v_' + Math.random().toString(36).slice(2) + '_' + Date.now().toString(36);
+        localStorage.setItem(STORAGE.visitorId, id);
+      }
+      return id;
+    } catch (e) {
+      return 'v_anon_' + Date.now();
+    }
+  }
+
+  function isSessionExpired() {
+    try {
+      var last = localStorage.getItem(STORAGE.lastActivity);
+      if (!last) return true;
+      return Date.now() - parseInt(last, 10) > SESSION_TIMEOUT_MS;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function touchSession() {
+    try {
+      localStorage.setItem(STORAGE.lastActivity, String(Date.now()));
+    } catch (e) {}
+  }
+
   function getOrCreateSessionId() {
     if (isSessionExpired()) {
       try {
-        localStorage.removeItem(STORAGE_KEYS.sessionId);
+        localStorage.removeItem(STORAGE.sessionId);
       } catch (e) {}
     }
     touchSession();
     try {
-      var sid = localStorage.getItem(STORAGE_KEYS.sessionId);
-      if (!sid || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sid)) {
+      var sid = localStorage.getItem(STORAGE.sessionId);
+      if (!sid || !/^[0-9a-f-]{36}$/i.test(sid)) {
         sid = generateUUID();
-        localStorage.setItem(STORAGE_KEYS.sessionId, sid);
+        localStorage.setItem(STORAGE.sessionId, sid);
       }
       return sid;
     } catch (e) {
       return generateUUID();
     }
+  }
+
+  function getCartId() {
+    try {
+      var id = localStorage.getItem(STORAGE.cartId);
+      if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+        id = generateUUID();
+        localStorage.setItem(STORAGE.cartId, id);
+      }
+      return id;
+    } catch (e) {
+      return generateUUID();
+    }
+  }
+
+  function setCartId(id) {
+    if (!id) return;
+    try {
+      localStorage.setItem(STORAGE.cartId, id);
+    } catch (e) {}
   }
 
   function getDeviceType() {
@@ -93,7 +114,7 @@
 
   function getReferrer() {
     try {
-      return typeof document !== 'undefined' && document.referrer ? document.referrer : '';
+      return document.referrer || '';
     } catch (e) {
       return '';
     }
@@ -101,7 +122,7 @@
 
   function getPageUrl() {
     try {
-      return typeof location !== 'undefined' ? (location.pathname || '/') + (location.search || '') : '';
+      return (location.pathname || '/') + (location.search || '');
     } catch (e) {
       return '/';
     }
@@ -109,107 +130,175 @@
 
   function getProductIdFromPath() {
     try {
-      var path = typeof location !== 'undefined' ? location.pathname || '' : '';
-      var match = path.match(/\/products\/([^/]+)/);
+      var match = (location.pathname || '').match(/\/products\/([^/]+)/);
       return match ? match[1] : null;
     } catch (e) {
       return null;
     }
   }
 
-  function sendToSupabase(payload) {
-    var sessionId = getOrCreateSessionId();
-    var visitorId = getVisitorId();
-    var body = {
-      visitor_id: visitorId,
-      session_id: sessionId,
-      page_url: getPageUrl(),
-      referrer: getReferrer(),
-      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-      device_type: getDeviceType(),
-      created_at: new Date().toISOString()
-    };
-    Object.assign(body, payload);
+  function getCountry() {
+    try {
+      return localStorage.getItem('zybar_geo_country') || null;
+    } catch (e) {
+      return null;
+    }
+  }
 
-    fetch(SUPABASE_URL + '/rest/v1/events', {
+  function buildDedupKey(eventType, extra) {
+    extra = extra || '';
+    return eventType + ':' + getOrCreateSessionId() + ':' + extra;
+  }
+
+  function shouldSkipDedup(dedupKey) {
+    if (!dedupKey) return false;
+    if (recentDedupCache[dedupKey]) return true;
+    recentDedupCache[dedupKey] = Date.now();
+    return false;
+  }
+
+  function supabaseHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+      Prefer: 'return=minimal'
+    };
+  }
+
+  function postApi(path, body) {
+    if (!API_BASE) return Promise.resolve();
+    return fetch(API_BASE + path, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Prefer': 'return=minimal'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       keepalive: true
     }).catch(function () {});
   }
 
-  function sendPageView() {
-    var sessionId = getOrCreateSessionId();
-    var visitorId = getVisitorId();
-    var pageUrl = getPageUrl();
-    var referrer = getReferrer();
-    var ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-    var deviceType = getDeviceType();
+  function insertEvent(payload) {
+    if (!enabled()) return;
+    if (payload.dedup_key && shouldSkipDedup(payload.dedup_key)) return;
 
-    updateSessionActivity(sessionId);
+    if (API_BASE) {
+      postApi('/api/analytics/track', { type: 'event', event: payload });
+      return;
+    }
 
-    fetch(SUPABASE_URL + '/rest/v1/page_views', {
+    fetch(SUPABASE_URL + '/rest/v1/events', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        visitor_id: visitorId,
-        page_url: pageUrl,
-        referrer: referrer,
-        user_agent: ua,
-        device_type: deviceType,
-        created_at: new Date().toISOString()
+      headers: Object.assign({}, supabaseHeaders(), {
+        Prefer: 'return=minimal'
       }),
+      body: JSON.stringify(payload),
       keepalive: true
     }).catch(function () {});
-
-    sendToSupabase({
-      event_type: 'page_view',
-      page_url: pageUrl
-    });
   }
 
-  function trackProductView(productId) {
-    if (!productId) return;
-    touchSession();
-    sendToSupabase({
-      event_type: 'product_view',
-      page_url: getPageUrl(),
-      product_id: productId
-    });
+  function buildEventPayload(eventType, data) {
+    data = data || {};
+    var sessionId = getOrCreateSessionId();
+    var visitorId = getVisitorId();
+    return {
+      event_type: eventType,
+      page_url: data.page_url || getPageUrl(),
+      product_id: data.product_id || data.productId || null,
+      visitor_id: visitorId,
+      session_id: sessionId,
+      cart_id: data.cart_id || getCartId(),
+      customer_id: data.customer_id || null,
+      referrer: getReferrer(),
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      device_type: getDeviceType(),
+      country: data.country || getCountry(),
+      metadata: data.metadata || {},
+      dedup_key: data.dedup_key || null,
+      created_at: new Date().toISOString()
+    };
   }
 
-  function trackAddToCart(productId) {
+  function track(eventType, data) {
+    if (!enabled()) return;
     touchSession();
-    sendToSupabase({
-      event_type: 'add_to_cart',
-      page_url: getPageUrl(),
-      product_id: productId || getProductIdFromPath() || ''
-    });
+    var payload = buildEventPayload(eventType, data || {});
+    if (!payload.dedup_key) {
+      var dedupExtra = payload.product_id || payload.page_url || '';
+      if (
+        eventType === 'page_view' ||
+        eventType === 'checkout_started' ||
+        eventType === 'view_cart'
+      ) {
+        payload.dedup_key = buildDedupKey(eventType, dedupExtra);
+      }
+    }
+    insertEvent(payload);
+    updateSessionActivity(getOrCreateSessionId());
+  }
+
+  function usdToCents(amount) {
+    var n = Number(amount);
+    if (!Number.isFinite(n)) return 0;
+    return Math.round(n * 100);
+  }
+
+  function syncCartSession(options) {
+    if (!enabled()) return;
+    options = options || {};
+    var items = Array.isArray(options.items) ? options.items : [];
+    var cartValue = Number(options.cartValueUSD);
+    var cartValueCents = Number.isFinite(cartValue)
+      ? usdToCents(cartValue)
+      : items.reduce(function (sum, item) {
+          var qty = Number(item.quantity) || 1;
+          var unit = Number(item.unitPriceUSD) || 0;
+          return sum + usdToCents(unit * qty);
+        }, 0);
+
+    var payload = {
+      type: 'cart_sync',
+      cart: {
+        id: getCartId(),
+        visitor_id: getVisitorId(),
+        session_id: getOrCreateSessionId(),
+        customer_id: options.customer_id || null,
+        status: options.status || 'active',
+        currency: 'USD',
+        cart_value_cents: cartValueCents,
+        item_count: items.reduce(function (s, i) {
+          return s + (Number(i.quantity) || 0);
+        }, 0),
+        country: getCountry(),
+        device_type: getDeviceType(),
+        referrer: getReferrer(),
+        last_shipping_method: options.shippingMethod || null,
+        last_payment_method: options.paymentMethod || null,
+        items: items.map(function (item) {
+          return {
+            product_id: item.slug || item.product_id || '',
+            product_name: item.name || '',
+            variant: [item.size, item.powerType].filter(Boolean).join(' / '),
+            size: item.size || null,
+            led_color: item.ledColor || item.led_color || null,
+            power_type: item.powerType || item.power_type || null,
+            quantity: Number(item.quantity) || 1,
+            unit_price_cents: usdToCents(item.unitPriceUSD || item.unit_price_usd)
+          };
+        })
+      }
+    };
+
+    postApi('/api/analytics/track', payload);
   }
 
   function ensureSessionRow(sessionId) {
+    if (!enabled()) return;
     var visitorId = getVisitorId();
     var now = new Date().toISOString();
     fetch(SUPABASE_URL + '/rest/v1/sessions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Prefer': 'return=minimal,resolution=merge-duplicates'
-      },
+      headers: Object.assign({}, supabaseHeaders(), {
+        Prefer: 'return=minimal,resolution=merge-duplicates'
+      }),
       body: JSON.stringify({
         id: sessionId,
         visitor_id: visitorId,
@@ -217,33 +306,150 @@
         last_activity_at: now,
         referrer: getReferrer(),
         user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-        device_type: getDeviceType()
+        device_type: getDeviceType(),
+        country: getCountry()
       }),
       keepalive: true
-    }).then(function (r) {
-      if (!r.ok && r.status !== 409) return;
-      updateSessionActivity(sessionId);
     }).catch(function () {});
   }
 
-  /** Update session last_activity_at so dashboard "live visitors" (last 5 min) works */
   function updateSessionActivity(sessionId) {
-    if (!sessionId) return;
+    if (!enabled() || !sessionId) return;
     fetch(SUPABASE_URL + '/rest/v1/sessions?id=eq.' + encodeURIComponent(sessionId), {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Prefer': 'return=minimal'
-      },
+      headers: supabaseHeaders(),
       body: JSON.stringify({ last_activity_at: new Date().toISOString() }),
       keepalive: true
     }).catch(function () {});
   }
 
-  // ---------- Run after DOM ready, non-blocking ----------
+  function sendPageView() {
+    if (!enabled()) return;
+    var sessionId = getOrCreateSessionId();
+    var visitorId = getVisitorId();
+    var pageUrl = getPageUrl();
+
+    fetch(SUPABASE_URL + '/rest/v1/page_views', {
+      method: 'POST',
+      headers: supabaseHeaders(),
+      body: JSON.stringify({
+        session_id: sessionId,
+        visitor_id: visitorId,
+        page_url: pageUrl,
+        referrer: getReferrer(),
+        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+        device_type: getDeviceType(),
+        country: getCountry(),
+        created_at: new Date().toISOString()
+      }),
+      keepalive: true
+    }).catch(function () {});
+
+    track('page_view', { page_url: pageUrl });
+  }
+
+  function trackProductView(productId) {
+    if (!productId) return;
+    track('product_view', { product_id: productId });
+  }
+
+  function trackVariantSelection(productId, variant) {
+    track('variant_selected', {
+      product_id: productId,
+      metadata: variant || {}
+    });
+  }
+
+  function trackAddToCart(item, cartItems) {
+    var productId = (item && (item.slug || item.product_id)) || getProductIdFromPath() || '';
+    track('add_to_cart', {
+      product_id: productId,
+      metadata: {
+        product_name: item && item.name,
+        size: item && item.size,
+        power_type: item && item.powerType,
+        led_color: item && (item.ledColor || item.led_color),
+        quantity: item && item.quantity,
+        unit_price_usd: item && item.unitPriceUSD
+      }
+    });
+    syncCartSession({ items: cartItems || [], status: 'active' });
+  }
+
+  function trackViewCart(items, cartValueUSD) {
+    track('view_cart', { metadata: { item_count: (items || []).length } });
+    syncCartSession({ items: items || [], cartValueUSD: cartValueUSD, status: 'active' });
+  }
+
+  function trackBeginCheckout(items, cartValueUSD) {
+    track('begin_checkout', { metadata: { item_count: (items || []).length } });
+    syncCartSession({ items: items || [], cartValueUSD: cartValueUSD, status: 'checkout_started' });
+  }
+
+  function trackCheckoutStarted(items, cartValueUSD) {
+    track('checkout_started', { metadata: { item_count: (items || []).length } });
+    syncCartSession({ items: items || [], cartValueUSD: cartValueUSD, status: 'checkout_started' });
+  }
+
+  function trackShippingSelected(method, cartValueUSD) {
+    track('shipping_selected', {
+      metadata: { shipping_method: method, cart_value_usd: cartValueUSD }
+    });
+    syncCartSession({ status: 'checkout_started', shippingMethod: method, cartValueUSD: cartValueUSD });
+  }
+
+  function trackPaymentStarted(method, cartValueUSD) {
+    track('payment_started', {
+      metadata: { payment_method: method || 'card', cart_value_usd: cartValueUSD }
+    });
+    syncCartSession({
+      status: 'checkout_started',
+      paymentMethod: method || 'card',
+      cartValueUSD: cartValueUSD
+    });
+  }
+
+  function trackPaymentSuccess(orderData) {
+    orderData = orderData || {};
+    track('payment_success', {
+      metadata: orderData,
+      dedup_key: orderData.session_id
+        ? 'payment_success:' + orderData.session_id
+        : buildDedupKey('payment_success', orderData.order_id || '')
+    });
+    postApi('/api/analytics/track', {
+      type: 'purchase',
+      cart_id: getCartId(),
+      visitor_id: getVisitorId(),
+      session_id: getOrCreateSessionId(),
+      stripe_session_id: orderData.session_id || null,
+      amount_cents: orderData.amount_cents || null
+    });
+  }
+
+  function trackPaymentFailed(reason) {
+    track('payment_failed', { metadata: { reason: reason || 'unknown' } });
+  }
+
+  function trackCheckoutAbandoned() {
+    track('checkout_abandoned', { dedup_key: buildDedupKey('checkout_abandoned', getCartId()) });
+    syncCartSession({ status: 'abandoned' });
+  }
+
+  function getAttribution() {
+    return {
+      visitorId: getVisitorId(),
+      sessionId: getOrCreateSessionId(),
+      cartId: getCartId()
+    };
+  }
+
   function init() {
+    if (!enabled()) {
+      console.warn('[Analytics] SUPABASE_URL or SUPABASE_ANON_KEY not set. Tracking disabled.');
+      return;
+    }
+
     var sessionId = getOrCreateSessionId();
     ensureSessionRow(sessionId);
     sendPageView();
@@ -252,18 +458,51 @@
     if (productId) trackProductView(productId);
 
     setInterval(function () {
-      var sid = getOrCreateSessionId();
-      updateSessionActivity(sid);
+      updateSessionActivity(getOrCreateSessionId());
     }, 45 * 1000);
 
     document.addEventListener('click', function (e) {
-      var target = e.target && (e.target.closest ? e.target.closest('[data-analytics-add-to-cart]') : null) || (e.target.getAttribute && e.target.getAttribute('data-analytics-add-to-cart') !== null ? e.target : null);
+      var target =
+        (e.target && e.target.closest && e.target.closest('[data-analytics-add-to-cart]')) ||
+        (e.target && e.target.getAttribute && e.target.getAttribute('data-analytics-add-to-cart') !== null
+          ? e.target
+          : null);
       if (target) {
-        var pid = (target.getAttribute && target.getAttribute('data-product-id')) || getProductIdFromPath();
-        trackAddToCart(pid);
+        var pid = target.getAttribute('data-product-id') || getProductIdFromPath();
+        track('add_to_cart', { product_id: pid });
       }
     }, true);
+
+    window.addEventListener('beforeunload', function () {
+      var path = getPageUrl();
+      if (path.indexOf('/checkout') === 0) {
+        trackCheckoutAbandoned();
+      }
+    });
   }
+
+  window.ZYBAR = window.ZYBAR || {};
+  window.ZYBAR.Analytics = {
+    enabled: enabled,
+    getVisitorId: getVisitorId,
+    getSessionId: getOrCreateSessionId,
+    getCartId: getCartId,
+    setCartId: setCartId,
+    getAttribution: getAttribution,
+    track: track,
+    trackProductView: trackProductView,
+    trackVariantSelection: trackVariantSelection,
+    trackAddToCart: trackAddToCart,
+    trackViewCart: trackViewCart,
+    trackBeginCheckout: trackBeginCheckout,
+    trackCheckoutStarted: trackCheckoutStarted,
+    trackShippingSelected: trackShippingSelected,
+    trackPaymentStarted: trackPaymentStarted,
+    trackPaymentSuccess: trackPaymentSuccess,
+    trackPaymentFailed: trackPaymentFailed,
+    trackCheckoutAbandoned: trackCheckoutAbandoned,
+    syncCartSession: syncCartSession
+  };
 
   if (typeof document !== 'undefined' && document.readyState === 'complete') {
     setTimeout(init, 0);

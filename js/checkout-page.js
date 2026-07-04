@@ -39,6 +39,17 @@
     return "$" + n.toFixed(2);
   }
 
+  function formatShippingUsd(amount) {
+    var pricing = getPricing();
+    if (pricing && typeof pricing.formatShippingUsd === "function") {
+      return pricing.formatShippingUsd(amount);
+    }
+    var n = Number(amount);
+    if (!Number.isFinite(n)) return "$0";
+    if (n % 1 === 0) return "$" + String(Math.round(n));
+    return formatUsd(n);
+  }
+
   function getSelectedShippingMethod() {
     var checked = document.querySelector('input[name="shippingMethod"]:checked');
     if (checked && checked.value) return checked.value;
@@ -61,6 +72,7 @@
       var radio = card.querySelector('input[name="shippingMethod"]');
       var selected = !!(radio && radio.checked);
       card.classList.toggle("is-selected", selected);
+      card.setAttribute("tabindex", selected ? "0" : "-1");
     });
   }
 
@@ -68,6 +80,10 @@
     var pricing = getPricing();
     var normalized = pricing ? pricing.normalizeShippingMethod(method) : method || "standard";
     if (pricing) pricing.writeShippingMethod(normalized);
+    var cartApi = window.ZYBAR && window.ZYBAR.Cart;
+    if (cartApi && typeof cartApi.writeShippingMethod === "function") {
+      cartApi.writeShippingMethod(normalized);
+    }
     if (state.pending) {
       state.pending.shippingMethod = normalized;
       try {
@@ -135,8 +151,70 @@
       var radio = option ? option.querySelector('input[name="shippingMethod"]') : null;
       if (!radio) return;
       var cost = pricing.getShippingCostUSD(radio.value);
-      el.textContent = formatUsd(cost);
+      el.textContent = formatShippingUsd(cost);
     });
+  }
+
+  function renderShippingOptionsFromCatalog() {
+    var container = document.getElementById("checkout-shipping-options");
+    if (!container) return;
+    var pricing = getPricing();
+    if (!pricing || typeof pricing.getShippingMethods !== "function") return;
+
+    var methods = pricing.getShippingMethods();
+    if (!methods.length) {
+      container.innerHTML =
+        '<p class="checkout-shipping-empty" style="color:#9ca3af;font-size:14px;">Shipping options are loading…</p>';
+      return;
+    }
+
+    var saved = pricing.readShippingMethod();
+    var normalizedSaved = pricing.normalizeShippingMethod(saved);
+    var hasSaved = methods.some(function (m) {
+      return m && m.code === normalizedSaved;
+    });
+    var defaultCode = pricing.getDefaultShippingCode
+      ? pricing.getDefaultShippingCode()
+      : methods[0].code;
+
+    container.innerHTML = methods
+      .map(function (method) {
+        if (!method || !method.code) return "";
+        var code = method.code;
+        var selected = hasSaved ? code === normalizedSaved : !!method.isDefault || code === defaultCode;
+        var price = pricing.getShippingCostUSD(code);
+        var meta = method.description ? escapeHtml(method.description) : "";
+        return (
+          '<label class="checkout-shipping-option' +
+          (selected ? " is-selected" : "") +
+          '" data-shipping-option="' +
+          escapeHtml(code) +
+          '" tabindex="' +
+          (selected ? "0" : "-1") +
+          '">' +
+          '<input type="radio" name="shippingMethod" value="' +
+          escapeHtml(code) +
+          '" class="checkout-shipping-input"' +
+          (selected ? " checked" : "") +
+          " />" +
+          '<span class="checkout-shipping-radio" aria-hidden="true"></span>' +
+          '<span class="checkout-shipping-option-body">' +
+          '<span class="checkout-shipping-option-name">' +
+          escapeHtml(method.label || code) +
+          "</span>" +
+          (meta
+            ? '<span class="checkout-shipping-option-meta">' + meta + "</span>"
+            : "") +
+          "</span>" +
+          '<span class="checkout-shipping-option-price" data-shipping-price="' +
+          escapeHtml(code) +
+          '">' +
+          formatShippingUsd(price) +
+          "</span>" +
+          "</label>"
+        );
+      })
+      .join("");
   }
 
   function escapeHtml(text) {
@@ -391,7 +469,10 @@
         powerType: pending.powerType,
         successUrl: successUrl,
         cancelUrl: pending.cancelUrl || origin + "/checkout/",
-        returnUrl: returnUrl
+        returnUrl: returnUrl,
+        visitorId: pending.visitorId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getVisitorId() : null),
+        sessionId: pending.sessionId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getSessionId() : null),
+        cartId: pending.cartId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getCartId() : null)
       })
     }).then(function (res) {
       return res.json().then(function (data) {
@@ -599,6 +680,10 @@
       payBtn.textContent = "Processing…";
     }
 
+    if (window.ZYBAR && window.ZYBAR.Analytics) {
+      window.ZYBAR.Analytics.trackPaymentStarted("card", state.total);
+    }
+
     var values = getFormValues();
     var returnUrl = state.returnUrl;
 
@@ -640,6 +725,9 @@
       })
       .catch(function (err) {
         console.error(err);
+        if (window.ZYBAR && window.ZYBAR.Analytics) {
+          window.ZYBAR.Analytics.trackPaymentFailed((err && err.message) || "unknown");
+        }
         showError((err && err.message) || "Payment could not be completed. Please try again.");
         if (payBtn) {
           payBtn.disabled = false;
@@ -660,12 +748,68 @@
     persistShippingSelection(method);
     syncShippingCardStates();
     updateOrderTotalsAnimated();
+    if (window.ZYBAR && window.ZYBAR.Analytics) {
+      window.ZYBAR.Analytics.trackShippingSelected(method, state.total);
+    }
     scheduleShippingRefresh();
+  }
+
+  function selectShippingMethod(method) {
+    var pricing = getPricing();
+    var normalized = pricing ? pricing.normalizeShippingMethod(method) : method || "standard";
+    var radio = document.querySelector(
+      'input[name="shippingMethod"][value="' + normalized + '"]'
+    );
+    if (!radio) return;
+    if (radio.checked) return;
+    radio.checked = true;
+    handleShippingChange(normalized);
+  }
+
+  function wireCountrySelector() {
+    var host = document.querySelector("[data-country-select]");
+    if (!host) return;
+
+    host.addEventListener("countrychange", function (event) {
+      var detail = event && event.detail ? event.detail : {};
+      var code = detail.code || "";
+
+      if (window.ZYBAR && window.ZYBAR.Analytics && typeof window.ZYBAR.Analytics.trackEvent === "function") {
+        window.ZYBAR.Analytics.trackEvent("checkout_country_selected", { country: code });
+      }
+
+      // Re-sync Stripe payment/shipping when country changes (taxes, rates).
+      scheduleShippingRefresh();
+    });
   }
 
   function wireShippingMethod() {
     updateShippingPriceLabels();
     syncShippingCardStates();
+
+    var cards = Array.prototype.slice.call(
+      document.querySelectorAll(".checkout-shipping-option")
+    );
+
+    cards.forEach(function (card, index) {
+      card.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+          e.preventDefault();
+          var next = cards[(index + 1) % cards.length];
+          var nextRadio = next.querySelector('input[name="shippingMethod"]');
+          if (nextRadio) selectShippingMethod(nextRadio.value);
+        } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+          e.preventDefault();
+          var prev = cards[(index - 1 + cards.length) % cards.length];
+          var prevRadio = prev.querySelector('input[name="shippingMethod"]');
+          if (prevRadio) selectShippingMethod(prevRadio.value);
+        } else if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          var radio = card.querySelector('input[name="shippingMethod"]');
+          if (radio) selectShippingMethod(radio.value);
+        }
+      });
+    });
 
     document.querySelectorAll('input[name="shippingMethod"]').forEach(function (radio) {
       radio.addEventListener("change", function () {
@@ -713,6 +857,24 @@
         msg.className = "checkout-discount-msg is-error";
         return;
       }
+      var pricing = getPricing();
+      if (!pricing || typeof pricing.applyDiscountUSD !== "function") {
+        msg.textContent = "Discount codes are temporarily unavailable.";
+        msg.className = "checkout-discount-msg is-error";
+        return;
+      }
+      var discount = pricing.applyDiscountUSD(code, state.subtotal);
+      if (discount > 0) {
+        state.discount = discount;
+        if (state.pending) state.pending.discountCode = code;
+        updateOrderTotalsAnimated();
+        msg.textContent = "Discount applied.";
+        msg.className = "checkout-discount-msg is-success";
+        scheduleShippingRefresh();
+        return;
+      }
+      state.discount = 0;
+      updateOrderTotalsAnimated();
       msg.textContent = "This discount code is not valid for this order.";
       msg.className = "checkout-discount-msg is-error";
     });
@@ -741,13 +903,17 @@
     state.pending = pending;
     var pricing = getPricing();
     if (pricing) {
+      renderShippingOptionsFromCatalog();
       var method = pending.shippingMethod || pricing.readShippingMethod();
       pricing.writeShippingMethod(method);
       setShippingRadio(method);
       if (Array.isArray(pending.displayItems)) {
         pending.displayItems = pending.displayItems.map(function (item) {
           var copy = Object.assign({}, item);
+          var slug = copy.slug || copy.productSlug || "";
           copy.unitPriceUSD = pricing.calculateProductUnitPrice({
+            slug: slug,
+            productSlug: slug,
             size: copy.size,
             powerType: copy.powerType
           });
@@ -757,9 +923,13 @@
     }
 
     renderOrderSummary(pending.displayItems);
+    if (window.ZYBAR && window.ZYBAR.Analytics) {
+      window.ZYBAR.Analytics.trackCheckoutStarted(pending.displayItems, state.total);
+    }
     wireBillingToggle();
     wireMobileSummary();
     wireDiscount();
+    wireCountrySelector();
     wireShippingMethod();
 
     var form = document.getElementById("checkout-form");
@@ -773,9 +943,21 @@
       });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
+  function start() {
+    var pricing = getPricing();
+    if (pricing && typeof pricing.load === "function") {
+      pricing.load().then(init).catch(function (err) {
+        console.error(err);
+        init();
+      });
+      return;
+    }
     init();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
   }
 })();

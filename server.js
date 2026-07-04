@@ -116,7 +116,8 @@ function getConfiguredPriceId(productSlug, size) {
   }
 }
 
-function buildDynamicStripeLineItems(lineItems, shippingMethod) {
+function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi) {
+  const api = pricingApi || Pricing.createApi(Pricing.getCachedCatalog());
   const rows = Array.isArray(lineItems) ? lineItems : [];
   const stripeItems = [];
 
@@ -125,25 +126,30 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod) {
     const qty = Number(item.quantity);
     if (!Number.isFinite(qty) || qty < 1) return;
 
-    const size = Pricing.normalizeSize(item.size);
-    const powerType = Pricing.normalizePowerType(item.powerType);
+    const size = api.normalizeSize(item.size);
+    const powerType = api.normalizePowerType(item.powerType);
+    const slug =
+      typeof item.productSlug === 'string' && item.productSlug.trim()
+        ? item.productSlug.trim()
+        : typeof item.slug === 'string'
+          ? item.slug.trim()
+          : '';
     const unitUSD =
       typeof item.unitAmountUSD === 'number' && Number.isFinite(item.unitAmountUSD)
-        ? Pricing.roundMoney(item.unitAmountUSD)
-        : Pricing.calculateProductUnitPrice({ size: size, powerType: powerType });
-    const slug = typeof item.productSlug === 'string' ? item.productSlug.trim() : '';
+        ? api.roundMoney(item.unitAmountUSD)
+        : api.calculateProductUnitPrice({ slug: slug, productSlug: slug, size: size, powerType: powerType });
     const baseName =
       typeof item.name === 'string' && item.name.trim()
         ? item.name.trim()
         : slug
           ? 'ZYBAR ' + slug.replace(/-/g, ' ')
           : 'ZYBAR LED Wall Art';
-    const variantLabel = Pricing.sizeToLabel(size) + ' · ' + Pricing.powerTypeToLabel(powerType);
+    const variantLabel = api.sizeToLabel(size) + ' · ' + api.powerTypeToLabel(powerType);
 
     stripeItems.push({
       price_data: {
         currency: 'usd',
-        unit_amount: Pricing.toCents(unitUSD),
+        unit_amount: api.toCents(unitUSD),
         product_data: {
           name: baseName + ' (' + variantLabel + ')',
           metadata: {
@@ -157,14 +163,14 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod) {
     });
   });
 
-  const shipUSD = Pricing.getShippingCostUSD(shippingMethod);
+  const shipUSD = api.getShippingCostUSD(shippingMethod);
   if (shipUSD > 0) {
     stripeItems.push({
       price_data: {
         currency: 'usd',
-        unit_amount: Pricing.toCents(shipUSD),
+        unit_amount: api.toCents(shipUSD),
         product_data: {
-          name: Pricing.shippingMethodToLabel(shippingMethod)
+          name: api.shippingMethodToLabel(shippingMethod)
         }
       },
       quantity: 1
@@ -526,10 +532,42 @@ app.post(
             size: session.metadata && session.metadata.size ? session.metadata.size : null,
             quantity: quantity,
             status: session.payment_status || 'completed',
-            test_mode: !!session.livemode === false
+            test_mode: !!session.livemode === false,
+            visitor_id: session.metadata && session.metadata.visitorId ? session.metadata.visitorId : null,
+            analytics_session_id:
+              session.metadata && session.metadata.analyticsSessionId
+                ? session.metadata.analyticsSessionId
+                : null,
+            cart_id:
+              session.metadata && session.metadata.cartId ? session.metadata.cartId : null
           });
           if (error) {
             console.error('Supabase insert orders error:', error);
+          } else {
+            const cartIdMeta = session.metadata && session.metadata.cartId;
+            if (cartIdMeta) {
+              await supabase
+                .from('cart_sessions')
+                .update({
+                  status: 'purchased',
+                  purchased_at: new Date().toISOString(),
+                  stripe_session_id: session.id,
+                  recovery_status: 'purchased_later'
+                })
+                .eq('id', cartIdMeta);
+            }
+            await supabase.from('events').insert({
+              event_type: 'payment_success',
+              visitor_id: (session.metadata && session.metadata.visitorId) || 'server',
+              session_id: (session.metadata && session.metadata.analyticsSessionId) || null,
+              cart_id: cartIdMeta || null,
+              metadata: {
+                stripe_session_id: session.id,
+                amount_cents: amount
+              },
+              dedup_key: 'payment_success:' + session.id,
+              created_at: new Date().toISOString()
+            });
           }
         } catch (e) {
           console.error('Supabase orders insert exception:', e);
@@ -1220,6 +1258,24 @@ app.get('/api/checkout-session', async (req, res) => {
   }
 });
 
+// ----- Store pricing (Supabase single source of truth) -----
+app.get('/api/pricing', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Pricing not configured' });
+  }
+  try {
+    if (req.query.refresh === '1') {
+      Pricing.invalidateCatalogCache();
+    }
+    const catalog = await Pricing.loadCatalog(supabase, { force: req.query.refresh === '1' });
+    res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+    return res.json(catalog);
+  } catch (err) {
+    console.error('GET /api/pricing error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load pricing' });
+  }
+});
+
 // ----- Create Checkout Session -----
 app.post('/api/create-checkout-session', async (req, res) => {
   if (!stripe) {
@@ -1239,7 +1295,10 @@ app.post('/api/create-checkout-session', async (req, res) => {
     custom,
     shippingMethod,
     unitAmountUSD,
-    name
+    name,
+    visitorId,
+    sessionId,
+    cartId
   } = req.body || {};
   const isEmbedded = embedded === true || embedded === 'true';
   const isCustom = custom === true || custom === 'true';
@@ -1252,34 +1311,53 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.status(400).json({ error: 'successUrl and cancelUrl are required' });
   }
 
+  let catalog;
+  try {
+    catalog = await Pricing.loadCatalog(supabase);
+  } catch (pricingErr) {
+    console.error('Checkout pricing load failed:', pricingErr);
+    return res.status(503).json({ error: 'Store pricing is temporarily unavailable' });
+  }
+  const pricingApi = Pricing.createApi(catalog);
+
   let stripeLineItems = [];
-  const resolvedShippingMethod = Pricing.normalizeShippingMethod(shippingMethod);
+  const resolvedShippingMethod = pricingApi.normalizeShippingMethod(shippingMethod);
+
+  function normalizeCheckoutLineItem(item) {
+    if (!item || typeof item !== 'object') return null;
+    const itemQty = Number(item.quantity);
+    const itemProductSlug =
+      typeof item.productSlug === 'string' && item.productSlug.trim()
+        ? item.productSlug.trim()
+        : typeof item.slug === 'string'
+          ? item.slug.trim()
+          : '';
+    const itemSize = typeof item.size === 'string' ? item.size.trim() : '';
+    const itemPowerType = typeof item.powerType === 'string' ? item.powerType.trim() : '';
+    const itemName = typeof item.name === 'string' ? item.name.trim() : '';
+    if (!Number.isFinite(itemQty) || itemQty < 1) return null;
+    const size = pricingApi.normalizeSize(itemSize);
+    const powerType = pricingApi.normalizePowerType(itemPowerType || 'usb');
+    const unitAmountUSD = pricingApi.calculateProductUnitPrice({
+      slug: itemProductSlug,
+      productSlug: itemProductSlug,
+      size: size,
+      powerType: powerType
+    });
+    return {
+      quantity: Math.floor(itemQty),
+      productSlug: itemProductSlug,
+      size: size,
+      powerType: powerType,
+      name: itemName,
+      unitAmountUSD: unitAmountUSD
+    };
+  }
 
   if (Array.isArray(lineItems) && lineItems.length) {
-    const normalizedLineItems = lineItems
-      .map(function (item) {
-        if (!item || typeof item !== 'object') return null;
-        const itemQty = Number(item.quantity);
-        const itemProductSlug = typeof item.productSlug === 'string' ? item.productSlug.trim() : '';
-        const itemSize = typeof item.size === 'string' ? item.size.trim() : '';
-        const itemPowerType = typeof item.powerType === 'string' ? item.powerType.trim() : '';
-        const itemName = typeof item.name === 'string' ? item.name.trim() : '';
-        if (!Number.isFinite(itemQty) || itemQty < 1) return null;
-        return {
-          quantity: Math.floor(itemQty),
-          productSlug: itemProductSlug,
-          size: itemSize,
-          powerType: itemPowerType || 'usb',
-          name: itemName,
-          unitAmountUSD:
-            typeof item.unitAmountUSD === 'number' && Number.isFinite(item.unitAmountUSD)
-              ? item.unitAmountUSD
-              : undefined
-        };
-      })
-      .filter(Boolean);
+    const normalizedLineItems = lineItems.map(normalizeCheckoutLineItem).filter(Boolean);
 
-    stripeLineItems = buildDynamicStripeLineItems(normalizedLineItems, resolvedShippingMethod);
+    stripeLineItems = buildDynamicStripeLineItems(normalizedLineItems, resolvedShippingMethod, pricingApi);
 
     if (!stripeLineItems.length) {
       return res.status(400).json({ error: 'Invalid request: lineItems must contain valid quantity and variant data' });
@@ -1291,17 +1369,17 @@ app.post('/api/create-checkout-session', async (req, res) => {
     }
     stripeLineItems = buildDynamicStripeLineItems(
       [
-        {
+        normalizeCheckoutLineItem({
           quantity: Math.floor(itemQty),
           productSlug: typeof productSlug === 'string' ? productSlug.trim() : '',
           size: typeof size === 'string' ? size.trim() : '',
           powerType: typeof powerType === 'string' ? powerType.trim() : 'usb',
           name: typeof name === 'string' ? name.trim() : '',
-          unitAmountUSD:
-            typeof unitAmountUSD === 'number' && Number.isFinite(unitAmountUSD) ? unitAmountUSD : undefined
-        }
-      ],
-      resolvedShippingMethod
+          unitAmountUSD: typeof unitAmountUSD === 'number' && Number.isFinite(unitAmountUSD) ? unitAmountUSD : undefined
+        })
+      ].filter(Boolean),
+      resolvedShippingMethod,
+      pricingApi
     );
   }
 
@@ -1330,6 +1408,9 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }, 0);
   metadata.quantity = String(totalQty);
   metadata.cartItems = String(stripeLineItems.length);
+  if (visitorId) metadata.visitorId = String(visitorId);
+  if (sessionId) metadata.analyticsSessionId = String(sessionId);
+  if (cartId) metadata.cartId = String(cartId);
 
   function buildReturnUrl() {
     if (returnUrl) return String(returnUrl);
@@ -1395,6 +1476,241 @@ app.post('/api/create-checkout-session', async (req, res) => {
   } catch (err) {
     console.error('Checkout session creation failed:', err);
     return res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+  }
+});
+
+// ----- Analytics tracking (cart sessions + server-side purchase) -----
+app.post('/api/analytics/track', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Analytics not configured' });
+  }
+  const body = req.body || {};
+  const type = body.type;
+
+  try {
+    if (type === 'event' && body.event) {
+      const ev = body.event;
+      if (ev.dedup_key) {
+        const existing = await supabase
+          .from('events')
+          .select('id')
+          .eq('dedup_key', ev.dedup_key)
+          .maybeSingle();
+        if (existing.data) {
+          return res.json({ ok: true, deduped: true });
+        }
+      }
+      const { error } = await supabase.from('events').insert(ev);
+      if (error && error.code !== '23505') throw error;
+      return res.json({ ok: true });
+    }
+
+    if (type === 'cart_sync' && body.cart) {
+      const cart = body.cart;
+      const now = new Date().toISOString();
+      const cartRow = {
+        id: cart.id,
+        visitor_id: cart.visitor_id,
+        session_id: cart.session_id || null,
+        customer_id: cart.customer_id || null,
+        status: cart.status || 'active',
+        currency: cart.currency || 'USD',
+        cart_value_cents: cart.cart_value_cents || 0,
+        item_count: cart.item_count || 0,
+        country: cart.country || null,
+        device_type: cart.device_type || null,
+        referrer: cart.referrer || null,
+        last_shipping_method: cart.last_shipping_method || null,
+        last_payment_method: cart.last_payment_method || null,
+        last_activity_at: now
+      };
+
+      const { data: existing } = await supabase
+        .from('cart_sessions')
+        .select('id, status')
+        .eq('visitor_id', cart.visitor_id)
+        .in('status', ['active', 'checkout_started'])
+        .maybeSingle();
+
+      let cartId = cart.id;
+      if (existing && existing.id && existing.id !== cart.id) {
+        cartId = existing.id;
+      }
+
+      const { error: upsertErr } = await supabase.from('cart_sessions').upsert(
+        Object.assign({}, cartRow, { id: cartId }),
+        { onConflict: 'id' }
+      );
+      if (upsertErr) throw upsertErr;
+
+      if (Array.isArray(cart.items)) {
+        await supabase.from('cart_session_items').delete().eq('cart_id', cartId);
+        if (cart.items.length) {
+          const rows = cart.items.map(function (item) {
+            return {
+              cart_id: cartId,
+              product_id: item.product_id || '',
+              product_name: item.product_name || null,
+              variant: item.variant || null,
+              size: item.size || null,
+              led_color: item.led_color || null,
+              power_type: item.power_type || null,
+              quantity: item.quantity || 1,
+              unit_price_cents: item.unit_price_cents || 0,
+              currency: cart.currency || 'USD',
+              updated_at: now
+            };
+          });
+          const { error: itemsErr } = await supabase.from('cart_session_items').insert(rows);
+          if (itemsErr) throw itemsErr;
+        }
+      }
+      return res.json({ ok: true, cart_id: cartId });
+    }
+
+    if (type === 'purchase') {
+      const cartId = body.cart_id;
+      if (cartId) {
+        await supabase
+          .from('cart_sessions')
+          .update({
+            status: 'purchased',
+            purchased_at: new Date().toISOString(),
+            stripe_session_id: body.stripe_session_id || null,
+            recovery_status: 'recovered'
+          })
+          .eq('id', cartId);
+      }
+      return res.json({ ok: true });
+    }
+
+    return res.status(400).json({ error: 'Invalid analytics payload' });
+  } catch (err) {
+    console.error('Analytics track error:', err);
+    return res.status(500).json({ error: err.message || 'Track failed' });
+  }
+});
+
+function parseAnalyticsRange(req) {
+  const end = req.query.end ? new Date(req.query.end) : new Date();
+  end.setHours(23, 59, 59, 999);
+  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
+  const start = req.query.start
+    ? new Date(req.query.start)
+    : new Date(end.getTime() - (days - 1) * 86400000);
+  start.setHours(0, 0, 0, 0);
+  const endExcl = new Date(end.getTime() + 86400000);
+  return { start: start.toISOString(), end: endExcl.toISOString() };
+}
+
+app.get('/api/analytics/overview', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const { data, error } = await supabase.rpc('get_analytics_overview', {
+      p_start: range.start,
+      p_end: range.end
+    });
+    if (error) throw error;
+    return res.json(data || {});
+  } catch (err) {
+    console.error('Analytics overview error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/funnel', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const { data, error } = await supabase.rpc('get_conversion_funnel', {
+      p_start: range.start,
+      p_end: range.end
+    });
+    if (error) throw error;
+    return res.json({ steps: data || [] });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/carts', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const { data, error } = await supabase.rpc('get_cart_analytics_summary', {
+      p_start: range.start,
+      p_end: range.end
+    });
+    if (error) throw error;
+    return res.json(data || {});
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/abandoned', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const limit = Math.min(200, parseInt(req.query.limit, 10) || 50);
+  const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+  try {
+    const { data, error } = await supabase.rpc('get_abandoned_carts', {
+      p_limit: limit,
+      p_offset: offset
+    });
+    if (error) throw error;
+    return res.json({ carts: data || [] });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/trends', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  const granularity = req.query.granularity === 'week' || req.query.granularity === 'month'
+    ? req.query.granularity
+    : 'day';
+  try {
+    const { data, error } = await supabase.rpc('get_analytics_trends', {
+      p_start: range.start,
+      p_end: range.end,
+      p_granularity: granularity
+    });
+    if (error) throw error;
+    return res.json(data || {});
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/distributions', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const { data, error } = await supabase.rpc('get_analytics_distributions', {
+      p_start: range.start,
+      p_end: range.end
+    });
+    if (error) throw error;
+    return res.json(data || {});
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/products', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const { data, error } = await supabase.rpc('get_top_products_analytics', {
+      p_start: range.start,
+      p_end: range.end
+    });
+    if (error) throw error;
+    return res.json(data || {});
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 });
 

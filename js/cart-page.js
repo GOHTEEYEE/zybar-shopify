@@ -268,7 +268,12 @@
           size: size,
           powerType: powerType,
           name: String(item.name ? item.name : "Product"),
-          unitAmountUSD: pricing.calculateProductUnitPrice({ size: size, powerType: powerType })
+          unitAmountUSD: pricing.calculateProductUnitPrice({
+            slug: String(item.slug ? item.slug : ""),
+            productSlug: String(item.slug ? item.slug : ""),
+            size: size,
+            powerType: powerType
+          })
         };
       })
       .filter(Boolean);
@@ -719,18 +724,34 @@
   function init() {
     if (!document.body.classList.contains("cart-page")) return;
 
-    loadCatalog().then(function () {
-      var items = repairCartItems(readCartItems());
-      render(items);
-      updateDockHeight();
-    });
+    function afterPricing() {
+      loadCatalog().then(function () {
+        var items = repairCartItems(readCartItems());
+        render(items);
+        updateDockHeight();
+        if (window.ZYBAR && window.ZYBAR.Analytics) {
+          var totals = calcOrderTotals(items);
+          window.ZYBAR.Analytics.trackViewCart(items, totals.total);
+        }
+      });
 
-    window.addEventListener("resize", updateDockHeight, { passive: true });
+      window.addEventListener("resize", updateDockHeight, { passive: true });
 
-    var root = document.getElementById("cart-root");
-    if (root) {
-      root.addEventListener("click", handleListClick);
+      var root = document.getElementById("cart-root");
+      if (root) {
+        root.addEventListener("click", handleListClick);
+      }
     }
+
+    var pricing = getPricing();
+    if (pricing && typeof pricing.load === "function") {
+      pricing.load().then(afterPricing).catch(function (err) {
+        console.error(err);
+        afterPricing();
+      });
+      return;
+    }
+    afterPricing();
   }
 
   if (document.readyState === "loading") {

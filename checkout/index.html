@@ -13,7 +13,10 @@
     />
     <link rel="stylesheet" href="/css/checkout.css" />
     <script src="/js/stripe-config.js"></script>
+    <script src="/lib/pricing-calc.js"></script>
     <script src="/js/pricing.js"></script>
+    <script src="/js/analytics-config.js"></script>
+    <script src="/js/analytics.js?v=3" async></script>
     <script src="https://js.stripe.com/v3/"></script>
     <script src="/js/country-selector.js" defer></script>
     <script src="/js/checkout-page.js" defer></script>
@@ -165,35 +168,7 @@
             role="radiogroup"
             aria-label="Shipping method"
           >
-            <label class="checkout-shipping-option is-selected" data-shipping-option="standard">
-              <input
-                type="radio"
-                name="shippingMethod"
-                value="standard"
-                class="checkout-shipping-input"
-                checked
-              />
-              <span class="checkout-shipping-radio" aria-hidden="true"></span>
-              <span class="checkout-shipping-option-body">
-                <span class="checkout-shipping-option-name">Standard Shipping</span>
-                <span class="checkout-shipping-option-meta">Estimated delivery: 14–18 business days</span>
-              </span>
-              <span class="checkout-shipping-option-price" data-shipping-price="standard">$20.00</span>
-            </label>
-            <label class="checkout-shipping-option" data-shipping-option="priority">
-              <input
-                type="radio"
-                name="shippingMethod"
-                value="priority"
-                class="checkout-shipping-input"
-              />
-              <span class="checkout-shipping-radio" aria-hidden="true"></span>
-              <span class="checkout-shipping-option-body">
-                <span class="checkout-shipping-option-name">Priority Shipping</span>
-                <span class="checkout-shipping-option-meta">Estimated delivery: 7–14 business days</span>
-              </span>
-              <span class="checkout-shipping-option-price" data-shipping-price="priority">$25.00</span>
-            </label>
+            <p class="checkout-shipping-empty" style="color:#9ca3af;font-size:14px;">Loading shipping options…</p>
           </div>
         </section>
 

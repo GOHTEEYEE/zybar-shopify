@@ -1,202 +1,133 @@
 /**
- * ZYBAR unified pricing — base + size + power + shipping.
- * Used by browser (window.ZYBAR.Pricing) and Node (require).
+ * Browser pricing — loads catalog from /api/pricing (Supabase-backed).
+ * No hardcoded prices. Call ZYBAR.Pricing.load() before checkout UI.
  */
-(function (root, factory) {
-  var api = factory();
-  if (typeof module === "object" && module.exports) {
-    module.exports = api;
-  }
-  root.ZYBAR = root.ZYBAR || {};
-  root.ZYBAR.Pricing = api;
-})(typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : this, function () {
-  "use strict";
+(function () {
+  'use strict';
 
-  var BASE_PRICE_USD = 76;
-  var DEFAULT_SIZE = "30x45";
-  var DEFAULT_POWER = "usb";
-  var DEFAULT_SHIPPING_METHOD = "standard";
-  var SHIPPING_METHOD_KEY = "zybar.shipping.method";
+  var calc = null;
+  var api = null;
+  var loadPromise = null;
+  var loadedAt = 0;
+  var CACHE_TTL_MS = 30000;
+  var SHIPPING_METHOD_KEY = 'zybar.shipping.method';
 
-  var SIZE_UPGRADES_USD = {
-    "30x45": 0,
-    "40x60": 15
-  };
-
-  var POWER_UPGRADES_USD = {
-    usb: 0,
-    dual: 12
-  };
-
-  var SHIPPING_USD = {
-    standard: 20,
-    priority: 25
-  };
-
-  function normalizeSize(size) {
-    var value = String(size || DEFAULT_SIZE).trim().toLowerCase().replace(/\s+/g, "");
-    if (value === "40x60" || value === "40×60") return "40x60";
-    return DEFAULT_SIZE;
+  function getCalc() {
+    return window.ZYBAR && window.ZYBAR.PricingCalc ? window.ZYBAR.PricingCalc : null;
   }
 
-  function normalizePowerType(powerType) {
-    var value = String(powerType || DEFAULT_POWER).trim().toLowerCase();
-    if (value === "dual" || value === "usb+battery" || value === "usb_battery") return "dual";
-    return DEFAULT_POWER;
-  }
-
-  function normalizeShippingMethod(method) {
-    var value = String(method || DEFAULT_SHIPPING_METHOD).trim().toLowerCase();
-    if (value === "priority" || value === "fast" || value === "fast_priority") return "priority";
-    return DEFAULT_SHIPPING_METHOD;
-  }
-
-  function roundMoney(amount) {
-    return Math.round(Number(amount || 0) * 100) / 100;
-  }
-
-  function formatUsd(amount) {
-    return "$" + roundMoney(amount).toFixed(2);
-  }
-
-  function toCents(amount) {
-    return Math.round(roundMoney(amount) * 100);
-  }
-
-  function sizeToLabel(size) {
-    return normalizeSize(size) === "40x60" ? "40 × 60 cm" : "30 × 45 cm";
-  }
-
-  function powerTypeToLabel(powerType) {
-    return normalizePowerType(powerType) === "dual" ? "USB + Battery" : "USB Only";
-  }
-
-  function shippingMethodToLabel(method) {
-    return normalizeShippingMethod(method) === "priority"
-      ? "Priority Shipping"
-      : "Standard Shipping";
-  }
-
-  function getSizeUpgradeUSD(size) {
-    var key = normalizeSize(size);
-    return typeof SIZE_UPGRADES_USD[key] === "number" ? SIZE_UPGRADES_USD[key] : 0;
-  }
-
-  function getPowerUpgradeUSD(powerType) {
-    var key = normalizePowerType(powerType);
-    return typeof POWER_UPGRADES_USD[key] === "number" ? POWER_UPGRADES_USD[key] : 0;
-  }
-
-  function getShippingCostUSD(shippingMethod) {
-    var key = normalizeShippingMethod(shippingMethod);
-    return typeof SHIPPING_USD[key] === "number" ? SHIPPING_USD[key] : SHIPPING_USD.standard;
-  }
-
-  function calculateProductUnitPrice(options) {
-    options = options || {};
-    return roundMoney(
-      BASE_PRICE_USD + getSizeUpgradeUSD(options.size) + getPowerUpgradeUSD(options.powerType)
-    );
-  }
-
-  function calculateLineTotal(options) {
-    options = options || {};
-    var qty = Number(options.quantity);
-    var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
-    var unit =
-      typeof options.unitPriceUSD === "number" && Number.isFinite(options.unitPriceUSD)
-        ? options.unitPriceUSD
-        : calculateProductUnitPrice(options);
-    return roundMoney(unit * safeQty);
-  }
-
-  function calculateCartSubtotal(items) {
-    var subtotal = 0;
-    (items || []).forEach(function (item) {
-      subtotal += calculateLineTotal({
-        size: item && item.size,
-        powerType: item && item.powerType,
-        quantity: item && item.quantity
-      });
-    });
-    return roundMoney(subtotal);
-  }
-
-  function calculateOrderTotals(options) {
-    options = options || {};
-    var items = Array.isArray(options.items) ? options.items : [];
-    var shippingMethod = normalizeShippingMethod(options.shippingMethod);
-    var subtotal = calculateCartSubtotal(items);
-    var shipping = getShippingCostUSD(shippingMethod);
-    var tax = roundMoney(Number(options.taxUSD) || 0);
-    var discount = roundMoney(Number(options.discountUSD) || 0);
-    var total = roundMoney(Math.max(0, subtotal + shipping + tax - discount));
+  function normalizeCatalog(raw) {
+    if (!raw || typeof raw !== 'object') {
+      var c = getCalc();
+      return c ? c.emptyCatalog() : { products: {}, shippingMethods: [], powerUpgrades: {}, discountCodes: {} };
+    }
     return {
-      subtotal: subtotal,
-      shipping: shipping,
-      tax: tax,
-      discount: discount,
-      total: total,
-      shippingMethod: shippingMethod
+      currency: raw.currency || 'USD',
+      updatedAt: raw.updatedAt || null,
+      products: raw.products || {},
+      shippingMethods: raw.shippingMethods || [],
+      powerUpgrades: raw.powerUpgrades || {},
+      discountCodes: raw.discountCodes || {}
     };
   }
 
-  function repairCartItem(item) {
-    if (!item || typeof item !== "object") return item;
-    var size = normalizeSize(item.size);
-    var powerType = normalizePowerType(item.powerType);
-    item.size = size;
-    item.powerType = powerType;
-    item.sizeLabel = item.sizeLabel || sizeToLabel(size);
-    item.powerTypeLabel = powerTypeToLabel(powerType);
-    item.unitPriceUSD = calculateProductUnitPrice({ size: size, powerType: powerType });
-    return item;
+  function apiBase() {
+    var config = window.ZYBAR_STRIPE_CONFIG || {};
+    return config.apiBaseUrl || window.location.origin;
+  }
+
+  function fetchCatalog(force) {
+    var now = Date.now();
+    if (!force && api && now - loadedAt < CACHE_TTL_MS) {
+      return Promise.resolve(api);
+    }
+    return fetch(apiBase() + '/api/pricing', {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store'
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('Pricing unavailable (' + res.status + ')');
+        return res.json();
+      })
+      .then(function (raw) {
+        var c = getCalc();
+        if (!c) throw new Error('Pricing calculator not loaded');
+        api = c.createPricingApi(normalizeCatalog(raw));
+        loadedAt = Date.now();
+        return api;
+      });
+  }
+
+  function load(force) {
+    if (!loadPromise || force) {
+      loadPromise = fetchCatalog(!!force).catch(function (err) {
+        loadPromise = null;
+        throw err;
+      });
+    }
+    return loadPromise;
   }
 
   function readShippingMethod() {
     try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        return normalizeShippingMethod(window.localStorage.getItem(SHIPPING_METHOD_KEY));
-      }
-    } catch (_) {}
-    return DEFAULT_SHIPPING_METHOD;
+      if (api) return api.normalizeShippingMethod(localStorage.getItem(SHIPPING_METHOD_KEY));
+      var fallback = localStorage.getItem(SHIPPING_METHOD_KEY);
+      return fallback || 'standard';
+    } catch (_) {
+      return 'standard';
+    }
   }
 
   function writeShippingMethod(method) {
     try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.setItem(SHIPPING_METHOD_KEY, normalizeShippingMethod(method));
-      }
+      var normalized = api ? api.normalizeShippingMethod(method) : method;
+      localStorage.setItem(SHIPPING_METHOD_KEY, normalized);
     } catch (_) {}
   }
 
-  return {
-    BASE_PRICE_USD: BASE_PRICE_USD,
-    DEFAULT_SIZE: DEFAULT_SIZE,
-    DEFAULT_POWER: DEFAULT_POWER,
-    DEFAULT_SHIPPING_METHOD: DEFAULT_SHIPPING_METHOD,
-    SHIPPING_METHOD_KEY: SHIPPING_METHOD_KEY,
-    SIZE_UPGRADES_USD: SIZE_UPGRADES_USD,
-    POWER_UPGRADES_USD: POWER_UPGRADES_USD,
-    SHIPPING_USD: SHIPPING_USD,
-    normalizeSize: normalizeSize,
-    normalizePowerType: normalizePowerType,
-    normalizeShippingMethod: normalizeShippingMethod,
-    roundMoney: roundMoney,
-    formatUsd: formatUsd,
-    toCents: toCents,
-    sizeToLabel: sizeToLabel,
-    powerTypeToLabel: powerTypeToLabel,
-    shippingMethodToLabel: shippingMethodToLabel,
-    getSizeUpgradeUSD: getSizeUpgradeUSD,
-    getPowerUpgradeUSD: getPowerUpgradeUSD,
-    getShippingCostUSD: getShippingCostUSD,
-    calculateProductUnitPrice: calculateProductUnitPrice,
-    calculateLineTotal: calculateLineTotal,
-    calculateCartSubtotal: calculateCartSubtotal,
-    calculateOrderTotals: calculateOrderTotals,
-    repairCartItem: repairCartItem,
-    readShippingMethod: readShippingMethod,
-    writeShippingMethod: writeShippingMethod
-  };
-});
+  function stubApi() {
+    var c = getCalc();
+    var empty = c ? c.createPricingApi(c.emptyCatalog()) : null;
+    var base = empty || {
+      calculateProductUnitPrice: function () { return 0; },
+      calculateOrderTotals: function () { return { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 }; },
+      formatUsd: function (n) { return '$' + Number(n || 0).toFixed(2); },
+      formatShippingUsd: function (n) { return '$' + Number(n || 0); },
+      repairCartItem: function (i) { return i; },
+      normalizeSize: function (s) { return s || '30x45'; },
+      normalizePowerType: function (p) { return p || 'usb'; },
+      normalizeShippingMethod: function (m) { return m || 'standard'; },
+      getShippingMethods: function () { return []; },
+      toCents: function (n) { return Math.round(Number(n || 0) * 100); }
+    };
+    return Object.assign({}, base, {
+      load: load,
+      refresh: function () { return load(true); },
+      ready: load(),
+      readShippingMethod: readShippingMethod,
+      writeShippingMethod: writeShippingMethod,
+      SHIPPING_METHOD_KEY: SHIPPING_METHOD_KEY,
+      isLoaded: function () { return !!api && loadedAt > 0; }
+    });
+  }
+
+  function installApi(pricingApi) {
+    window.ZYBAR = window.ZYBAR || {};
+    window.ZYBAR.Pricing = Object.assign({}, pricingApi, {
+      load: load,
+      refresh: function () { return load(true); },
+      ready: Promise.resolve(pricingApi),
+      readShippingMethod: readShippingMethod,
+      writeShippingMethod: writeShippingMethod,
+      SHIPPING_METHOD_KEY: SHIPPING_METHOD_KEY,
+      isLoaded: function () { return true; }
+    });
+  }
+
+  window.ZYBAR = window.ZYBAR || {};
+  window.ZYBAR.Pricing = stubApi();
+
+  load().then(installApi).catch(function (err) {
+    console.error('[Pricing]', err.message || err);
+  });
+})();
