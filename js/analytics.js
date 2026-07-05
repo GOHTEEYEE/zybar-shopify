@@ -8,7 +8,15 @@
   var SUPABASE_URL = window.ZYBAR_ANALYTICS_URL || '';
   var SUPABASE_ANON_KEY = window.ZYBAR_ANALYTICS_ANON_KEY || '';
   var SESSION_TIMEOUT_MS = 30 * 60 * 1000;
-  var API_BASE = (window.ZYBAR_STRIPE_CONFIG && window.ZYBAR_STRIPE_CONFIG.apiBaseUrl) || '';
+  function getApiBase() {
+    var cfg = window.ZYBAR_STRIPE_CONFIG || {};
+    if (cfg.apiBaseUrl) return cfg.apiBaseUrl;
+    try {
+      return window.location && window.location.origin ? window.location.origin : '';
+    } catch (e) {
+      return '';
+    }
+  }
 
   var STORAGE = {
     visitorId: 'zybar_visitor_id',
@@ -167,11 +175,38 @@
   }
 
   function postApi(path, body) {
-    if (!API_BASE) return Promise.resolve();
-    return fetch(API_BASE + path, {
+    var apiBase = getApiBase();
+    if (!apiBase) return Promise.resolve();
+    return fetch(apiBase + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      keepalive: true
+    }).catch(function () {});
+  }
+
+  function toRestEventPayload(payload) {
+    return {
+      event_type: payload.event_type,
+      page_url: payload.page_url || null,
+      product_id: payload.product_id || null,
+      visitor_id: payload.visitor_id,
+      session_id: payload.session_id || null,
+      referrer: payload.referrer || null,
+      user_agent: payload.user_agent || null,
+      device_type: payload.device_type || null,
+      country: payload.country || null,
+      created_at: payload.created_at || new Date().toISOString()
+    };
+  }
+
+  function insertEventDirect(payload) {
+    fetch(SUPABASE_URL + '/rest/v1/events', {
+      method: 'POST',
+      headers: Object.assign({}, supabaseHeaders(), {
+        Prefer: 'return=minimal'
+      }),
+      body: JSON.stringify(toRestEventPayload(payload)),
       keepalive: true
     }).catch(function () {});
   }
@@ -180,19 +215,15 @@
     if (!enabled()) return;
     if (payload.dedup_key && shouldSkipDedup(payload.dedup_key)) return;
 
-    if (API_BASE) {
-      postApi('/api/analytics/track', { type: 'event', event: payload });
+    var apiBase = getApiBase();
+    if (apiBase) {
+      postApi('/api/analytics/track', { type: 'event', event: payload }).catch(function () {
+        insertEventDirect(payload);
+      });
       return;
     }
 
-    fetch(SUPABASE_URL + '/rest/v1/events', {
-      method: 'POST',
-      headers: Object.assign({}, supabaseHeaders(), {
-        Prefer: 'return=minimal'
-      }),
-      body: JSON.stringify(payload),
-      keepalive: true
-    }).catch(function () {});
+    insertEventDirect(payload);
   }
 
   function buildEventPayload(eventType, data) {
@@ -287,7 +318,11 @@
       }
     };
 
-    postApi('/api/analytics/track', payload);
+    var apiBase = getApiBase();
+    if (apiBase) {
+      postApi('/api/analytics/track', payload);
+      return;
+    }
   }
 
   function ensureSessionRow(sessionId) {
@@ -376,6 +411,24 @@
     syncCartSession({ items: cartItems || [], status: 'active' });
   }
 
+  function trackRemoveFromCart(item, cartItems, cartValueUSD) {
+    var productId = (item && (item.slug || item.product_id)) || '';
+    track('remove_from_cart', {
+      product_id: productId,
+      metadata: {
+        product_name: item && item.name,
+        size: item && item.size,
+        power_type: item && item.powerType,
+        quantity: item && item.quantity
+      }
+    });
+    syncCartSession({
+      items: cartItems || [],
+      cartValueUSD: cartValueUSD,
+      status: 'active'
+    });
+  }
+
   function trackViewCart(items, cartValueUSD) {
     track('view_cart', { metadata: { item_count: (items || []).length } });
     syncCartSession({ items: items || [], cartValueUSD: cartValueUSD, status: 'active' });
@@ -461,18 +514,6 @@
       updateSessionActivity(getOrCreateSessionId());
     }, 45 * 1000);
 
-    document.addEventListener('click', function (e) {
-      var target =
-        (e.target && e.target.closest && e.target.closest('[data-analytics-add-to-cart]')) ||
-        (e.target && e.target.getAttribute && e.target.getAttribute('data-analytics-add-to-cart') !== null
-          ? e.target
-          : null);
-      if (target) {
-        var pid = target.getAttribute('data-product-id') || getProductIdFromPath();
-        track('add_to_cart', { product_id: pid });
-      }
-    }, true);
-
     window.addEventListener('beforeunload', function () {
       var path = getPageUrl();
       if (path.indexOf('/checkout') === 0) {
@@ -493,6 +534,7 @@
     trackProductView: trackProductView,
     trackVariantSelection: trackVariantSelection,
     trackAddToCart: trackAddToCart,
+    trackRemoveFromCart: trackRemoveFromCart,
     trackViewCart: trackViewCart,
     trackBeginCheckout: trackBeginCheckout,
     trackCheckoutStarted: trackCheckoutStarted,

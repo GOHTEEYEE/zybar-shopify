@@ -642,6 +642,10 @@
       row.removeEventListener("transitionend", onEnd);
       removeItemByKey(itemKey);
       var next = readCartItems();
+      if (window.ZYBAR && window.ZYBAR.Analytics && typeof window.ZYBAR.Analytics.trackRemoveFromCart === "function") {
+        var totals = calcOrderTotals(next);
+        window.ZYBAR.Analytics.trackRemoveFromCart(removed, next, totals.total);
+      }
       if (!next.length) {
         render(next);
       } else {

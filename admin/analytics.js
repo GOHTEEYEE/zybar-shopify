@@ -32,8 +32,81 @@ window.renderAdminanalytics = function (container) {
 
   function fetchJson(path) {
     return fetch(apiBase() + path + (path.indexOf('?') === -1 ? '?' : '&') + 'days=' + rangeDays)
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data || data.error || typeof data !== 'object') return null;
+        return data;
+      })
       .catch(function () { return null; });
+  }
+
+  function loadOverview() {
+    var range = dateRange();
+    return fetchJson('/api/analytics/overview').then(function (data) {
+      if (data && typeof data.product_views !== 'undefined') return data;
+      return rpc('get_analytics_overview', { p_start: range.start, p_end: range.end });
+    });
+  }
+
+  function loadTrends() {
+    var range = dateRange();
+    return fetchJson('/api/analytics/trends').then(function (data) {
+      if (data && (data.visitors || data.add_to_cart)) return data;
+      return rpc('get_analytics_trends', {
+        p_start: range.start,
+        p_end: range.end,
+        p_granularity: 'day'
+      });
+    });
+  }
+
+  function loadFunnel() {
+    var range = dateRange();
+    return fetchJson('/api/analytics/funnel').then(function (data) {
+      if (data && Array.isArray(data.steps)) return data.steps;
+      return rpc('get_conversion_funnel', { p_start: range.start, p_end: range.end }).then(function (steps) {
+        return Array.isArray(steps) ? steps : [];
+      });
+    });
+  }
+
+  function loadCarts() {
+    var range = dateRange();
+    return fetchJson('/api/analytics/carts').then(function (data) {
+      if (data && typeof data.total_add_to_cart !== 'undefined') return data;
+      return rpc('get_cart_analytics_summary', { p_start: range.start, p_end: range.end });
+    });
+  }
+
+  function loadProducts() {
+    var range = dateRange();
+    return fetchJson('/api/analytics/products').then(function (data) {
+      if (data && (data.most_viewed || data.most_added)) return data;
+      return rpc('get_top_products_analytics', { p_start: range.start, p_end: range.end });
+    });
+  }
+
+  function loadDistributions() {
+    var range = dateRange();
+    return fetchJson('/api/analytics/distributions').then(function (data) {
+      if (data && (data.countries || data.devices)) return data;
+      return rpc('get_analytics_distributions', { p_start: range.start, p_end: range.end });
+    });
+  }
+
+  function loadAbandoned() {
+    return fetch(apiBase() + '/api/analytics/abandoned?limit=100')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && Array.isArray(data.carts)) return data.carts;
+        return rpc('get_abandoned_carts', { p_limit: 100, p_offset: 0 }).then(function (carts) {
+          return Array.isArray(carts) ? carts : [];
+        });
+      })
+      .catch(function () { return []; });
   }
 
   function rpc(name, params) {
@@ -343,8 +416,8 @@ window.renderAdminanalytics = function (container) {
 
     if (activeTab === 'overview') {
       Promise.all([
-        fetchJson('/api/analytics/overview'),
-        fetchJson('/api/analytics/trends')
+        loadOverview(),
+        loadTrends()
       ]).then(function (res) {
         host.innerHTML = renderOverview(res[0]);
         var trends = res[1] || {};
@@ -355,8 +428,7 @@ window.renderAdminanalytics = function (container) {
     }
 
     if (activeTab === 'funnel') {
-      fetchJson('/api/analytics/funnel').then(function (data) {
-        var steps = (data && data.steps) || [];
+      loadFunnel().then(function (steps) {
         host.innerHTML = renderFunnel(steps);
         drawBarChart('chartHubFunnel', steps.map(function (s) { return String(s.step).replace(/_/g, ' '); }), steps.map(function (s) { return s.count; }), 'Count');
       });
@@ -364,7 +436,7 @@ window.renderAdminanalytics = function (container) {
     }
 
     if (activeTab === 'cart') {
-      Promise.all([fetchJson('/api/analytics/carts'), fetchJson('/api/analytics/trends')]).then(function (res) {
+      Promise.all([loadCarts(), loadTrends()]).then(function (res) {
         host.innerHTML = renderCartAnalytics(res[0]);
         var atc = seriesLabelsValues((res[1] || {}).add_to_cart);
         drawLineChart('chartHubCart', atc.labels, atc.values, 'Add to cart');
@@ -373,14 +445,14 @@ window.renderAdminanalytics = function (container) {
     }
 
     if (activeTab === 'abandoned') {
-      fetch(apiBase() + '/api/analytics/abandoned?limit=100').then(function (r) { return r.json(); }).then(function (data) {
-        host.innerHTML = renderAbandoned((data && data.carts) || []);
+      loadAbandoned().then(function (carts) {
+        host.innerHTML = renderAbandoned(carts);
       });
       return;
     }
 
     if (activeTab === 'revenue') {
-      fetchJson('/api/analytics/trends').then(function (trends) {
+      loadTrends().then(function (trends) {
         host.innerHTML = renderRevenue(trends);
         var rev = seriesLabelsValues(trends.revenue);
         var ord = seriesLabelsValues(trends.orders);
@@ -398,7 +470,7 @@ window.renderAdminanalytics = function (container) {
     }
 
     if (activeTab === 'products') {
-      fetchJson('/api/analytics/products').then(function (data) {
+      loadProducts().then(function (data) {
         host.innerHTML = renderProducts(data);
       });
       return;
@@ -426,7 +498,7 @@ window.renderAdminanalytics = function (container) {
     }
 
     if (activeTab === 'countries' || activeTab === 'devices') {
-      fetchJson('/api/analytics/distributions').then(function (data) {
+      loadDistributions().then(function (data) {
         data = data || {};
         if (activeTab === 'countries') {
           host.innerHTML = renderDistribution('Country distribution', data.countries, 'chartHubCountries');

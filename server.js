@@ -11,6 +11,7 @@ const Stripe = require('stripe');
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 const Pricing = require('./lib/pricing.js');
+const AnalyticsFallback = require('./lib/analytics-fallback.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1490,19 +1491,9 @@ app.post('/api/analytics/track', async (req, res) => {
   try {
     if (type === 'event' && body.event) {
       const ev = body.event;
-      if (ev.dedup_key) {
-        const existing = await supabase
-          .from('events')
-          .select('id')
-          .eq('dedup_key', ev.dedup_key)
-          .maybeSingle();
-        if (existing.data) {
-          return res.json({ ok: true, deduped: true });
-        }
-      }
-      const { error } = await supabase.from('events').insert(ev);
-      if (error && error.code !== '23505') throw error;
-      return res.json({ ok: true });
+      const result = await AnalyticsFallback.insertEventSafe(supabase, ev);
+      if (!result.ok) throw new Error(result.error || 'Insert failed');
+      return res.json({ ok: true, deduped: !!result.deduped });
     }
 
     if (type === 'cart_sync' && body.cart) {
@@ -1611,6 +1602,9 @@ app.get('/api/analytics/overview', async (req, res) => {
       p_start: range.start,
       p_end: range.end
     });
+    if (error && AnalyticsFallback.isMissingRpc(error)) {
+      return res.json(await AnalyticsFallback.overviewFallback(supabase, range));
+    }
     if (error) throw error;
     return res.json(data || {});
   } catch (err) {
@@ -1627,6 +1621,9 @@ app.get('/api/analytics/funnel', async (req, res) => {
       p_start: range.start,
       p_end: range.end
     });
+    if (error && AnalyticsFallback.isMissingRpc(error)) {
+      return res.json({ steps: await AnalyticsFallback.funnelFallback(supabase, range) });
+    }
     if (error) throw error;
     return res.json({ steps: data || [] });
   } catch (err) {
@@ -1642,6 +1639,19 @@ app.get('/api/analytics/carts', async (req, res) => {
       p_start: range.start,
       p_end: range.end
     });
+    if (error && AnalyticsFallback.isMissingRpc(error)) {
+      const overview = await AnalyticsFallback.overviewFallback(supabase, range);
+      return res.json({
+        total_add_to_cart: overview.add_to_cart,
+        unique_cart_sessions: overview.unique_cart_sessions,
+        avg_cart_value_cents: 0,
+        avg_items_per_cart: 0,
+        top_products: [],
+        top_sizes: [],
+        top_power_types: [],
+        top_led_colors: []
+      });
+    }
     if (error) throw error;
     return res.json(data || {});
   } catch (err) {
@@ -1677,6 +1687,9 @@ app.get('/api/analytics/trends', async (req, res) => {
       p_end: range.end,
       p_granularity: granularity
     });
+    if (error && AnalyticsFallback.isMissingRpc(error)) {
+      return res.json(await AnalyticsFallback.trendsFallback(supabase, range, granularity));
+    }
     if (error) throw error;
     return res.json(data || {});
   } catch (err) {
@@ -1692,6 +1705,9 @@ app.get('/api/analytics/distributions', async (req, res) => {
       p_start: range.start,
       p_end: range.end
     });
+    if (error && AnalyticsFallback.isMissingRpc(error)) {
+      return res.json(await AnalyticsFallback.distributionsFallback(supabase, range));
+    }
     if (error) throw error;
     return res.json(data || {});
   } catch (err) {
@@ -1707,6 +1723,9 @@ app.get('/api/analytics/products', async (req, res) => {
       p_start: range.start,
       p_end: range.end
     });
+    if (error && AnalyticsFallback.isMissingRpc(error)) {
+      return res.json(await AnalyticsFallback.productsFallback(supabase, range));
+    }
     if (error) throw error;
     return res.json(data || {});
   } catch (err) {
