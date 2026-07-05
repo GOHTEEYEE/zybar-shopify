@@ -923,9 +923,7 @@
     }
 
     renderOrderSummary(pending.displayItems);
-    if (window.ZYBAR && window.ZYBAR.Analytics) {
-      window.ZYBAR.Analytics.trackCheckoutStarted(pending.displayItems, state.total);
-    }
+    // begin_checkout already tracked when leaving cart — avoid double-counting checkout_started
     wireBillingToggle();
     wireMobileSummary();
     wireDiscount();

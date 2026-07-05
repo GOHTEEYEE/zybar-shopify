@@ -1,6 +1,6 @@
 /**
- * ZYBAR Analytics — visitor sessions, funnel events, cart sessions, conversion tracking.
- * Exposes window.ZYBAR.Analytics for cart/checkout hooks.
+ * ZYBAR Analytics — Shopify-style event-based tracking.
+ * Permanent visitor_id (localStorage UUID), session_id (sessionStorage + 30min timeout).
  */
 (function () {
   'use strict';
@@ -8,6 +8,29 @@
   var SUPABASE_URL = window.ZYBAR_ANALYTICS_URL || '';
   var SUPABASE_ANON_KEY = window.ZYBAR_ANALYTICS_ANON_KEY || '';
   var SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+  var STORAGE = {
+    visitorId: 'zybar_visitor_id',
+    visitorFirstSeen: 'zybar_visitor_first_seen',
+    cartId: 'zybar_cart_analytics_id',
+    country: 'zybar_geo_country',
+    sessionDedup: 'zybar_session_dedup'
+  };
+
+  var SESSION_KEYS = {
+    sessionId: 'zybar_session_id',
+    lastActivity: 'zybar_session_activity',
+    isNew: 'zybar_session_is_new'
+  };
+
+  var recentDedupCache = {};
+  var contextCache = null;
+  var sessionStarted = false;
+
+  function enabled() {
+    return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+  }
+
   function getApiBase() {
     var cfg = window.ZYBAR_STRIPE_CONFIG || {};
     if (cfg.apiBaseUrl) return cfg.apiBaseUrl;
@@ -18,20 +41,6 @@
     }
   }
 
-  var STORAGE = {
-    visitorId: 'zybar_visitor_id',
-    sessionId: 'zybar_session_id',
-    cartId: 'zybar_cart_analytics_id',
-    lastActivity: 'zybar_last_activity',
-    recentDedup: 'zybar_analytics_dedup'
-  };
-
-  var recentDedupCache = {};
-
-  function enabled() {
-    return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
-  }
-
   function generateUUID() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     var hex = '0123456789abcdef';
@@ -39,78 +48,63 @@
     for (var i = 0; i < 36; i++) {
       if (i === 8 || i === 13 || i === 18 || i === 23) s += '-';
       else if (i === 14) s += '4';
-      else if (i === 19) s += hex[(Math.random() * 4) | 0 + 8];
+      else if (i === 19) s += hex[(Math.random() * 4) | 8];
       else s += hex[(Math.random() * 16) | 0];
     }
     return s;
   }
 
+  function storageGet(store, key) {
+    try { return store.getItem(key); } catch (e) { return null; }
+  }
+
+  function storageSet(store, key, value) {
+    try { store.setItem(key, value); } catch (e) {}
+  }
+
   function getVisitorId() {
-    try {
-      var id = localStorage.getItem(STORAGE.visitorId);
-      if (!id) {
-        id = 'v_' + Math.random().toString(36).slice(2) + '_' + Date.now().toString(36);
-        localStorage.setItem(STORAGE.visitorId, id);
+    var existing = storageGet(localStorage, STORAGE.visitorId);
+    var isFirstVisit = !existing;
+    var id = existing;
+    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+      id = generateUUID();
+      storageSet(localStorage, STORAGE.visitorId, id);
+      if (isFirstVisit) {
+        storageSet(localStorage, STORAGE.visitorFirstSeen, new Date().toISOString());
       }
-      return id;
+    }
+    return id;
+  }
+
+  function isNewVisitor() {
+    var firstSeen = storageGet(localStorage, STORAGE.visitorFirstSeen);
+    if (!firstSeen) return true;
+    var seenMs = Date.parse(firstSeen);
+    return !Number.isFinite(seenMs) || (Date.now() - seenMs < 60000);
+  }
+
+  function parseUtm() {
+    try {
+      var params = new URLSearchParams(window.location.search || '');
+      return {
+        utm_source: params.get('utm_source') || null,
+        utm_medium: params.get('utm_medium') || null,
+        utm_campaign: params.get('utm_campaign') || null,
+        utm_term: params.get('utm_term') || null,
+        utm_content: params.get('utm_content') || null
+      };
     } catch (e) {
-      return 'v_anon_' + Date.now();
+      return { utm_source: null, utm_medium: null, utm_campaign: null, utm_term: null, utm_content: null };
     }
   }
 
-  function isSessionExpired() {
-    try {
-      var last = localStorage.getItem(STORAGE.lastActivity);
-      if (!last) return true;
-      return Date.now() - parseInt(last, 10) > SESSION_TIMEOUT_MS;
-    } catch (e) {
-      return true;
-    }
-  }
-
-  function touchSession() {
-    try {
-      localStorage.setItem(STORAGE.lastActivity, String(Date.now()));
-    } catch (e) {}
-  }
-
-  function getOrCreateSessionId() {
-    if (isSessionExpired()) {
-      try {
-        localStorage.removeItem(STORAGE.sessionId);
-      } catch (e) {}
-    }
-    touchSession();
-    try {
-      var sid = localStorage.getItem(STORAGE.sessionId);
-      if (!sid || !/^[0-9a-f-]{36}$/i.test(sid)) {
-        sid = generateUUID();
-        localStorage.setItem(STORAGE.sessionId, sid);
-      }
-      return sid;
-    } catch (e) {
-      return generateUUID();
-    }
-  }
-
-  function getCartId() {
-    try {
-      var id = localStorage.getItem(STORAGE.cartId);
-      if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
-        id = generateUUID();
-        localStorage.setItem(STORAGE.cartId, id);
-      }
-      return id;
-    } catch (e) {
-      return generateUUID();
-    }
-  }
-
-  function setCartId(id) {
-    if (!id) return;
-    try {
-      localStorage.setItem(STORAGE.cartId, id);
-    } catch (e) {}
+  function getBrowser() {
+    var ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    if (/Edg\//i.test(ua)) return 'edge';
+    if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return 'chrome';
+    if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) return 'safari';
+    if (/Firefox\//i.test(ua)) return 'firefox';
+    return 'other';
   }
 
   function getDeviceType() {
@@ -120,156 +114,276 @@
     return 'desktop';
   }
 
-  function getReferrer() {
+  function classifyTrafficSource(referrer, utm) {
+    utm = utm || {};
+    var source = (utm.utm_source || '').toLowerCase();
+    var medium = (utm.utm_medium || '').toLowerCase();
+
+    if (source) {
+      if (source.indexOf('google') !== -1) return 'google';
+      if (source.indexOf('facebook') !== -1 || source === 'fb') return 'facebook';
+      if (source.indexOf('instagram') !== -1 || source === 'ig') return 'instagram';
+      if (source.indexOf('tiktok') !== -1) return 'tiktok';
+      if (source.indexOf('youtube') !== -1 || source === 'yt') return 'youtube';
+      if (medium === 'email') return 'email';
+      return source;
+    }
+
+    if (!referrer) return 'direct';
     try {
-      return document.referrer || '';
+      var host = new URL(referrer).hostname.toLowerCase();
+      if (host.indexOf('google.') !== -1) return 'google';
+      if (host.indexOf('facebook.') !== -1 || host.indexOf('fb.') !== -1) return 'facebook';
+      if (host.indexOf('instagram.') !== -1) return 'instagram';
+      if (host.indexOf('tiktok.') !== -1) return 'tiktok';
+      if (host.indexOf('youtube.') !== -1 || host.indexOf('youtu.be') !== -1) return 'youtube';
+      if (host.indexOf(window.location.hostname) !== -1) return 'direct';
+      return 'referral';
     } catch (e) {
-      return '';
+      return referrer ? 'referral' : 'direct';
     }
   }
 
+  function getReferrer() {
+    try { return document.referrer || ''; } catch (e) { return ''; }
+  }
+
   function getPageUrl() {
-    try {
-      return (location.pathname || '/') + (location.search || '');
-    } catch (e) {
-      return '/';
+    try { return (location.pathname || '/') + (location.search || ''); } catch (e) { return '/'; }
+  }
+
+  function getCountry() {
+    return storageGet(localStorage, STORAGE.country) || null;
+  }
+
+  function setCountry(code) {
+    if (!code) return;
+    storageSet(localStorage, STORAGE.country, String(code).toUpperCase().slice(0, 2));
+  }
+
+  function getTrackingContext() {
+    if (contextCache) return contextCache;
+    var utm = parseUtm();
+    var referrer = getReferrer();
+    contextCache = {
+      utm_source: utm.utm_source,
+      utm_medium: utm.utm_medium,
+      utm_campaign: utm.utm_campaign,
+      utm_term: utm.utm_term,
+      utm_content: utm.utm_content,
+      referrer: referrer,
+      traffic_source: classifyTrafficSource(referrer, utm),
+      browser: getBrowser(),
+      device_type: getDeviceType(),
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      page_url: getPageUrl(),
+      country: getCountry()
+    };
+    return contextCache;
+  }
+
+  function touchSession() {
+    storageSet(sessionStorage, SESSION_KEYS.lastActivity, String(Date.now()));
+  }
+
+  function isSessionExpired() {
+    var last = parseInt(storageGet(sessionStorage, SESSION_KEYS.lastActivity) || '0', 10);
+    if (!last) return true;
+    return Date.now() - last > SESSION_TIMEOUT_MS;
+  }
+
+  function getOrCreateSessionId() {
+    var sid = storageGet(sessionStorage, SESSION_KEYS.sessionId);
+    var expired = isSessionExpired();
+
+    if (!sid || !/^[0-9a-f-]{36}$/i.test(sid) || expired) {
+      sid = generateUUID();
+      storageSet(sessionStorage, SESSION_KEYS.sessionId, sid);
+      storageSet(sessionStorage, SESSION_KEYS.isNew, '1');
+      sessionStarted = false;
     }
+    touchSession();
+    return sid;
+  }
+
+  function isNewSession() {
+    return storageGet(sessionStorage, SESSION_KEYS.isNew) === '1';
+  }
+
+  function markSessionRegistered() {
+    storageSet(sessionStorage, SESSION_KEYS.isNew, '0');
+    sessionStarted = true;
+  }
+
+  function getCartId() {
+    var id = storageGet(localStorage, STORAGE.cartId);
+    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+      id = generateUUID();
+      storageSet(localStorage, STORAGE.cartId, id);
+    }
+    return id;
+  }
+
+  function setCartId(id) {
+    if (id) storageSet(localStorage, STORAGE.cartId, id);
   }
 
   function getProductIdFromPath() {
     try {
-      var match = (location.pathname || '').match(/\/products\/([^/]+)/);
-      return match ? match[1] : null;
-    } catch (e) {
-      return null;
-    }
+      var m = (location.pathname || '').match(/\/products\/([^/]+)/);
+      return m ? m[1] : null;
+    } catch (e) { return null; }
   }
 
-  function getCountry() {
+  function getCollectionIdFromPath() {
     try {
-      return localStorage.getItem('zybar_geo_country') || null;
-    } catch (e) {
-      return null;
-    }
+      var m = (location.pathname || '').match(/\/collections\/([^/]+)/);
+      return m ? m[1] : null;
+    } catch (e) { return null; }
   }
 
   function buildDedupKey(eventType, extra) {
-    extra = extra || '';
-    return eventType + ':' + getOrCreateSessionId() + ':' + extra;
+    return eventType + ':' + getOrCreateSessionId() + ':' + (extra || '');
   }
 
   function shouldSkipDedup(dedupKey) {
     if (!dedupKey) return false;
     if (recentDedupCache[dedupKey]) return true;
-    recentDedupCache[dedupKey] = Date.now();
+    recentDedupCache[dedupKey] = 1;
+    try {
+      var stored = JSON.parse(storageGet(sessionStorage, STORAGE.sessionDedup) || '{}');
+      if (stored[dedupKey]) return true;
+      stored[dedupKey] = 1;
+      storageSet(sessionStorage, STORAGE.sessionDedup, JSON.stringify(stored));
+    } catch (e) {}
     return false;
-  }
-
-  function supabaseHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-      Prefer: 'return=minimal'
-    };
   }
 
   function postApi(path, body) {
     var apiBase = getApiBase();
-    if (!apiBase) return Promise.resolve();
+    if (!apiBase) return Promise.resolve(null);
     return fetch(apiBase + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       keepalive: true
-    }).catch(function () {});
-  }
-
-  function toRestEventPayload(payload) {
-    return {
-      event_type: payload.event_type,
-      page_url: payload.page_url || null,
-      product_id: payload.product_id || null,
-      visitor_id: payload.visitor_id,
-      session_id: payload.session_id || null,
-      referrer: payload.referrer || null,
-      user_agent: payload.user_agent || null,
-      device_type: payload.device_type || null,
-      country: payload.country || null,
-      created_at: payload.created_at || new Date().toISOString()
-    };
-  }
-
-  function insertEventDirect(payload) {
-    fetch(SUPABASE_URL + '/rest/v1/events', {
-      method: 'POST',
-      headers: Object.assign({}, supabaseHeaders(), {
-        Prefer: 'return=minimal'
-      }),
-      body: JSON.stringify(toRestEventPayload(payload)),
-      keepalive: true
-    }).catch(function () {});
-  }
-
-  function insertEvent(payload) {
-    if (!enabled()) return;
-    if (payload.dedup_key && shouldSkipDedup(payload.dedup_key)) return;
-
-    var apiBase = getApiBase();
-    if (apiBase) {
-      postApi('/api/analytics/track', { type: 'event', event: payload }).catch(function () {
-        insertEventDirect(payload);
-      });
-      return;
-    }
-
-    insertEventDirect(payload);
+    }).catch(function () { return null; });
   }
 
   function buildEventPayload(eventType, data) {
     data = data || {};
-    var sessionId = getOrCreateSessionId();
-    var visitorId = getVisitorId();
+    var ctx = getTrackingContext();
+    var qty = Number(data.quantity);
     return {
       event_type: eventType,
-      page_url: data.page_url || getPageUrl(),
+      page_url: data.page_url || ctx.page_url,
       product_id: data.product_id || data.productId || null,
-      visitor_id: visitorId,
-      session_id: sessionId,
+      collection_id: data.collection_id || data.collectionId || null,
+      visitor_id: getVisitorId(),
+      session_id: getOrCreateSessionId(),
       cart_id: data.cart_id || getCartId(),
       customer_id: data.customer_id || null,
-      referrer: getReferrer(),
-      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-      device_type: getDeviceType(),
-      country: data.country || getCountry(),
+      referrer: ctx.referrer,
+      user_agent: ctx.user_agent,
+      device_type: ctx.device_type,
+      browser: ctx.browser,
+      traffic_source: ctx.traffic_source,
+      utm_source: ctx.utm_source,
+      utm_medium: ctx.utm_medium,
+      utm_campaign: ctx.utm_campaign,
+      utm_term: ctx.utm_term,
+      utm_content: ctx.utm_content,
+      country: data.country || ctx.country,
+      quantity: Number.isFinite(qty) && qty > 0 ? Math.round(qty) : 1,
       metadata: data.metadata || {},
       dedup_key: data.dedup_key || null,
       created_at: new Date().toISOString()
     };
   }
 
+  function insertEvent(payload) {
+    if (!enabled()) return;
+    if (payload.dedup_key && shouldSkipDedup(payload.dedup_key)) return;
+    postApi('/api/analytics/track', { type: 'event', event: payload });
+  }
+
   function track(eventType, data) {
     if (!enabled()) return;
     touchSession();
     var payload = buildEventPayload(eventType, data || {});
+
     if (!payload.dedup_key) {
-      var dedupExtra = payload.product_id || payload.page_url || '';
-      if (
-        eventType === 'page_view' ||
-        eventType === 'checkout_started' ||
-        eventType === 'view_cart'
-      ) {
+      var dedupExtra = payload.product_id || payload.collection_id || payload.page_url || '';
+      if (eventType === 'page_view' || eventType === 'product_view' || eventType === 'collection_view') {
         payload.dedup_key = buildDedupKey(eventType, dedupExtra);
       }
     }
+
     insertEvent(payload);
-    updateSessionActivity(getOrCreateSessionId());
+    updateSessionActivity();
+  }
+
+  function identifyVisitor() {
+    if (!enabled()) return;
+    var ctx = getTrackingContext();
+    postApi('/api/analytics/identify', {
+      visitor_id: getVisitorId(),
+      session_id: getOrCreateSessionId(),
+      is_new_visitor: isNewVisitor() || isNewSession(),
+      first_seen_at: storageGet(localStorage, STORAGE.visitorFirstSeen),
+      country: ctx.country,
+      device_type: ctx.device_type,
+      browser: ctx.browser,
+      traffic_source: ctx.traffic_source,
+      referrer: ctx.referrer,
+      utm_source: ctx.utm_source,
+      utm_medium: ctx.utm_medium,
+      utm_campaign: ctx.utm_campaign,
+      landing_page: ctx.page_url
+    });
+    if (isNewVisitor()) {
+      storageSet(localStorage, STORAGE.visitorFirstSeen, new Date().toISOString());
+    }
+  }
+
+  function startSession() {
+    if (!enabled() || sessionStarted) return;
+    var ctx = getTrackingContext();
+    var sessionId = getOrCreateSessionId();
+    postApi('/api/analytics/track', {
+      type: 'session_start',
+      session: {
+        id: sessionId,
+        visitor_id: getVisitorId(),
+        is_new_visitor: isNewVisitor() || isNewSession(),
+        referrer: ctx.referrer,
+        user_agent: ctx.user_agent,
+        device_type: ctx.device_type,
+        browser: ctx.browser,
+        traffic_source: ctx.traffic_source,
+        utm_source: ctx.utm_source,
+        utm_medium: ctx.utm_medium,
+        utm_campaign: ctx.utm_campaign,
+        landing_page: ctx.page_url,
+        country: ctx.country
+      }
+    });
+    markSessionRegistered();
+    identifyVisitor();
+  }
+
+  function updateSessionActivity() {
+    if (!enabled()) return;
+    postApi('/api/analytics/track', {
+      type: 'session_ping',
+      session_id: getOrCreateSessionId(),
+      visitor_id: getVisitorId()
+    });
   }
 
   function usdToCents(amount) {
     var n = Number(amount);
-    if (!Number.isFinite(n)) return 0;
-    return Math.round(n * 100);
+    return Number.isFinite(n) ? Math.round(n * 100) : 0;
   }
 
   function syncCartSession(options) {
@@ -280,12 +394,10 @@
     var cartValueCents = Number.isFinite(cartValue)
       ? usdToCents(cartValue)
       : items.reduce(function (sum, item) {
-          var qty = Number(item.quantity) || 1;
-          var unit = Number(item.unitPriceUSD) || 0;
-          return sum + usdToCents(unit * qty);
+          return sum + usdToCents((Number(item.unitPriceUSD) || 0) * (Number(item.quantity) || 1));
         }, 0);
 
-    var payload = {
+    postApi('/api/analytics/track', {
       type: 'cart_sync',
       cart: {
         id: getCartId(),
@@ -295,9 +407,7 @@
         status: options.status || 'active',
         currency: 'USD',
         cart_value_cents: cartValueCents,
-        item_count: items.reduce(function (s, i) {
-          return s + (Number(i.quantity) || 0);
-        }, 0),
+        item_count: items.reduce(function (s, i) { return s + (Number(i.quantity) || 0); }, 0),
         country: getCountry(),
         device_type: getDeviceType(),
         referrer: getReferrer(),
@@ -316,71 +426,13 @@
           };
         })
       }
-    };
-
-    var apiBase = getApiBase();
-    if (apiBase) {
-      postApi('/api/analytics/track', payload);
-      return;
-    }
+    });
   }
 
-  function ensureSessionRow(sessionId) {
-    if (!enabled()) return;
-    var visitorId = getVisitorId();
-    var now = new Date().toISOString();
-    fetch(SUPABASE_URL + '/rest/v1/sessions', {
-      method: 'POST',
-      headers: Object.assign({}, supabaseHeaders(), {
-        Prefer: 'return=minimal,resolution=merge-duplicates'
-      }),
-      body: JSON.stringify({
-        id: sessionId,
-        visitor_id: visitorId,
-        started_at: now,
-        last_activity_at: now,
-        referrer: getReferrer(),
-        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-        device_type: getDeviceType(),
-        country: getCountry()
-      }),
-      keepalive: true
-    }).catch(function () {});
-  }
+  // ---- Shopify-style event helpers ----
 
-  function updateSessionActivity(sessionId) {
-    if (!enabled() || !sessionId) return;
-    fetch(SUPABASE_URL + '/rest/v1/sessions?id=eq.' + encodeURIComponent(sessionId), {
-      method: 'PATCH',
-      headers: supabaseHeaders(),
-      body: JSON.stringify({ last_activity_at: new Date().toISOString() }),
-      keepalive: true
-    }).catch(function () {});
-  }
-
-  function sendPageView() {
-    if (!enabled()) return;
-    var sessionId = getOrCreateSessionId();
-    var visitorId = getVisitorId();
-    var pageUrl = getPageUrl();
-
-    fetch(SUPABASE_URL + '/rest/v1/page_views', {
-      method: 'POST',
-      headers: supabaseHeaders(),
-      body: JSON.stringify({
-        session_id: sessionId,
-        visitor_id: visitorId,
-        page_url: pageUrl,
-        referrer: getReferrer(),
-        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-        device_type: getDeviceType(),
-        country: getCountry(),
-        created_at: new Date().toISOString()
-      }),
-      keepalive: true
-    }).catch(function () {});
-
-    track('page_view', { page_url: pageUrl });
+  function trackPageView() {
+    track('page_view', { page_url: getPageUrl() });
   }
 
   function trackProductView(productId) {
@@ -388,23 +440,26 @@
     track('product_view', { product_id: productId });
   }
 
-  function trackVariantSelection(productId, variant) {
-    track('variant_selected', {
-      product_id: productId,
-      metadata: variant || {}
-    });
+  function trackCollectionView(collectionId) {
+    if (!collectionId) collectionId = getCollectionIdFromPath() || 'all';
+    track('collection_view', { collection_id: collectionId });
+  }
+
+  function trackSearch(query) {
+    track('search', { metadata: { query: String(query || '').slice(0, 200) } });
   }
 
   function trackAddToCart(item, cartItems) {
     var productId = (item && (item.slug || item.product_id)) || getProductIdFromPath() || '';
+    var qty = Number(item && item.quantity) || 1;
     track('add_to_cart', {
       product_id: productId,
+      quantity: qty,
       metadata: {
         product_name: item && item.name,
         size: item && item.size,
         power_type: item && item.powerType,
         led_color: item && (item.ledColor || item.led_color),
-        quantity: item && item.quantity,
         unit_price_usd: item && item.unitPriceUSD
       }
     });
@@ -415,18 +470,14 @@
     var productId = (item && (item.slug || item.product_id)) || '';
     track('remove_from_cart', {
       product_id: productId,
+      quantity: Number(item && item.quantity) || 1,
       metadata: {
         product_name: item && item.name,
         size: item && item.size,
-        power_type: item && item.powerType,
-        quantity: item && item.quantity
+        power_type: item && item.powerType
       }
     });
-    syncCartSession({
-      items: cartItems || [],
-      cartValueUSD: cartValueUSD,
-      status: 'active'
-    });
+    syncCartSession({ items: cartItems || [], cartValueUSD: cartValueUSD, status: 'active' });
   }
 
   function trackViewCart(items, cartValueUSD) {
@@ -439,36 +490,21 @@
     syncCartSession({ items: items || [], cartValueUSD: cartValueUSD, status: 'checkout_started' });
   }
 
-  function trackCheckoutStarted(items, cartValueUSD) {
-    track('checkout_started', { metadata: { item_count: (items || []).length } });
-    syncCartSession({ items: items || [], cartValueUSD: cartValueUSD, status: 'checkout_started' });
-  }
-
   function trackShippingSelected(method, cartValueUSD) {
-    track('shipping_selected', {
-      metadata: { shipping_method: method, cart_value_usd: cartValueUSD }
-    });
+    track('shipping_selected', { metadata: { shipping_method: method, cart_value_usd: cartValueUSD } });
     syncCartSession({ status: 'checkout_started', shippingMethod: method, cartValueUSD: cartValueUSD });
   }
 
   function trackPaymentStarted(method, cartValueUSD) {
-    track('payment_started', {
-      metadata: { payment_method: method || 'card', cart_value_usd: cartValueUSD }
-    });
-    syncCartSession({
-      status: 'checkout_started',
-      paymentMethod: method || 'card',
-      cartValueUSD: cartValueUSD
-    });
+    track('payment_started', { metadata: { payment_method: method || 'card', cart_value_usd: cartValueUSD } });
+    syncCartSession({ status: 'checkout_started', paymentMethod: method || 'card', cartValueUSD: cartValueUSD });
   }
 
-  function trackPaymentSuccess(orderData) {
+  function trackPurchase(orderData) {
     orderData = orderData || {};
-    track('payment_success', {
+    track('purchase', {
       metadata: orderData,
-      dedup_key: orderData.session_id
-        ? 'payment_success:' + orderData.session_id
-        : buildDedupKey('payment_success', orderData.order_id || '')
+      dedup_key: orderData.session_id ? 'purchase:' + orderData.session_id : buildDedupKey('purchase', orderData.order_id || '')
     });
     postApi('/api/analytics/track', {
       type: 'purchase',
@@ -480,13 +516,28 @@
     });
   }
 
-  function trackPaymentFailed(reason) {
-    track('payment_failed', { metadata: { reason: reason || 'unknown' } });
+  function trackWishlistAdd(productId) {
+    track('wishlist_add', { product_id: productId || getProductIdFromPath() });
   }
 
-  function trackCheckoutAbandoned() {
-    track('checkout_abandoned', { dedup_key: buildDedupKey('checkout_abandoned', getCartId()) });
-    syncCartSession({ status: 'abandoned' });
+  function trackWishlistRemove(productId) {
+    track('wishlist_remove', { product_id: productId || getProductIdFromPath() });
+  }
+
+  function trackContactSubmit(meta) {
+    track('contact_submit', { metadata: meta || {} });
+  }
+
+  function trackNewsletterSignup(email) {
+    track('newsletter_signup', { metadata: { email_domain: String(email || '').split('@')[1] || '' } });
+  }
+
+  function trackVariantSelection(productId, variant) {
+    track('variant_selected', { product_id: productId, metadata: variant || {} });
+  }
+
+  function trackPaymentFailed(reason) {
+    track('payment_failed', { metadata: { reason: reason || 'unknown' } });
   }
 
   function getAttribution() {
@@ -497,29 +548,45 @@
     };
   }
 
+  function initPageEvents() {
+    var path = getPageUrl();
+    var productId = getProductIdFromPath();
+    var collectionId = getCollectionIdFromPath();
+
+    trackPageView();
+    if (productId) trackProductView(productId);
+    if (collectionId || path.indexOf('/collections/') === 0) {
+      trackCollectionView(collectionId || 'all');
+    }
+    if (path.indexOf('/cart') === 0) {
+      track('view_cart', { dedup_key: buildDedupKey('view_cart', path) });
+    }
+  }
+
   function init() {
     if (!enabled()) {
-      console.warn('[Analytics] SUPABASE_URL or SUPABASE_ANON_KEY not set. Tracking disabled.');
+      console.warn('[Analytics] Tracking disabled — missing Supabase config.');
       return;
     }
 
-    var sessionId = getOrCreateSessionId();
-    ensureSessionRow(sessionId);
-    sendPageView();
-
-    var productId = getProductIdFromPath();
-    if (productId) trackProductView(productId);
+    getVisitorId();
+    getOrCreateSessionId();
+    startSession();
+    initPageEvents();
 
     setInterval(function () {
-      updateSessionActivity(getOrCreateSessionId());
-    }, 45 * 1000);
+      touchSession();
+      updateSessionActivity();
+    }, 45000);
 
-    window.addEventListener('beforeunload', function () {
-      var path = getPageUrl();
-      if (path.indexOf('/checkout') === 0) {
-        trackCheckoutAbandoned();
+    document.addEventListener('click', function (e) {
+      var wishBtn = e.target && e.target.closest && e.target.closest('[data-wishlist-toggle], .pdp-wishlist-btn, [aria-label="Add to wishlist"]');
+      if (wishBtn) {
+        var pid = wishBtn.getAttribute('data-product-id') || getProductIdFromPath();
+        if (wishBtn.classList.contains('is-active')) trackWishlistRemove(pid);
+        else trackWishlistAdd(pid);
       }
-    });
+    }, true);
   }
 
   window.ZYBAR = window.ZYBAR || {};
@@ -529,20 +596,27 @@
     getSessionId: getOrCreateSessionId,
     getCartId: getCartId,
     setCartId: setCartId,
+    setCountry: setCountry,
     getAttribution: getAttribution,
     track: track,
+    trackPageView: trackPageView,
     trackProductView: trackProductView,
-    trackVariantSelection: trackVariantSelection,
+    trackCollectionView: trackCollectionView,
+    trackSearch: trackSearch,
     trackAddToCart: trackAddToCart,
     trackRemoveFromCart: trackRemoveFromCart,
     trackViewCart: trackViewCart,
     trackBeginCheckout: trackBeginCheckout,
-    trackCheckoutStarted: trackCheckoutStarted,
     trackShippingSelected: trackShippingSelected,
     trackPaymentStarted: trackPaymentStarted,
-    trackPaymentSuccess: trackPaymentSuccess,
+    trackPurchase: trackPurchase,
+    trackPaymentSuccess: trackPurchase,
     trackPaymentFailed: trackPaymentFailed,
-    trackCheckoutAbandoned: trackCheckoutAbandoned,
+    trackWishlistAdd: trackWishlistAdd,
+    trackWishlistRemove: trackWishlistRemove,
+    trackContactSubmit: trackContactSubmit,
+    trackNewsletterSignup: trackNewsletterSignup,
+    trackVariantSelection: trackVariantSelection,
     syncCartSession: syncCartSession
   };
 

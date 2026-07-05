@@ -66,6 +66,9 @@
       var json = await res.json().catch(function () { return {}; });
       if (!res.ok) throw new Error(json.error || 'Unable to submit inquiry.');
 
+      if (window.ZYBAR && window.ZYBAR.Analytics && typeof window.ZYBAR.Analytics.trackContactSubmit === 'function') {
+        window.ZYBAR.Analytics.trackContactSubmit({ car_model: payload.carModelInterest });
+      }
       form.reset();
       setStatus('Thank you! Your inquiry has been submitted.', false);
       showToast('Thank you! We will contact you soon.');

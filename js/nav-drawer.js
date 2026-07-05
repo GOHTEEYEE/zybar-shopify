@@ -268,6 +268,9 @@
       var searchBtn = event.target.closest('.header-actions button[aria-label="Search"]');
       if (searchBtn) {
         event.preventDefault();
+        if (window.ZYBAR && window.ZYBAR.Analytics && typeof window.ZYBAR.Analytics.trackSearch === 'function') {
+          window.ZYBAR.Analytics.trackSearch('');
+        }
         window.location.href = '/collections/all/';
       }
     });

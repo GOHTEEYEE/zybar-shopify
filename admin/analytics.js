@@ -15,15 +15,16 @@ window.renderAdminanalytics = function (container) {
 
   var tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'realtime', label: 'Realtime' },
     { id: 'funnel', label: 'Conversion Funnel' },
+    { id: 'traffic', label: 'Traffic Sources' },
     { id: 'cart', label: 'Cart Analytics' },
     { id: 'abandoned', label: 'Abandoned Cart' },
     { id: 'revenue', label: 'Revenue' },
     { id: 'products', label: 'Products' },
     { id: 'orders', label: 'Orders' },
-    { id: 'customers', label: 'Customers' },
     { id: 'countries', label: 'Countries' },
-    { id: 'devices', label: 'Devices' }
+    { id: 'devices', label: 'Devices & Browsers' }
   ];
 
   function apiBase() {
@@ -46,7 +47,7 @@ window.renderAdminanalytics = function (container) {
   function loadOverview() {
     var range = dateRange();
     return fetchJson('/api/analytics/overview').then(function (data) {
-      if (data && typeof data.product_views !== 'undefined') return data;
+      if (data && (data.unique_visitors != null || data.product_views != null)) return data;
       return rpc('get_analytics_overview', { p_start: range.start, p_end: range.end });
     });
   }
@@ -95,6 +96,14 @@ window.renderAdminanalytics = function (container) {
       if (data && (data.countries || data.devices)) return data;
       return rpc('get_analytics_distributions', { p_start: range.start, p_end: range.end });
     });
+  }
+
+  function loadRealtime() {
+    return fetchJson('/api/analytics/realtime');
+  }
+
+  function loadTraffic() {
+    return fetchJson('/api/analytics/traffic');
   }
 
   function loadAbandoned() {
@@ -205,21 +214,29 @@ window.renderAdminanalytics = function (container) {
 
   function renderOverview(data) {
     data = data || {};
-    var conv = data.visitors > 0 ? ((data.orders / data.visitors) * 100).toFixed(2) + '%' : '0%';
-    var aov = data.orders > 0 ? formatUsdCents(data.revenue_cents / data.orders) : '—';
+    var visitors = data.unique_visitors != null ? data.unique_visitors : data.visitors;
+    var conv = data.conversion_rate != null
+      ? String(data.conversion_rate) + '%'
+      : (visitors > 0 ? ((data.orders / visitors) * 100).toFixed(2) + '%' : '0%');
+    var aov = data.orders > 0 ? formatUsdCents((data.avg_order_value_cents || data.revenue_cents / data.orders)) : '—';
 
     return (
       '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
-      kpiCard("Today's scope visitors", formatNum(data.visitors), 'Unique visitors') +
-      kpiCard('Product views', formatNum(data.product_views), 'In range') +
-      kpiCard('Add to cart', formatNum(data.add_to_cart), 'Events') +
-      kpiCard('Checkout started', formatNum(data.checkout_started), 'Events') +
-      kpiCard('Orders', formatNum(data.orders), 'Completed') +
-      kpiCard('Conversion rate', conv, 'Orders ÷ visitors') +
-      kpiCard('Revenue', formatUsdCents(data.revenue_cents), 'Gross') +
-      kpiCard('Avg order value', aov, 'Per order') +
+      kpiCard('Unique visitors', formatNum(visitors), 'COUNT(DISTINCT visitor_id)') +
+      kpiCard('Sessions', formatNum(data.sessions), 'COUNT(DISTINCT session_id)') +
+      kpiCard('New visitors', formatNum(data.new_visitors), 'First visit in range') +
+      kpiCard('Returning visitors', formatNum(data.returning_visitors), 'Visited before range') +
+      kpiCard('Product views', formatNum(data.product_views), 'product_view events') +
+      kpiCard('Collection views', formatNum(data.collection_views), 'collection_view events') +
+      kpiCard('Add to cart', formatNum(data.add_to_cart), 'Click events (not qty)') +
+      kpiCard('Products added', formatNum(data.products_added), 'Sum of quantities') +
+      kpiCard('Checkout started', formatNum(data.checkout_started), 'begin_checkout events') +
+      kpiCard('Orders', formatNum(data.orders), 'Completed purchases') +
+      kpiCard('Conversion rate', conv, 'Orders ÷ unique visitors') +
+      kpiCard('Revenue', formatUsdCents(data.revenue_cents), 'Gross order total') +
+      kpiCard('Avg order value', aov, 'Revenue ÷ orders') +
       '</div>' +
-      '<div class="admin-card"><h3>Activity trends</h3><div class="chart-container"><canvas id="chartHubOverview"></canvas></div></div>'
+      '<div class="admin-card"><h3>Visitor trends</h3><div class="chart-container"><canvas id="chartHubOverview"></canvas></div></div>'
     );
   }
 
@@ -228,7 +245,9 @@ window.renderAdminanalytics = function (container) {
     var html = '<div class="admin-funnel">';
     steps.forEach(function (step, i) {
       var prev = i > 0 ? steps[i - 1].count : null;
-      var rate = prev ? pct(step.count, prev) : '100%';
+      var rate = step.rate_from_previous != null
+        ? String(step.rate_from_previous) + '%'
+        : (prev ? pct(step.count, prev) : '100%');
       var label = String(step.step || '').replace(/_/g, ' ');
       html +=
         '<div class="admin-funnel-step">' +
@@ -336,7 +355,7 @@ window.renderAdminanalytics = function (container) {
     }
     return '<div class="admin-grid-2">' +
       table('Most viewed', data.most_viewed, [{ key: 'product_id', label: 'Product' }, { key: 'views', label: 'Views' }]) +
-      table('Most added to cart', data.most_added, [{ key: 'product_id', label: 'Product' }, { key: 'adds', label: 'Adds' }]) +
+      table('Most added to cart', data.most_added, [{ key: 'product_id', label: 'Product' }, { key: 'add_events', label: 'Clicks' }, { key: 'products_added', label: 'Units' }]) +
       table('Highest revenue', (data.highest_revenue || []).map(function (r) {
         return { product_id: r.product_id, revenue: formatUsdCents(r.revenue_cents), orders: r.orders };
       }), [{ key: 'product_id', label: 'Product' }, { key: 'revenue', label: 'Revenue' }, { key: 'orders', label: 'Orders' }]) +
@@ -406,6 +425,40 @@ window.renderAdminanalytics = function (container) {
     };
   }
 
+  function renderRealtime(data) {
+    data = data || {};
+    var events = (data.recent_events || []).map(function (ev) {
+      return '<tr><td>' + formatDate(ev.created_at) + '</td><td>' + (ev.event_type || '') + '</td><td>' + (ev.product_id || '—') + '</td><td><code>' + String(ev.visitor_id || '').slice(0, 10) + '…</code></td></tr>';
+    }).join('') || '<tr><td colspan="4">No recent activity</td></tr>';
+
+    return (
+      '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
+      kpiCard('Visitors online', formatNum(data.active_visitors), 'Last 5 minutes') +
+      kpiCard('Active sessions', formatNum(data.active_sessions), 'Last 5 minutes') +
+      kpiCard('Active carts', formatNum(data.active_carts), 'With items') +
+      kpiCard('In checkout', formatNum(data.checkout_users), 'Checkout started') +
+      '</div>' +
+      '<div class="admin-card"><h3>Recent events</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Time</th><th>Event</th><th>Product</th><th>Visitor</th></tr></thead><tbody>' + events + '</tbody></table></div></div>'
+    );
+  }
+
+  function renderTraffic(data) {
+    data = data || {};
+    var sources = (data.sources || []).map(function (s) {
+      return '<tr><td>' + (s.label || '—') + '</td><td>' + formatNum(s.sessions) + '</td><td>' + formatNum(s.visitors) + '</td></tr>';
+    }).join('') || '<tr><td colspan="3">No traffic data yet</td></tr>';
+    var campaigns = (data.campaigns || []).map(function (c) {
+      return '<tr><td>' + (c.utm_source || '—') + '</td><td>' + (c.utm_medium || '—') + '</td><td>' + (c.utm_campaign || '—') + '</td><td>' + formatNum(c.sessions) + '</td></tr>';
+    }).join('') || '<tr><td colspan="4">No UTM campaigns yet</td></tr>';
+
+    return (
+      '<div class="admin-grid-2">' +
+      '<div class="admin-card"><h3>Traffic sources</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Source</th><th>Sessions</th><th>Visitors</th></tr></thead><tbody>' + sources + '</tbody></table></div></div>' +
+      '<div class="admin-card"><h3>UTM campaigns</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Source</th><th>Medium</th><th>Campaign</th><th>Sessions</th></tr></thead><tbody>' + campaigns + '</tbody></table></div></div>' +
+      '</div>'
+    );
+  }
+
   function loadTab() {
     destroyCharts();
     var host = document.getElementById('analyticsHubContent');
@@ -423,6 +476,20 @@ window.renderAdminanalytics = function (container) {
         var trends = res[1] || {};
         var visitors = seriesLabelsValues(trends.visitors);
         drawLineChart('chartHubOverview', visitors.labels, visitors.values, 'Visitors');
+      });
+      return;
+    }
+
+    if (activeTab === 'realtime') {
+      loadRealtime().then(function (data) {
+        host.innerHTML = renderRealtime(data);
+      });
+      return;
+    }
+
+    if (activeTab === 'traffic') {
+      loadTraffic().then(function (data) {
+        host.innerHTML = renderTraffic(data);
       });
       return;
     }
@@ -504,8 +571,11 @@ window.renderAdminanalytics = function (container) {
           host.innerHTML = renderDistribution('Country distribution', data.countries, 'chartHubCountries');
           drawDoughnut('chartHubCountries', (data.countries || []).map(function (c) { return { label: c.label, value: c.value }; }));
         } else {
-          host.innerHTML = renderDistribution('Device distribution', data.devices, 'chartHubDevices');
+          host.innerHTML =
+            renderDistribution('Device distribution', data.devices, 'chartHubDevices') +
+            renderDistribution('Browser distribution', data.browsers, 'chartHubBrowsers');
           drawDoughnut('chartHubDevices', (data.devices || []).map(function (d) { return { label: d.label, value: d.value }; }));
+          drawDoughnut('chartHubBrowsers', (data.browsers || []).map(function (b) { return { label: b.label, value: b.value }; }));
         }
       });
       return;
