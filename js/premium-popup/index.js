@@ -123,8 +123,23 @@
     return overlay;
   }
 
+  function createTeaserDom() {
+    var teaser = document.createElement('div');
+    teaser.className = 'zybar-popup-teaser';
+    teaser.id = 'zybar-premium-popup-teaser';
+    teaser.hidden = true;
+    teaser.innerHTML =
+      '<button type="button" class="zybar-popup-teaser-open" aria-label="Open 15% bonus offer">' +
+      '<span class="zybar-popup-teaser-label">BONUS 15%</span>' +
+      '</button>' +
+      '<button type="button" class="zybar-popup-teaser-close" aria-label="Hide bonus offer">&times;</button>';
+    document.body.appendChild(teaser);
+    return teaser;
+  }
+
   function PremiumPopupController() {
     this.overlay = null;
+    this.teaser = null;
     this.open = false;
     this.trigger = 'timer';
     this.lastFocused = null;
@@ -133,10 +148,16 @@
 
   PremiumPopupController.prototype.mount = function () {
     ensureStylesheet();
-    this.overlay = createPopupDom();
-    this.bindEvents();
-    var langSelect = this.overlay.querySelector('#zybar-popup-language');
-    if (langSelect) langSelect.value = detectLanguage();
+    if (!this.overlay) {
+      this.overlay = createPopupDom();
+      this.bindEvents();
+      var langSelect = this.overlay.querySelector('#zybar-popup-language');
+      if (langSelect) langSelect.value = detectLanguage();
+    }
+    if (!this.teaser) {
+      this.teaser = createTeaserDom();
+      this.bindTeaserEvents();
+    }
   };
 
   PremiumPopupController.prototype.bindEvents = function () {
@@ -181,16 +202,51 @@
     });
   };
 
+  PremiumPopupController.prototype.bindTeaserEvents = function () {
+    var self = this;
+    var openBtn = this.teaser.querySelector('.zybar-popup-teaser-open');
+    var closeBtn = this.teaser.querySelector('.zybar-popup-teaser-close');
+
+    openBtn.addEventListener('click', function () {
+      self.hideTeaser();
+      self.show('teaser', { force: true });
+    });
+
+    closeBtn.addEventListener('click', function (event) {
+      event.stopPropagation();
+      root.ZYBAR.PremiumPopupStorage.hideTeaserThisSession();
+      self.hideTeaser();
+    });
+  };
+
+  PremiumPopupController.prototype.showTeaser = function () {
+    if (!this.teaser) return;
+    if (!root.ZYBAR.PremiumPopupStorage.shouldShowTeaser()) return;
+    this.teaser.hidden = false;
+    requestAnimationFrame(function () {
+      this.teaser.classList.add('is-visible');
+    }.bind(this));
+  };
+
+  PremiumPopupController.prototype.hideTeaser = function () {
+    if (!this.teaser) return;
+    this.teaser.classList.remove('is-visible');
+    this.teaser.hidden = true;
+  };
+
   PremiumPopupController.prototype.setError = function (message) {
     var el = this.overlay.querySelector('#zybar-popup-error');
     if (el) el.textContent = message || '';
   };
 
-  PremiumPopupController.prototype.show = function (trigger) {
+  PremiumPopupController.prototype.show = function (trigger, options) {
     if (this.open || !this.overlay) return;
     var storage = root.ZYBAR.PremiumPopupStorage;
-    if (!storage.shouldShowPopup()) return;
+    var force = options && options.force;
+    if (!force && !storage.shouldShowPopup()) return;
+    if (storage.readState().submitted) return;
 
+    this.hideTeaser();
     this.trigger = trigger || 'timer';
     this.lastFocused = document.activeElement;
     this.overlay.hidden = false;
@@ -217,8 +273,12 @@
       if (this.overlay) this.overlay.hidden = true;
     }.bind(this), 250);
 
-    if (!wasSuccess && reason !== 'continue') {
+    if (wasSuccess || reason === 'continue') {
+      root.ZYBAR.PremiumPopupStorage.clearTeaser();
+      this.hideTeaser();
+    } else {
       root.ZYBAR.PremiumPopupStorage.markDismissed();
+      this.showTeaser();
     }
     if (root.ZYBAR.PremiumPopupAnalytics) {
       root.ZYBAR.PremiumPopupAnalytics.trackPopupClosed(reason || 'dismiss');
@@ -290,6 +350,7 @@
       }
 
       root.ZYBAR.PremiumPopupStorage.markSubmitted(email);
+      this.hideTeaser();
       if (root.ZYBAR.PremiumPopupAnalytics) {
         root.ZYBAR.PremiumPopupAnalytics.trackEmailSubmitted(email, language);
         root.ZYBAR.PremiumPopupAnalytics.trackDiscountClaimed(data.discountCode || 'ZYBAR15');
@@ -320,18 +381,26 @@
   PremiumPopupController.prototype.start = function () {
     if (isExcludedPath()) return;
     if (!root.ZYBAR || !root.ZYBAR.PremiumPopupStorage) return;
-    if (!root.ZYBAR.PremiumPopupStorage.shouldShowPopup()) {
-      this.armExitIntent();
-      return;
-    }
+
+    var storage = root.ZYBAR.PremiumPopupStorage;
+    var state = storage.readState();
+    if (state.submitted) return;
 
     this.mount();
-    var self = this;
-    setTimeout(function () {
-      if (root.ZYBAR.PremiumPopupStorage.shouldShowPopup()) {
-        self.show('timer');
-      }
-    }, 6000);
+
+    if (storage.shouldShowTeaser() && !storage.shouldShowPopup()) {
+      this.showTeaser();
+    }
+
+    if (storage.shouldShowPopup()) {
+      var self = this;
+      setTimeout(function () {
+        if (root.ZYBAR.PremiumPopupStorage.shouldShowPopup()) {
+          self.show('timer');
+        }
+      }, 6000);
+    }
+
     this.armExitIntent();
   };
 

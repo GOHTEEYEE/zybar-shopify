@@ -3,6 +3,7 @@
 
   var STORAGE_KEY = 'zybar_garage_popup_v1';
   var SESSION_KEY = 'zybar_garage_popup_session_shown';
+  var TEASER_SESSION_KEY = 'zybar_garage_popup_teaser_hidden';
   var DAY_MS = 24 * 60 * 60 * 1000;
   var SHOW_EVERY_MS = 30 * DAY_MS;
   var DISMISS_WAIT_MS = 7 * DAY_MS;
@@ -67,17 +68,62 @@
 
   function markDismissed() {
     markShownThisSession();
-    return writeState({ dismissedAt: Date.now(), lastShownAt: Date.now() });
+    clearTeaserHiddenThisSession();
+    return writeState({
+      dismissedAt: Date.now(),
+      lastShownAt: Date.now(),
+      teaserActive: true
+    });
   }
 
   function markSubmitted(email) {
     markShownThisSession();
+    clearTeaserHiddenThisSession();
     return writeState({
       submitted: true,
       submittedAt: Date.now(),
       emailDomain: String(email || '').split('@')[1] || '',
-      lastShownAt: Date.now()
+      lastShownAt: Date.now(),
+      teaserActive: false
     });
+  }
+
+  function wasTeaserHiddenThisSession() {
+    try {
+      return sessionStorage.getItem(TEASER_SESSION_KEY) === '1';
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function hideTeaserThisSession() {
+    try {
+      sessionStorage.setItem(TEASER_SESSION_KEY, '1');
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
+  function clearTeaserHiddenThisSession() {
+    try {
+      sessionStorage.removeItem(TEASER_SESSION_KEY);
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
+  function shouldShowTeaser() {
+    var state = readState();
+    if (state.submitted) return false;
+    if (wasTeaserHiddenThisSession()) return false;
+    if (state.teaserActive) return true;
+    /* Legacy dismissals before teaserActive existed */
+    if (state.dismissedAt && !shouldShowPopup()) return true;
+    return false;
+  }
+
+  function clearTeaser() {
+    return writeState({ teaserActive: false });
   }
 
   root.ZYBAR = root.ZYBAR || {};
@@ -85,9 +131,12 @@
     STORAGE_KEY: STORAGE_KEY,
     SESSION_KEY: SESSION_KEY,
     shouldShowPopup: shouldShowPopup,
+    shouldShowTeaser: shouldShowTeaser,
     markShown: markShown,
     markDismissed: markDismissed,
     markSubmitted: markSubmitted,
+    hideTeaserThisSession: hideTeaserThisSession,
+    clearTeaser: clearTeaser,
     readState: readState,
     wasShownThisSession: wasShownThisSession
   };
