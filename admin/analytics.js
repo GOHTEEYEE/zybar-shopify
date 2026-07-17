@@ -18,6 +18,7 @@ window.renderAdminanalytics = function (container) {
     { id: 'realtime', label: 'Realtime' },
     { id: 'funnel', label: 'Conversion Funnel' },
     { id: 'traffic', label: 'Traffic Sources' },
+    { id: 'geo', label: 'Geo & Ads' },
     { id: 'cart', label: 'Cart Analytics' },
     { id: 'abandoned', label: 'Abandoned Cart' },
     { id: 'revenue', label: 'Revenue' },
@@ -106,6 +107,10 @@ window.renderAdminanalytics = function (container) {
     return fetchJson('/api/analytics/traffic');
   }
 
+  function loadGeoTraffic() {
+    return fetchJson('/api/analytics/geo-traffic');
+  }
+
   function loadAbandoned() {
     return fetch(apiBase() + '/api/analytics/abandoned?limit=100')
       .then(function (r) { return r.ok ? r.json() : null; })
@@ -147,6 +152,17 @@ window.renderAdminanalytics = function (container) {
     if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
     if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
     return String(n);
+  }
+
+  function formatDuration(seconds) {
+    var total = Math.max(0, Math.round(Number(seconds) || 0));
+    if (total < 60) return total + 's';
+    var mins = Math.floor(total / 60);
+    var secs = total % 60;
+    if (mins < 60) return mins + 'm ' + secs + 's';
+    var hours = Math.floor(mins / 60);
+    mins = mins % 60;
+    return hours + 'h ' + mins + 'm';
   }
 
   function pct(a, b) {
@@ -224,6 +240,8 @@ window.renderAdminanalytics = function (container) {
       '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
       kpiCard('Unique visitors', formatNum(visitors), 'COUNT(DISTINCT visitor_id)') +
       kpiCard('Sessions', formatNum(data.sessions), 'COUNT(DISTINCT session_id)') +
+      kpiCard('Avg session time', formatDuration(data.avg_session_duration_seconds), 'last_activity − started_at') +
+      kpiCard('Median session time', formatDuration(data.median_session_duration_seconds), '50th percentile') +
       kpiCard('New visitors', formatNum(data.new_visitors), 'First visit in range') +
       kpiCard('Returning visitors', formatNum(data.returning_visitors), 'Visited before range') +
       kpiCard('Product views', formatNum(data.product_views), 'product_view events') +
@@ -459,6 +477,49 @@ window.renderAdminanalytics = function (container) {
     );
   }
 
+  function renderGeoTraffic(data) {
+    data = data || {};
+    var summary = data.summary || {};
+    var rows = (data.rows || []).map(function (r) {
+      return (
+        '<tr>' +
+        '<td><strong>' + (r.country || '—') + '</strong></td>' +
+        '<td>' + (r.traffic_source || '—') + '</td>' +
+        '<td>' + (r.utm_source || '—') + '</td>' +
+        '<td>' + (r.utm_campaign || '—') + '</td>' +
+        '<td>' + formatNum(r.sessions) + '</td>' +
+        '<td>' + formatNum(r.visitors) + '</td>' +
+        '<td>' + formatDuration(r.avg_duration_seconds) + '</td>' +
+        '<td>' + formatNum(r.add_to_cart_visitors) + '</td>' +
+        '<td>' + formatNum(r.orders) + '</td>' +
+        '<td>' + formatUsdCents(r.revenue_cents) + '</td>' +
+        '<td>' + (r.conversion_rate != null ? r.conversion_rate + '%' : '0%') + '</td>' +
+        '</tr>'
+      );
+    }).join('') || '<tr><td colspan="11">No geo traffic data yet — ensure ads use UTM links and production runs behind Cloudflare/Vercel for country detection.</td></tr>';
+
+    var byCountry = (data.by_country || []).map(function (c) {
+      return '<tr><td><strong>' + (c.country || '—') + '</strong></td><td>' + formatNum(c.sessions) + '</td><td>' + formatDuration(c.avg_duration_seconds) + '</td></tr>';
+    }).join('') || '<tr><td colspan="3">No country data yet</td></tr>';
+
+    return (
+      '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
+      kpiCard('Avg session time', formatDuration(summary.avg_session_duration_seconds), 'All sessions in range') +
+      kpiCard('Median session time', formatDuration(summary.median_session_duration_seconds), '50th percentile') +
+      kpiCard('Total sessions', formatNum(summary.total_sessions), '') +
+      kpiCard('Total visitors', formatNum(summary.total_visitors), '') +
+      '</div>' +
+      '<div class="admin-card">' +
+      '<h3>Country × Source × Campaign</h3>' +
+      '<p class="admin-muted">Verify ad geo-targeting: each row groups sessions by country, traffic source, and UTM campaign. Orders use first-touch attribution within the date range.</p>' +
+      '<div class="admin-table-wrap"><table class="admin-table admin-table--compact">' +
+      '<thead><tr><th>Country</th><th>Source</th><th>UTM Source</th><th>Campaign</th><th>Sessions</th><th>Visitors</th><th>Avg time</th><th>Add to cart</th><th>Orders</th><th>Revenue</th><th>Conv.</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div></div>' +
+      '<div class="admin-card"><h3>Avg session time by country</h3>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Country</th><th>Sessions</th><th>Avg time</th></tr></thead><tbody>' + byCountry + '</tbody></table></div></div>'
+    );
+  }
+
   function loadTab() {
     destroyCharts();
     var host = document.getElementById('analyticsHubContent');
@@ -490,6 +551,13 @@ window.renderAdminanalytics = function (container) {
     if (activeTab === 'traffic') {
       loadTraffic().then(function (data) {
         host.innerHTML = renderTraffic(data);
+      });
+      return;
+    }
+
+    if (activeTab === 'geo') {
+      loadGeoTraffic().then(function (data) {
+        host.innerHTML = renderGeoTraffic(data);
       });
       return;
     }

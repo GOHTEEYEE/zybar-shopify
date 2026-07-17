@@ -406,6 +406,147 @@ async function distributionsFallback(env, range) {
   return { countries: toList(countries), devices: toList(devices) };
 }
 
+function sessionDurationSeconds(startedAt, lastActivityAt) {
+  if (!startedAt || !lastActivityAt) return 0;
+  return Math.max(0, Math.round((new Date(lastActivityAt).getTime() - new Date(startedAt).getTime()) / 1000));
+}
+
+async function geoTrafficFallback(env, range) {
+  const start = encodeURIComponent(range.start);
+  const end = encodeURIComponent(range.end);
+  const [sessions, events, orders] = await Promise.all([
+    fetchAllRows(
+      env,
+      '/rest/v1/sessions?started_at=gte.' + start + '&started_at=lt.' + end +
+        '&select=id,visitor_id,started_at,last_activity_at,country,traffic_source,utm_source,utm_campaign&limit=10000'
+    ),
+    fetchAllRows(
+      env,
+      '/rest/v1/events?created_at=gte.' + start + '&created_at=lt.' + end +
+        '&event_type=eq.add_to_cart&select=visitor_id,session_id&limit=10000'
+    ),
+    fetchAllRows(
+      env,
+      '/rest/v1/orders?created_at=gte.' + start + '&created_at=lt.' + end +
+        '&select=visitor_id,amount_total_cents,status&limit=10000'
+    )
+  ]);
+
+  const firstTouch = {};
+  const sessionById = {};
+  const durations = [];
+  const buckets = {};
+  const countryDuration = {};
+
+  function bucketParts(s) {
+    return {
+      country: s.country || 'Unknown',
+      traffic_source: s.traffic_source || 'direct',
+      utm_source: s.utm_source || '—',
+      utm_campaign: s.utm_campaign || '—'
+    };
+  }
+
+  function bucketKey(parts) {
+    return [parts.country, parts.traffic_source, parts.utm_source, parts.utm_campaign].join('\0');
+  }
+
+  function ensureBucket(parts) {
+    const key = bucketKey(parts);
+    if (!buckets[key]) {
+      buckets[key] = {
+        country: parts.country,
+        traffic_source: parts.traffic_source,
+        utm_source: parts.utm_source,
+        utm_campaign: parts.utm_campaign,
+        sessions: 0,
+        visitors: {},
+        durationTotal: 0,
+        add_to_cart_visitors: {},
+        orders: 0,
+        revenue_cents: 0
+      };
+    }
+    return buckets[key];
+  }
+
+  sessions.forEach(function (s) {
+    sessionById[String(s.id)] = s;
+    if (s.visitor_id && !firstTouch[s.visitor_id]) firstTouch[s.visitor_id] = bucketParts(s);
+    const parts = bucketParts(s);
+    const bucket = ensureBucket(parts);
+    bucket.sessions += 1;
+    if (s.visitor_id) bucket.visitors[s.visitor_id] = true;
+    const dur = sessionDurationSeconds(s.started_at, s.last_activity_at);
+    bucket.durationTotal += dur;
+    durations.push(dur);
+    const country = parts.country;
+    if (!countryDuration[country]) countryDuration[country] = { sessions: 0, durationTotal: 0 };
+    countryDuration[country].sessions += 1;
+    countryDuration[country].durationTotal += dur;
+  });
+
+  events.forEach(function (ev) {
+    const session = sessionById[String(ev.session_id || '')];
+    if (!session) return;
+    const bucket = ensureBucket(bucketParts(session));
+    if (ev.visitor_id) bucket.add_to_cart_visitors[ev.visitor_id] = true;
+  });
+
+  orders.forEach(function (order) {
+    if (!order.visitor_id || order.status === 'failed' || order.status === 'canceled') return;
+    const touch = firstTouch[order.visitor_id];
+    if (!touch) return;
+    const bucket = ensureBucket(touch);
+    bucket.orders += 1;
+    bucket.revenue_cents += Number(order.amount_total_cents) || 0;
+  });
+
+  durations.sort(function (a, b) { return a - b; });
+
+  const rows = Object.keys(buckets).map(function (key) {
+    const b = buckets[key];
+    const visitors = Object.keys(b.visitors).length;
+    return {
+      country: b.country,
+      traffic_source: b.traffic_source,
+      utm_source: b.utm_source,
+      utm_campaign: b.utm_campaign,
+      sessions: b.sessions,
+      visitors: visitors,
+      avg_duration_seconds: b.sessions > 0 ? Math.round(b.durationTotal / b.sessions) : 0,
+      add_to_cart_visitors: Object.keys(b.add_to_cart_visitors).length,
+      orders: b.orders,
+      revenue_cents: b.revenue_cents,
+      conversion_rate: visitors > 0 ? Number(((b.orders / visitors) * 100).toFixed(2)) : 0
+    };
+  }).sort(function (a, b) {
+    return b.sessions - a.sessions || b.visitors - a.visitors;
+  }).slice(0, 100);
+
+  return {
+    summary: {
+      avg_session_duration_seconds: durations.length
+        ? Math.round(durations.reduce(function (sum, n) { return sum + n; }, 0) / durations.length)
+        : 0,
+      median_session_duration_seconds: durations.length
+        ? Math.round(durations[Math.floor(durations.length / 2)])
+        : 0,
+      total_sessions: sessions.length,
+      total_visitors: Object.keys(firstTouch).length
+    },
+    rows: rows,
+    by_country: Object.keys(countryDuration).map(function (country) {
+      const c = countryDuration[country];
+      return {
+        country: country,
+        sessions: c.sessions,
+        avg_duration_seconds: c.sessions > 0 ? Math.round(c.durationTotal / c.sessions) : 0
+      };
+    }).sort(function (a, b) { return b.sessions - a.sessions; }).slice(0, 30)
+  };
+}
+
 export {
   json,
   parseRange,
@@ -417,5 +558,6 @@ export {
   trendsFallback,
   productsFallback,
   distributionsFallback,
+  geoTrafficFallback,
   supabaseFetch
 };

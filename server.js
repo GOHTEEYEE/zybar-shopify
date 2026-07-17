@@ -1837,6 +1837,22 @@ app.get('/api/analytics/traffic', async (req, res) => {
   }
 });
 
+app.get('/api/analytics/geo-traffic', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const data = await AnalyticsFallback.rpcOrFallback(
+      supabase,
+      'get_shopify_geo_traffic',
+      { p_start: range.start, p_end: range.end },
+      function () { return AnalyticsFallback.geoTrafficFallback(supabase, range); }
+    );
+    return res.json(data || { summary: {}, rows: [], by_country: [] });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/analytics/realtime', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   try {
