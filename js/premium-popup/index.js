@@ -10,7 +10,7 @@
     { code: 'nl', label: 'Nederlands' }
   ];
 
-  var HERO_SRC = '/Poster/popup-garage-hero.png';
+  var HERO_SRC = '/Poster/hero-maybach-night.jpg';
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   function detectLanguage() {
@@ -74,9 +74,11 @@
       '<div class="zybar-popup" role="document">' +
       '<button type="button" class="zybar-popup-close" aria-label="Close">&times;</button>' +
       '<div class="zybar-popup-form-view">' +
+      '<div class="zybar-popup-hero-wrap">' +
       '<img class="zybar-popup-hero" src="' +
       HERO_SRC +
-      '" alt="ZYBAR LED car wall art in a luxury living room" width="560" height="280" loading="eager" />' +
+      '" alt="ZYBAR LED car wall art in a luxury living room" width="520" height="520" loading="eager" />' +
+      '</div>' +
       '<div class="zybar-popup-body">' +
       '<p class="zybar-popup-kicker">Welcome to</p>' +
       '<h2 class="zybar-popup-title" id="zybar-popup-title">THE ZYBAR GARAGE</h2>' +
@@ -329,7 +331,7 @@
       if (root.ZYBAR.PremiumPopupStorage.shouldShowPopup()) {
         self.show('timer');
       }
-    }, 3000);
+    }, 6000);
     this.armExitIntent();
   };
 

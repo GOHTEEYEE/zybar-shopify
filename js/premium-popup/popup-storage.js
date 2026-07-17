@@ -2,6 +2,7 @@
   'use strict';
 
   var STORAGE_KEY = 'zybar_garage_popup_v1';
+  var SESSION_KEY = 'zybar_garage_popup_session_shown';
   var DAY_MS = 24 * 60 * 60 * 1000;
   var SHOW_EVERY_MS = 30 * DAY_MS;
   var DISMISS_WAIT_MS = 7 * DAY_MS;
@@ -29,9 +30,26 @@
     return next;
   }
 
+  function wasShownThisSession() {
+    try {
+      return sessionStorage.getItem(SESSION_KEY) === '1';
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function markShownThisSession() {
+    try {
+      sessionStorage.setItem(SESSION_KEY, '1');
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
   function shouldShowPopup() {
     var state = readState();
     if (state.submitted) return false;
+    if (wasShownThisSession()) return false;
     var now = Date.now();
     if (state.dismissedAt) {
       return now - Number(state.dismissedAt) >= DISMISS_WAIT_MS;
@@ -43,14 +61,17 @@
   }
 
   function markShown() {
+    markShownThisSession();
     return writeState({ lastShownAt: Date.now() });
   }
 
   function markDismissed() {
+    markShownThisSession();
     return writeState({ dismissedAt: Date.now(), lastShownAt: Date.now() });
   }
 
   function markSubmitted(email) {
+    markShownThisSession();
     return writeState({
       submitted: true,
       submittedAt: Date.now(),
@@ -62,10 +83,12 @@
   root.ZYBAR = root.ZYBAR || {};
   root.ZYBAR.PremiumPopupStorage = {
     STORAGE_KEY: STORAGE_KEY,
+    SESSION_KEY: SESSION_KEY,
     shouldShowPopup: shouldShowPopup,
     markShown: markShown,
     markDismissed: markDismissed,
     markSubmitted: markSubmitted,
-    readState: readState
+    readState: readState,
+    wasShownThisSession: wasShownThisSession
   };
 })(typeof window !== 'undefined' ? window : globalThis);
