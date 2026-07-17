@@ -5420,30 +5420,35 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .customers-saying-viewport {
   position: relative;
-  min-height: 520px;
+  width: 100%;
+  overflow: visible;
 }
 
 .customers-saying-track {
   position: relative;
   width: 100%;
-  min-height: 520px;
 }
 
 .saying-slide {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: 0;
   display: flex;
   justify-content: center;
   opacity: 0;
   transform: translateX(18px) scale(0.985);
   pointer-events: none;
   transition: opacity 420ms ease, transform 420ms ease;
+  visibility: hidden;
 }
 
 .saying-slide.is-active {
+  position: relative;
   opacity: 1;
   transform: none;
   pointer-events: auto;
+  visibility: visible;
 }
 
 .saying-card {
@@ -5454,10 +5459,13 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   color: #111;
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
   text-align: center;
+  display: flex;
+  flex-direction: column;
 }
 
 .saying-card-media {
-  aspect-ratio: 1 / 1.05;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
   background: #111;
   overflow: hidden;
 }
@@ -5470,7 +5478,8 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 }
 
 .saying-card-body {
-  padding: 1.15rem 1.25rem 1.35rem;
+  flex: 0 0 auto;
+  padding: 1.2rem 1.25rem 1.5rem;
   background: #fff;
 }
 
@@ -5480,11 +5489,10 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   font-size: 0.92rem;
   line-height: 1.45;
   color: #222;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-height: 5.3em;
+  overflow: visible;
+  display: block;
+  -webkit-line-clamp: unset;
+  min-height: 0;
 }
 
 .saying-card-stars {
@@ -5506,11 +5514,14 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 }
 
 .saying-card-name {
-  margin: 0.7rem 0 0;
+  margin: 0.75rem 0 0;
+  padding-bottom: 0.15rem;
   font-family: Inter, Helvetica, Arial, sans-serif;
   font-size: 1rem;
   font-weight: 700;
   color: #111;
+  line-height: 1.35;
+  overflow: visible;
 }
 
 .customers-saying-nav {
@@ -5546,14 +5557,13 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
     max-width: 100%;
   }
 
-  .customers-saying-viewport,
-  .customers-saying-track {
-    min-height: 480px;
-  }
-
   .saying-card {
     width: min(100%, 300px);
     border-radius: 24px;
+  }
+
+  .saying-card-body {
+    padding: 1.05rem 1.1rem 1.35rem;
   }
 
   .customers-saying-nav {
