@@ -10,7 +10,7 @@
     { code: 'nl', label: 'Nederlands' }
   ];
 
-  var HERO_SRC = '/Poster/popup-garage-hero.jpg';
+  var HERO_SRC = '/Poster/popup-garage-hero.png';
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   function detectLanguage() {
