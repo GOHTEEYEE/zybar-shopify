@@ -101,6 +101,7 @@ export async function onRequestGet(context) {
   const productSlug = String(url.searchParams.get('productSlug') || '').trim().slice(0, 80);
   const reviewIds = parseReviewIdsParam(url.searchParams.get('reviewIds'));
   const includeImages = String(url.searchParams.get('includeImages') || '').trim() !== '0';
+  const withImagesOnly = String(url.searchParams.get('withImages') || '').trim() === '1';
   const limit = Math.max(1, Math.min(parseInt(url.searchParams.get('limit') || '80', 10) || 80, 200));
   if (productSlug && !allowedProductSlugs.has(productSlug)) {
     return json({ error: 'Invalid product selected.' }, 400);
@@ -123,6 +124,9 @@ export async function onRequestGet(context) {
   }
   if (reviewIds.length) {
     queryParts.push('id=in.(' + reviewIds.join(',') + ')');
+  }
+  if (withImagesOnly && !reviewIds.length) {
+    queryParts.push('image_data_url=not.is.null');
   }
 
   try {

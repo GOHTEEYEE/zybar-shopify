@@ -696,6 +696,40 @@
           </div>
         </div>
       </section>
+
+      <section class="customers-saying" id="customers-saying" aria-labelledby="customers-saying-title">
+        <div class="container customers-saying-inner">
+          <h2 class="customers-saying-title" id="customers-saying-title">Customers are saying</h2>
+          <div class="customers-saying-meta">
+            <div class="customers-saying-stars" aria-hidden="true">
+              <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+            </div>
+            <p class="customers-saying-score">
+              <span data-saying-avg>5.00</span> ★ (<span data-saying-count>0</span>)
+            </p>
+            <span class="customers-saying-verified">
+              <span class="customers-saying-verified-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" width="12" height="12" focusable="false">
+                  <path fill="currentColor" d="M6.2 11.4 2.8 8l1.1-1.1 2.3 2.3 5-5L12.3 5.3z" />
+                </svg>
+              </span>
+              Verified
+            </span>
+          </div>
+
+          <div class="customers-saying-carousel" data-saying-carousel>
+            <button type="button" class="customers-saying-nav customers-saying-prev" data-saying-prev aria-label="Previous review">
+              <span aria-hidden="true">‹</span>
+            </button>
+            <div class="customers-saying-viewport">
+              <div class="customers-saying-track" data-saying-track></div>
+            </div>
+            <button type="button" class="customers-saying-nav customers-saying-next" data-saying-next aria-label="Next review">
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="site-footer">
@@ -719,7 +753,7 @@
     </footer>
     <script>
       (function () {
-        var ids = ["product-feature", "brand-impact", "value-proposition"];
+        var ids = ["product-feature", "brand-impact", "value-proposition", "customers-saying"];
         var sections = ids
           .map(function (id) { return document.getElementById(id); })
           .filter(function (el) { return !!el; });
@@ -816,6 +850,7 @@
       <script src="/lib/pricing-calc.js"></script>
       <script src="/js/pricing.js"></script>
       <script src="/js/trending-carousel.js" defer></script>
+      <script src="/js/home-reviews-carousel.js" defer></script>
       <script src="/js/chatbot.js"></script>
       <link rel="stylesheet" href="/css/premium-popup.css" />
     <script src="/js/premium-popup/popup-storage.js" defer></script>
