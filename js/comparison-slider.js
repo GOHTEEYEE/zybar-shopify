@@ -58,6 +58,7 @@
     function onMove(event) {
       if (!dragging) return;
       queuePos(event.clientX);
+      event.preventDefault();
     }
 
     function onUp(event) {
@@ -75,6 +76,7 @@
     root.addEventListener('pointerup', onUp);
     root.addEventListener('pointercancel', onUp);
     root.addEventListener('lostpointercapture', onUp);
+    divider.addEventListener('pointerdown', onDown);
 
     divider.addEventListener('keydown', function (event) {
       var step = event.shiftKey ? 10 : 2;
