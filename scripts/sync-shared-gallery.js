@@ -5,6 +5,10 @@
  *
  * Video poster (optional): same name + "-poster", e.g.
  *   led-demo.mp4  +  led-demo-poster.jpg
+ *
+ * Informational media (USB/remote/FAQ/guides): set "role": "info" in the
+ * JSON (preserved on re-sync), prefix the filename with "info-", or use
+ * keywords like usb/remote/faq/guide in the filename.
  */
 const fs = require("fs");
 const path = require("path");
@@ -31,12 +35,39 @@ function sortFiles(files) {
   });
 }
 
+function loadPreviousMeta() {
+  try {
+    const prev = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const map = {};
+    (prev.items || []).forEach(function (item) {
+      if (!item || !item.src) return;
+      map[item.src] = {
+        role: item.role || "",
+        kind: item.kind || "",
+        gallery: item.gallery
+      };
+    });
+    return map;
+  } catch (err) {
+    return {};
+  }
+}
+
+function isInfoPath(filePath) {
+  const lower = String(filePath || "").toLowerCase();
+  if (/\/info\//.test(lower) || /(^|\/|-)info([-_.]|$)/.test(lower)) return true;
+  return /usb|adapter|remote|install|faq|guide|manual|packaging|packing|accessory|infographic|comparison/.test(
+    lower
+  );
+}
+
 function buildItems() {
   if (!fs.existsSync(sourceDir)) {
     fs.mkdirSync(sourceDir, { recursive: true });
     return [];
   }
 
+  const previousMeta = loadPreviousMeta();
   const all = sortFiles(fs.readdirSync(sourceDir));
   const posters = {};
 
@@ -54,17 +85,27 @@ function buildItems() {
     const ext = path.extname(file).toLowerCase();
     const base = path.basename(file, ext);
     const src = "/shared-gallery/" + file;
+    const prev = previousMeta[src] || {};
 
     if (VIDEO_EXT.has(ext)) {
-      items.push({
+      const videoItem = {
         type: "video",
         src: src,
         poster: posters[base] || posters[file] || ""
-      });
+      };
+      if (prev.role) videoItem.role = prev.role;
+      if (prev.kind) videoItem.kind = prev.kind;
+      if (prev.gallery === false) videoItem.gallery = false;
+      items.push(videoItem);
       return;
     }
     if (IMAGE_EXT.has(ext)) {
-      items.push({ type: "image", src: src });
+      const imageItem = { type: "image", src: src };
+      if (prev.role) imageItem.role = prev.role;
+      else if (isInfoPath(src) || isInfoPath(file)) imageItem.role = "info";
+      if (prev.kind) imageItem.kind = prev.kind;
+      if (prev.gallery === false) imageItem.gallery = false;
+      items.push(imageItem);
     }
   });
 
@@ -81,7 +122,17 @@ function run() {
   fs.writeFileSync(outputPath, JSON.stringify(payload, null, 2) + "\n", "utf8");
   console.log("Shared gallery synced: " + items.length + " item(s) -> data/shared-gallery.json");
   items.forEach(function (item, i) {
-    console.log("  " + (i + 1) + ". " + item.type + " " + item.src + (item.poster ? " (poster: " + item.poster + ")" : ""));
+    const meta = item.role ? " [" + item.role + "]" : "";
+    console.log(
+      "  " +
+        (i + 1) +
+        ". " +
+        item.type +
+        " " +
+        item.src +
+        meta +
+        (item.poster ? " (poster: " + item.poster + ")" : "")
+    );
   });
   if (!items.length) {
     console.log("Drop files into shared-gallery/ then run this command again.");

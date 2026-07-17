@@ -436,6 +436,24 @@
 
   var sharedGalleryCache = null;
 
+  function isInformationalGallerySrc(src) {
+    var path = String(src || "").toLowerCase();
+    if (!path) return false;
+    if (/\/shared-gallery\/info\//.test(path)) return true;
+    if (/(^|\/|-)(info|faq|guide|manual)([-_.]|$)/.test(path)) return true;
+    return /usb|adapter|remote|install|faq|guide|manual|packaging|packing|accessory|power.?adapter|wall.?plug|instructions?|infographic|comparison/.test(
+      path
+    );
+  }
+
+  function isGalleryShowcaseItem(item) {
+    if (!item || !item.src) return false;
+    if (item.gallery === false || item.role === "info" || item.kind === "info") return false;
+    if (item.label === "product") return !isInformationalGallerySrc(item.src);
+    if (item.type === "video") return true;
+    return !isInformationalGallerySrc(item.src);
+  }
+
   function normalizeGalleryItem(raw) {
     if (!raw || !raw.src) return null;
     var type = raw.type === "video" ? "video" : "image";
@@ -443,8 +461,60 @@
       type: type,
       src: encodeMediaUrl(raw.src),
       poster: raw.poster ? encodeMediaUrl(raw.poster) : "",
-      label: "shared"
+      label: raw.label || "shared",
+      role: raw.role || raw.kind || "",
+      gallery: raw.gallery
     };
+  }
+
+  function splitGalleryMedia(items) {
+    var showcase = [];
+    var included = [];
+    (items || []).forEach(function (item) {
+      if (isGalleryShowcaseItem(item)) showcase.push(item);
+      else included.push(item);
+    });
+    return { showcase: showcase, included: included };
+  }
+
+  function renderIncludedMediaSection(items) {
+    if (!items || !items.length) return;
+    if (document.querySelector(".pdp-included-media")) return;
+
+    var section = document.createElement("section");
+    section.className = "pdp-included-media";
+    section.setAttribute("aria-label", "Included accessories and guides");
+
+    var title = document.createElement("h2");
+    title.className = "pdp-included-media-title";
+    title.textContent = "Included & Guides";
+    section.appendChild(title);
+
+    var row = document.createElement("div");
+    row.className = "pdp-included-media-row";
+    items.forEach(function (item, index) {
+      if (item.type === "video") return;
+      var figure = document.createElement("figure");
+      figure.className = "pdp-included-media-card";
+      var img = document.createElement("img");
+      img.src = item.src;
+      img.alt = "Included item " + (index + 1);
+      img.loading = "lazy";
+      figure.appendChild(img);
+      row.appendChild(figure);
+    });
+    if (!row.children.length) return;
+    section.appendChild(row);
+
+    var buyBox = document.querySelector(".product-showcase");
+    var wrap = document.querySelector(".product-showcase-wrap");
+    if (buyBox && buyBox.parentNode) {
+      buyBox.parentNode.insertBefore(section, buyBox.nextSibling);
+      return;
+    }
+    if (wrap) {
+      wrap.appendChild(section);
+    }
   }
 
   function validateGalleryItems(items) {
@@ -491,11 +561,11 @@
 
   function resolveGalleryMedia(mainSrc, slug) {
     return resolveGalleryImages(mainSrc, slug).then(function (images) {
-      var items = images.map(function (src) {
+      var productItems = images.map(function (src) {
         return { type: "image", src: src, label: "product" };
       });
       return resolveSharedGalleryMedia().then(function (sharedItems) {
-        return items.concat(sharedItems);
+        return splitGalleryMedia(productItems.concat(sharedItems));
       });
     });
   }
@@ -572,9 +642,9 @@
     video.pause();
     video.style.display = "none";
     mainImage.style.display = "block";
-    crossfadeSwapImage(mainImage, item.src, 500);
+    crossfadeSwapImage(mainImage, item.src, 220);
     var stickyThumb = document.querySelector(".pdp-sticky-thumb img");
-    if (stickyThumb) crossfadeSwapImage(stickyThumb, item.src, 500);
+    if (stickyThumb) crossfadeSwapImage(stickyThumb, item.src, 220);
     if (zoomBtn) zoomBtn.hidden = false;
     if (callout) callout.classList.remove("is-hidden");
   }
@@ -614,20 +684,27 @@
     overlay.style.pointerEvents = "none";
     overlay.style.zIndex = "2";
     overlay.style.opacity = "1";
-    overlay.style.transition = "opacity " + durationMs + "ms linear";
+    overlay.style.transform = "scale(1)";
+    overlay.style.transition =
+      "opacity " + durationMs + "ms ease, transform " + durationMs + "ms ease";
 
-    imgEl.style.transition = "opacity " + durationMs + "ms linear";
+    imgEl.style.transition =
+      "opacity " + durationMs + "ms ease, transform " + durationMs + "ms ease";
     imgEl.style.opacity = "0";
+    imgEl.style.transform = "scale(1.02)";
     holder.appendChild(overlay);
     imgEl.src = nextSrc;
 
     requestAnimationFrame(function () {
       overlay.style.opacity = "0";
+      overlay.style.transform = "scale(0.985)";
       imgEl.style.opacity = "1";
+      imgEl.style.transform = "scale(1)";
     });
 
     setTimeout(function () {
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      imgEl.style.transform = "";
     }, durationMs + 40);
   }
 
@@ -774,11 +851,8 @@
     var callout = document.createElement("div");
     callout.className = "pdp-gallery-callout";
     callout.innerHTML =
-      '<span class="pdp-gallery-callout-icon" aria-hidden="true">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
-      '<rect x="7" y="2" width="10" height="20" rx="2"></rect><circle cx="12" cy="18" r="1"></circle>' +
-      "</svg></span>" +
-      '<span class="pdp-gallery-callout-text">Remote Control Included</span>';
+      '<span class="pdp-gallery-callout-icon" aria-hidden="true">✓</span>' +
+      '<span class="pdp-gallery-callout-text">Remote Included</span>';
     stage.appendChild(callout);
 
     return stage;
@@ -834,7 +908,10 @@
     var mainSrc = mainImage.getAttribute("src") || getProductImageUrlBySlug(slug);
     if (!mainSrc) return;
 
-    resolveGalleryMedia(mainSrc, slug).then(function (items) {
+    resolveGalleryMedia(mainSrc, slug).then(function (bundle) {
+      var items = (bundle && bundle.showcase) || [];
+      var included = (bundle && bundle.included) || [];
+      renderIncludedMediaSection(included);
       if (!items || items.length < 2) return;
 
       var thumbs = document.createElement("div");
@@ -877,7 +954,7 @@
           thumbImg.alt = "";
           thumbImg.loading = "lazy";
           thumbImg.width = 120;
-          thumbImg.height = 120;
+          thumbImg.height = 150;
           button.appendChild(thumbImg);
         }
 
@@ -885,6 +962,7 @@
           if (galleryNav) galleryNav.setIndex(index);
           showGalleryMedia(mainImage, inner, item);
           setActiveGalleryThumb(thumbs, item);
+          scrollGalleryThumbIntoView(thumbs, index);
         });
         thumbs.appendChild(button);
       });
