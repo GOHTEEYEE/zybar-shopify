@@ -5742,12 +5742,12 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   }
 
   .pdp-included-media-card {
-    flex: 0 0 112px;
-    width: 112px;
+    flex: 0 0 min(260px, 78vw);
+    width: min(260px, 78vw);
   }
 
   .pdp-included-media-card img {
-    height: 140px;
+    height: min(320px, 85vw);
   }
 
   .product-showcase-details {
