@@ -1,0 +1,92 @@
+{
+  "updatedAt": "2026-07-17T15:40:00.000Z",
+  "sections": {
+    "styledSpaces": {
+      "id": "styled-spaces",
+      "title": "Styled Spaces",
+      "subtitle": "See how our handcrafted LED artwork transforms premium interiors.",
+      "items": [
+        {
+          "src": "/lifestyle-gallery/styled/maybach-bedroom.jpg",
+          "alt": "Maybach LED artwork above a modern bedroom headboard",
+          "priority": 98,
+          "scene": "luxury-bedroom"
+        },
+        {
+          "src": "/Poster/popup-garage-hero.png",
+          "alt": "Maybach LED wall art in a softly lit luxury bedroom",
+          "priority": 96,
+          "scene": "luxury-bedroom"
+        },
+        {
+          "src": "/lifestyle-gallery/styled/mclaren-bedroom.jpg",
+          "alt": "McLaren LED artwork glowing above a minimalist bed",
+          "priority": 94,
+          "scene": "luxury-bedroom"
+        },
+        {
+          "src": "/lifestyle-gallery/styled/cls-hallway.jpg",
+          "alt": "Mercedes CLS LED artwork in a luxury hallway",
+          "priority": 92,
+          "scene": "luxury-hallway"
+        },
+        {
+          "src": "/lifestyle-gallery/styled/cls-sideboard.png",
+          "alt": "Dual Mercedes LED panels styled on a green sideboard",
+          "priority": 90,
+          "scene": "modern-living-room"
+        },
+        {
+          "src": "/lifestyle-gallery/styled/maybach-sakura-easel.png",
+          "alt": "Maybach sakura LED artwork on a studio easel",
+          "priority": 86,
+          "scene": "minimal-office"
+        },
+        {
+          "src": "/lifestyle-gallery/styled/amg-spotlight-wall.png",
+          "alt": "AMG LED artwork spotlighted on a clean gallery wall",
+          "priority": 84,
+          "scene": "gallery-wall"
+        }
+      ]
+    },
+    "inTheWild": {
+      "id": "in-the-wild",
+      "title": "In The Wild",
+      "subtitle": "Real customer setups from around the world.",
+      "items": [
+        {
+          "src": "/lifestyle-gallery/wild/rolls-royce-shelf.png",
+          "alt": "Rolls-Royce LED artwork on a customer shelf",
+          "priority": 88,
+          "scene": "customer-shelf"
+        },
+        {
+          "src": "/lifestyle-gallery/wild/porsche-designer-figure.png",
+          "alt": "Porsche LED artwork glowing in a customer space",
+          "priority": 82,
+          "scene": "customer-setup"
+        },
+        {
+          "src": "/lifestyle-gallery/wild/maybach-bearbrick.png",
+          "alt": "Maybach LED artwork in a collector setup",
+          "priority": 78,
+          "scene": "collector-setup"
+        },
+        {
+          "src": "/lifestyle-gallery/wild/bmw-m3-bearbrick.png",
+          "alt": "BMW M3 LED artwork with red taillight glow",
+          "priority": 76,
+          "scene": "collector-setup"
+        },
+        {
+          "src": "/lifestyle-gallery/wild/gtr-bmw-pink-light.png",
+          "alt": "GT-R and BMW LED panels in a customer room",
+          "priority": 42,
+          "scene": "gaming-room",
+          "deprioritized": true
+        }
+      ]
+    }
+  }
+}
