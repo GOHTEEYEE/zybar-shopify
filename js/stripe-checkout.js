@@ -1092,13 +1092,35 @@
       size: size,
       powerType: powerType
     });
+    var compareAt = typeof pricing.calculateProductCompareAtPrice === "function"
+      ? pricing.calculateProductCompareAtPrice({
+          slug: slug,
+          productSlug: slug,
+          size: size,
+          powerType: powerType
+        })
+      : 0;
     var priceText = pricing.formatUsd(amount);
+    var priceTextUsd = priceText + " USD";
     var sizeLabel = sizeToLabel(size);
     var powerLabel = powerTypeToLabel(powerType);
     var variantLabel = sizeLabel + " · " + powerLabel;
+    var hasCompare = Number(compareAt) > Number(amount) && Number(amount) > 0;
 
-    var mainPrice = document.querySelector(".product-price");
-    if (mainPrice) mainPrice.textContent = priceText;
+    var mainPrice = document.querySelector(".product-price, .pdp-price-sale");
+    if (mainPrice) mainPrice.textContent = priceTextUsd;
+
+    var compareEl = document.querySelector(".pdp-price-compare");
+    if (compareEl) {
+      compareEl.textContent = hasCompare ? pricing.formatUsd(compareAt) + " USD" : "";
+      compareEl.hidden = !hasCompare;
+    }
+
+    var saleBadge = document.querySelector(".pdp-sale-badge");
+    if (saleBadge) saleBadge.hidden = !hasCompare;
+
+    var priceRow = document.querySelector(".pdp-price-row");
+    if (priceRow) priceRow.classList.toggle("has-compare", hasCompare);
 
     var stickyPrice = document.querySelector(".pdp-sticky-price");
     if (stickyPrice) stickyPrice.textContent = priceText;

@@ -4,6 +4,10 @@
     "30x45": 76,
     "40x60": 91
   },
+  "compareAtPricesBySize": {
+    "30x45": 115,
+    "40x60": 130
+  },
   "perProductPricesBySize": {},
   "products": [
     {

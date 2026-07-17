@@ -3178,7 +3178,7 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   font-size: clamp(1.85rem, 4.2vw, 2.45rem);
   font-weight: 400;
   line-height: 1.12;
-  letter-spacing: 0.015em;
+  letter-spacing: 0.02em;
   color: var(--text);
 }
 
@@ -3262,25 +3262,28 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 }
 
 .pdp-luxury-options {
-  margin-bottom: 1.75rem;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .pdp-luxury .product-option-label {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.7rem;
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.55);
 }
 
 .pdp-luxury .product-option-label + .product-size-options,
 .pdp-luxury .product-size-options {
-  margin-bottom: 1.35rem;
+  margin-bottom: 0;
 }
 
 .pdp-luxury-power-group {
-  margin-top: 0.15rem;
+  margin-top: 0;
 }
 
 .pdp-luxury-power-group .product-option-label {
@@ -3293,21 +3296,28 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .pdp-luxury .product-size-options,
 .pdp-luxury .product-power-options {
-  gap: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  width: auto;
+  max-width: 100%;
 }
 
 .pdp-luxury .product-size-options button,
 .pdp-luxury .product-size-options .size-option,
 .pdp-luxury .product-power-options button,
 .pdp-luxury .product-power-options .power-type-option {
-  min-height: 34px;
-  padding: 0.42rem 0.5rem;
-  border-radius: 6px;
-  border-color: rgba(255, 255, 255, 0.22);
-  font-size: 0.8rem;
+  width: auto;
+  min-width: 220px;
+  min-height: 48px;
+  padding: 0.75rem 1.75rem;
+  border-radius: 0;
+  border-color: rgba(255, 255, 255, 0.28);
+  font-size: 0.88rem;
   font-weight: 500;
-  letter-spacing: 0.03em;
-  transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease, transform 0.18s ease;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease;
 }
 
 .pdp-luxury .product-size-options button:hover,
@@ -3315,7 +3325,7 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 .pdp-luxury .product-power-options button:hover,
 .pdp-luxury .product-power-options .power-type-option:hover {
   background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.42);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .pdp-luxury .product-size-options button.selected,
@@ -3328,39 +3338,128 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   font-weight: 600;
 }
 
-.pdp-luxury-buy {
-  margin-bottom: 2rem;
+.pdp-low-stock {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 180, 80, 0.95);
 }
 
-.pdp-luxury .product-price.pdp-luxury-price {
-  margin: 0 0 1rem;
-  font-size: 1.35rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+.pdp-low-stock-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff8a1f;
+  flex-shrink: 0;
+}
+
+.pdp-luxury-buy {
+  margin: 1.5rem 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.pdp-price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.85rem 1.15rem;
+  margin: 0;
+}
+
+.pdp-price-compare {
   font-family: "Inter", system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.42);
+  text-decoration: line-through;
+}
+
+.pdp-price-compare[hidden],
+.pdp-sale-badge[hidden] {
+  display: none !important;
+}
+
+.pdp-luxury .product-price.pdp-luxury-price,
+.pdp-luxury .pdp-price-sale {
+  margin: 0;
+  font-size: clamp(1.55rem, 2.4vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-family: "Inter", system-ui, sans-serif;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.pdp-sale-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 4px;
+  background: #ff1f1f;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  align-self: center;
+}
+
+.pdp-shipping-note {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.48);
+  line-height: 1.4;
+}
+
+.pdp-shipping-underline {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .pdp-luxury-cta.product-add-cart {
   width: 100%;
-  min-height: 52px;
-  padding: 0.95rem 1.5rem;
+  height: 72px;
+  min-height: 72px;
+  padding: 0 1.5rem;
   border-radius: 0;
   border: 1px solid var(--text);
   background: var(--text);
   color: var(--bg);
-  font-size: 0.82rem;
+  font-size: 34px;
   font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  transition: background 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  line-height: 1;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, filter 0.2s ease;
 }
 
 .pdp-luxury-cta.product-add-cart:hover {
-  filter: none;
-  background: transparent;
-  color: var(--text);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  filter: brightness(1.08);
+  background: #ffffff;
+  color: var(--bg);
+  border-color: #ffffff;
+  transform: none;
+  box-shadow: none;
+}
+
+.pdp-luxury-cta.product-add-cart:active {
+  filter: brightness(0.92);
+  background: #d8d8d8;
+  border-color: #d8d8d8;
 }
 
 .pdp-luxury-qty-hidden {
@@ -5358,22 +5457,42 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   }
 
   .pdp-luxury-options {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
+    gap: 1.25rem;
   }
 
   .pdp-luxury .product-size-options button,
   .pdp-luxury .product-size-options .size-option,
   .pdp-luxury .product-power-options button,
   .pdp-luxury .product-power-options .power-type-option {
-    min-height: 32px;
-    padding: 0.38rem 0.35rem;
-    font-size: 0.76rem;
-    white-space: normal;
+    min-width: min(220px, 100%);
+    min-height: 44px;
+    padding: 0.7rem 1.5rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .pdp-low-stock {
+    margin-top: 1.25rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+  }
+
+  .pdp-luxury-buy {
+    margin-top: 1.25rem;
+    gap: 1.15rem;
+  }
+
+  .pdp-luxury .product-price.pdp-luxury-price,
+  .pdp-luxury .pdp-price-sale {
+    font-size: 1.45rem;
   }
 
   .pdp-luxury-cta.product-add-cart {
-    min-height: 48px;
-    font-size: 0.78rem;
+    height: 64px;
+    min-height: 64px;
+    font-size: 22px;
+    letter-spacing: 0.5px;
   }
 
   .pdp-luxury-trust {

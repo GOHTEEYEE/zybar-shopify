@@ -25,6 +25,7 @@
       currency: raw.currency || 'USD',
       updatedAt: raw.updatedAt || null,
       products: raw.products || {},
+      compareAtPricesBySize: raw.compareAtPricesBySize || {},
       shippingMethods: raw.shippingMethods || [],
       powerUpgrades: raw.powerUpgrades || {},
       discountCodes: raw.discountCodes || {}
@@ -39,8 +40,15 @@
   function applyProductsJsonFallback(catalog, json) {
     if (!json || typeof json !== 'object') return catalog;
     var defaults = json.pricesBySize || {};
+    var compareDefaults = json.compareAtPricesBySize || {};
     var perProduct = json.perProductPricesBySize || {};
     catalog.products = catalog.products || {};
+    if (!catalog.compareAtPricesBySize || !Object.keys(catalog.compareAtPricesBySize).length) {
+      catalog.compareAtPricesBySize = {
+        '30x45': Number(compareDefaults['30x45']) || 0,
+        '40x60': Number(compareDefaults['40x60']) || 0
+      };
+    }
     (json.products || []).forEach(function (product) {
       if (!product || !product.slug) return;
       var slug = String(product.slug);

@@ -417,16 +417,55 @@
 
     var optionsWrap = document.createElement("div");
     optionsWrap.className = "pdp-luxury-options";
-    if (sizeLabel) optionsWrap.appendChild(sizeLabel);
+    if (sizeLabel) {
+      sizeLabel.textContent = "Size";
+      optionsWrap.appendChild(sizeLabel);
+    }
     if (sizeOptions) optionsWrap.appendChild(sizeOptions);
+
+    var lowStock = document.createElement("p");
+    lowStock.className = "pdp-low-stock";
+    lowStock.setAttribute("aria-live", "polite");
+    lowStock.innerHTML =
+      '<span class="pdp-low-stock-dot" aria-hidden="true"></span>' +
+      '<span class="pdp-low-stock-text">Low Stock: 2 Left</span>';
 
     var buy = document.createElement("div");
     buy.className = "pdp-luxury-buy";
 
+    var priceRow = document.createElement("div");
+    priceRow.className = "pdp-price-row";
+
+    var compareEl = document.createElement("span");
+    compareEl.className = "pdp-price-compare";
+    compareEl.hidden = true;
+
     if (price) {
-      price.classList.add("pdp-luxury-price");
-      buy.appendChild(price);
+      price.classList.add("pdp-luxury-price", "pdp-price-sale", "product-price");
+      if (!/USD/i.test(price.textContent || "")) {
+        price.textContent = String(price.textContent || "").trim() + " USD";
+      }
+    } else {
+      price = document.createElement("span");
+      price.className = "product-price pdp-luxury-price pdp-price-sale";
+      price.textContent = "$0.00 USD";
     }
+
+    var saleBadge = document.createElement("span");
+    saleBadge.className = "pdp-sale-badge";
+    saleBadge.textContent = "SALE";
+    saleBadge.hidden = true;
+
+    priceRow.appendChild(compareEl);
+    priceRow.appendChild(price);
+    priceRow.appendChild(saleBadge);
+    buy.appendChild(priceRow);
+
+    var shippingNote = document.createElement("p");
+    shippingNote.className = "pdp-shipping-note";
+    shippingNote.innerHTML =
+      '<span class="pdp-shipping-underline">Shipping</span> calculated at checkout.';
+    buy.appendChild(shippingNote);
 
     if (cartRow) {
       var qty = cartRow.querySelector(".product-quantity");
@@ -436,7 +475,7 @@
         if (addBtn.tagName === "A") {
           var cartButton = document.createElement("button");
           cartButton.type = "button";
-          cartButton.className = addBtn.className;
+          cartButton.className = addBtn.className + " pdp-luxury-cta";
           cartButton.setAttribute("data-stripe-action", "checkout");
           cartButton.textContent = "Add to Cart";
           addBtn = cartButton;
@@ -454,6 +493,7 @@
     details.appendChild(top);
     details.appendChild(lede);
     details.appendChild(optionsWrap);
+    details.appendChild(lowStock);
     details.appendChild(buy);
     details.appendChild(buildTrustBlock());
     details.appendChild(buildDeliveryTimeline());
