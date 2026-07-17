@@ -624,7 +624,7 @@ body.pdp-gallery-lightbox-open {
   cursor: ew-resize;
   touch-action: none;
   pointer-events: none;
-  opacity: 0.92;
+  opacity: 1;
 }
 
 .poster-hero-compare-handle.is-interactive {
@@ -638,24 +638,11 @@ body.pdp-gallery-lightbox-open {
   left: 50%;
   width: 1px;
   transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .poster-hero-compare-knob {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 2.25rem;
-  height: 2.25rem;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  background: rgba(10, 10, 12, 0.62);
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
-}
-
-.poster-hero-compare-handle.is-interactive:active .poster-hero-compare-knob {
-  transform: translate(-50%, -50%) scale(0.96);
+  display: none;
 }
 
 .poster-hero-copy {
