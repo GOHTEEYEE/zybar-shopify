@@ -3250,9 +3250,17 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .pdp-luxury-options {
   margin-bottom: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem 1.25rem;
+  align-items: start;
+}
+
+.pdp-luxury-size-group,
+.pdp-luxury-power-group {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  min-width: 0;
 }
 
 .pdp-luxury .product-option-label {
@@ -3284,9 +3292,11 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 .pdp-luxury .product-size-options,
 .pdp-luxury .product-power-options {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
   gap: 0.65rem;
-  width: auto;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -3294,10 +3304,10 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 .pdp-luxury .product-size-options .size-option,
 .pdp-luxury .product-power-options button,
 .pdp-luxury .product-power-options .power-type-option {
-  width: auto;
-  min-width: 220px;
+  width: 100%;
+  min-width: 0;
   min-height: 48px;
-  padding: 0.75rem 1.75rem;
+  padding: 0.75rem 1.25rem;
   border-radius: 0;
   border-color: rgba(255, 255, 255, 0.28);
   font-size: 0.88rem;
@@ -5445,18 +5455,19 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
   .pdp-luxury-options {
     margin-bottom: 0;
-    gap: 1.25rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.25rem 0.85rem;
   }
 
   .pdp-luxury .product-size-options button,
   .pdp-luxury .product-size-options .size-option,
   .pdp-luxury .product-power-options button,
   .pdp-luxury .product-power-options .power-type-option {
-    min-width: min(220px, 100%);
+    min-width: 0;
     min-height: 44px;
-    padding: 0.7rem 1.5rem;
-    font-size: 0.82rem;
-    white-space: nowrap;
+    padding: 0.7rem 0.75rem;
+    font-size: 0.78rem;
+    white-space: normal;
   }
 
   .pdp-low-stock {

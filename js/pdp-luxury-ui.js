@@ -417,11 +417,15 @@
 
     var optionsWrap = document.createElement("div");
     optionsWrap.className = "pdp-luxury-options";
+
+    var sizeGroup = document.createElement("div");
+    sizeGroup.className = "pdp-luxury-size-group";
     if (sizeLabel) {
       sizeLabel.textContent = "Size";
-      optionsWrap.appendChild(sizeLabel);
+      sizeGroup.appendChild(sizeLabel);
     }
-    if (sizeOptions) optionsWrap.appendChild(sizeOptions);
+    if (sizeOptions) sizeGroup.appendChild(sizeOptions);
+    optionsWrap.appendChild(sizeGroup);
 
     var lowStock = document.createElement("p");
     lowStock.className = "pdp-low-stock";
