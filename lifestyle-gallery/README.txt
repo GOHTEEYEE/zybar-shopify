@@ -1,7 +1,4 @@
-Drop lifestyle images here, then update data/lifestyle-gallery.json.
+Drop customer / lifestyle photos into styled/ or wild/, then add them to
+data/lifestyle-gallery.json under "items".
 
-Folders:
-  styled/  → Styled Spaces (professional interiors only)
-  wild/    → In The Wild (authentic customer setups only)
-
-Never mix the two. Prefer 4:5, 3:4, or square crops with strong product visibility.
+No categories on the site — everything shows in one photo wall.

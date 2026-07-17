@@ -20,26 +20,19 @@
     });
   }
 
-  /**
-   * Editorial rhythm:
-   * Large / Small / Small
-   * Small / Large / Small
-   */
-  function assignEditorialSizes(items) {
-    return items.map(function (item, index) {
-      var pattern = index % 6;
-      var size = pattern === 0 || pattern === 4 ? 'feature' : 'standard';
-      return Object.assign({}, item, { size: size });
-    });
+  function flattenPayload(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload.items)) return payload.items.slice();
+
+    var sections = payload.sections || {};
+    var styled = (sections.styledSpaces && sections.styledSpaces.items) || [];
+    var wild = (sections.inTheWild && sections.inTheWild.items) || [];
+    return styled.concat(wild);
   }
 
   function buildFigure(item, index) {
-    var sizeClass =
-      item.size === 'feature' ? ' lifestyle-item--feature' : ' lifestyle-item--standard';
     return (
-      '<figure class="lifestyle-item' +
-      sizeClass +
-      '" data-lifestyle-item>' +
+      '<figure class="lifestyle-item">' +
       '<button type="button" class="lifestyle-item-hit" data-lifestyle-open="' +
       index +
       '" aria-label="View ' +
@@ -53,34 +46,6 @@
       '</button>' +
       '</figure>'
     );
-  }
-
-  function renderSection(sectionKey, sectionData, startIndex) {
-    var mount = root.querySelector('[data-lifestyle-section="' + sectionKey + '"]');
-    if (!mount || !sectionData) return startIndex;
-
-    var titleEl = mount.querySelector('[data-lifestyle-title]');
-    var subtitleEl = mount.querySelector('[data-lifestyle-subtitle]');
-    var gridEl = mount.querySelector('[data-lifestyle-grid]');
-    if (titleEl) titleEl.textContent = sectionData.title || '';
-    if (subtitleEl) subtitleEl.textContent = sectionData.subtitle || '';
-    if (!gridEl) return startIndex;
-
-    var prepared = assignEditorialSizes(sortByPriority(sectionData.items || []));
-    gridEl.innerHTML = prepared
-      .map(function (item, i) {
-        return buildFigure(item, startIndex + i);
-      })
-      .join('');
-
-    return startIndex + prepared.length;
-  }
-
-  function collectFlatItems(payload) {
-    var sections = (payload && payload.sections) || {};
-    var styled = sortByPriority((sections.styledSpaces && sections.styledSpaces.items) || []);
-    var wild = sortByPriority((sections.inTheWild && sections.inTheWild.items) || []);
-    return assignEditorialSizes(styled).concat(assignEditorialSizes(wild));
   }
 
   function ensureLightbox() {
@@ -134,23 +99,36 @@
     }, 200);
   }
 
-  function bindLightbox(flatItems) {
+  function bindLightbox(items) {
     root.addEventListener('click', function (event) {
       var btn = event.target.closest('[data-lifestyle-open]');
       if (!btn || !root.contains(btn)) return;
       var index = parseInt(btn.getAttribute('data-lifestyle-open'), 10);
-      var item = flatItems[index];
+      var item = items[index];
       if (!item) return;
       openLightbox(item.src, item.alt);
     });
   }
 
   function boot(payload) {
-    var sections = (payload && payload.sections) || {};
-    renderSection('styledSpaces', sections.styledSpaces, 0);
-    var styledCount = sortByPriority((sections.styledSpaces && sections.styledSpaces.items) || []).length;
-    renderSection('inTheWild', sections.inTheWild, styledCount);
-    bindLightbox(collectFlatItems(payload));
+    var titleEl = root.querySelector('[data-lifestyle-title]');
+    var subtitleEl = root.querySelector('[data-lifestyle-subtitle]');
+    var gridEl = root.querySelector('[data-lifestyle-grid]');
+    if (!gridEl) return;
+
+    if (titleEl && payload.title) titleEl.textContent = payload.title;
+    if (subtitleEl) {
+      if (payload.subtitle) {
+        subtitleEl.textContent = payload.subtitle;
+        subtitleEl.hidden = false;
+      } else {
+        subtitleEl.hidden = true;
+      }
+    }
+
+    var items = sortByPriority(flattenPayload(payload));
+    gridEl.innerHTML = items.map(buildFigure).join('');
+    bindLightbox(items);
     root.classList.add('is-ready');
   }
 
