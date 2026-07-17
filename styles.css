@@ -5121,6 +5121,7 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .site-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050505;
 }
 
 .footer-wrap {
@@ -5133,10 +5134,154 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   color: var(--muted);
 }
 
+.footer-wrap--premium {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1.15rem;
+  padding: 2rem 0 2.25rem;
+}
+
+.footer-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.15rem;
+}
+
+.footer-social-link {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.footer-social-link svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.footer-social-link:hover,
+.footer-social-link:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.footer-payments {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  max-width: 720px;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+}
+
+.footer-pay-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-width: 52px;
+  height: 30px;
+  padding: 0 0.55rem;
+  border-radius: 5px;
+  background: #fff;
+  color: #111;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.footer-pay-badge.is-visa {
+  color: #1a1f71;
+  font-style: italic;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.footer-pay-badge.is-mastercard {
+  gap: 0;
+  background: #fff;
+  min-width: 46px;
+}
+
+.footer-pay-badge .mc-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.footer-pay-badge .mc-red {
+  background: #eb001b;
+}
+
+.footer-pay-badge .mc-orange {
+  background: #f79e1b;
+  margin-left: -6px;
+}
+
+.footer-pay-badge.is-amex {
+  background: #2e77bb;
+  color: #fff;
+  letter-spacing: 0.08em;
+}
+
+.footer-pay-badge.is-applepay {
+  background: #000;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.7rem;
+}
+
+.footer-pay-badge.is-applepay svg {
+  width: 14px;
+  height: 14px;
+}
+
+.footer-pay-badge.is-gpay {
+  color: #4285f4;
+  font-weight: 700;
+}
+
+.footer-pay-badge.is-paypal {
+  color: #003087;
+  font-weight: 800;
+}
+
+.footer-pay-badge.is-klarna {
+  background: #ffb3c7;
+  color: #0a0a0a;
+}
+
+.footer-pay-badge.is-link {
+  background: #00d66f;
+  color: #04160c;
+}
+
 .footer-copyright {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.footer-copyright--center {
+  align-items: center;
+  margin-top: 0.15rem;
 }
 
 .footer-wrap .footer-copyright a,
@@ -5146,6 +5291,10 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .footer-policies {
   flex-shrink: 0;
+}
+
+.footer-policies--inline {
+  width: 100%;
 }
 
 .footer-policies-title {
@@ -5164,6 +5313,13 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   padding: 0;
 }
 
+.footer-policies-list--inline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem 0.75rem;
+}
+
 .footer-policies-list li {
   margin: 0;
   padding: 0;
@@ -5173,6 +5329,16 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   content: "– ";
   color: rgba(255, 255, 255, 0.5);
   pointer-events: none;
+}
+
+.footer-policies-list--inline li::before {
+  content: none;
+}
+
+.footer-policies-list--inline li:not(:last-child)::after {
+  content: "·";
+  margin-left: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .footer-policies-list a {
@@ -5186,6 +5352,14 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   padding: 8px 0;
   display: inline-block;
   transition: color 0.2s ease;
+}
+
+.footer-policies-list--inline a {
+  padding: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .footer-policies-list a:hover {
@@ -5780,6 +5954,30 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
     padding: 1.5rem 0 1.75rem;
   }
 
+  .footer-wrap--premium {
+    padding: 1.75rem 0 2rem;
+    gap: 1rem;
+  }
+
+  .footer-social {
+    gap: 0.85rem;
+  }
+
+  .footer-social-link {
+    width: 38px;
+    height: 38px;
+  }
+
+  .footer-payments {
+    gap: 0.35rem;
+  }
+
+  .footer-pay-badge {
+    min-width: 48px;
+    height: 28px;
+    font-size: 0.58rem;
+  }
+
   .footer-policies {
     width: 100%;
     text-align: center;
@@ -5788,6 +5986,11 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   .footer-policies-list a {
     font-size: 0.78rem;
     letter-spacing: 0.1em;
+  }
+
+  .footer-policies-list--inline a {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
   }
 
   .contact-grid {
