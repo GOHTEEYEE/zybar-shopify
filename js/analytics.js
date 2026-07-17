@@ -431,6 +431,15 @@
 
   // ---- Shopify-style event helpers ----
 
+  function fireMetaPixel(method, args) {
+    try {
+      var mp = window.ZYBAR && window.ZYBAR.MetaPixel;
+      if (mp && typeof mp[method] === 'function') {
+        mp[method].apply(mp, args || []);
+      }
+    } catch (e) {}
+  }
+
   function trackPageView() {
     track('page_view', { page_url: getPageUrl() });
   }
@@ -438,6 +447,7 @@
   function trackProductView(productId) {
     if (!productId) return;
     track('product_view', { product_id: productId });
+    fireMetaPixel('trackViewContent', [productId]);
   }
 
   function trackCollectionView(collectionId) {
@@ -464,6 +474,7 @@
       }
     });
     syncCartSession({ items: cartItems || [], status: 'active' });
+    fireMetaPixel('trackAddToCart', [item]);
   }
 
   function trackRemoveFromCart(item, cartItems, cartValueUSD) {
@@ -488,6 +499,7 @@
   function trackBeginCheckout(items, cartValueUSD) {
     track('begin_checkout', { metadata: { item_count: (items || []).length } });
     syncCartSession({ items: items || [], cartValueUSD: cartValueUSD, status: 'checkout_started' });
+    fireMetaPixel('trackInitiateCheckout', [items, cartValueUSD]);
   }
 
   function trackShippingSelected(method, cartValueUSD) {
@@ -498,6 +510,7 @@
   function trackPaymentStarted(method, cartValueUSD) {
     track('payment_started', { metadata: { payment_method: method || 'card', cart_value_usd: cartValueUSD } });
     syncCartSession({ status: 'checkout_started', paymentMethod: method || 'card', cartValueUSD: cartValueUSD });
+    fireMetaPixel('trackAddPaymentInfo', [cartValueUSD]);
   }
 
   function trackPurchase(orderData) {
@@ -514,6 +527,7 @@
       stripe_session_id: orderData.session_id || null,
       amount_cents: orderData.amount_cents || null
     });
+    fireMetaPixel('trackPurchase', [orderData]);
   }
 
   function trackWishlistAdd(productId) {
