@@ -519,6 +519,9 @@
       metadata: orderData,
       dedup_key: orderData.session_id ? 'purchase:' + orderData.session_id : buildDedupKey('purchase', orderData.order_id || '')
     });
+    track('checkout_completed', {
+      metadata: Object.assign({ source: 'storefront' }, orderData)
+    });
     postApi('/api/analytics/track', {
       type: 'purchase',
       cart_id: getCartId(),
@@ -544,6 +547,22 @@
 
   function trackNewsletterSignup(email) {
     track('newsletter_signup', { metadata: { email_domain: String(email || '').split('@')[1] || '' } });
+  }
+
+  function trackPopupViewed(meta) {
+    track('popup_viewed', { metadata: meta || {} });
+  }
+
+  function trackPopupClosed(meta) {
+    track('popup_closed', { metadata: meta || {} });
+  }
+
+  function trackEmailSubmitted(meta) {
+    track('email_submitted', { metadata: meta || {} });
+  }
+
+  function trackDiscountClaimed(meta) {
+    track('discount_claimed', { metadata: meta || {} });
   }
 
   function trackVariantSelection(productId, variant) {
@@ -630,6 +649,10 @@
     trackWishlistRemove: trackWishlistRemove,
     trackContactSubmit: trackContactSubmit,
     trackNewsletterSignup: trackNewsletterSignup,
+    trackPopupViewed: trackPopupViewed,
+    trackPopupClosed: trackPopupClosed,
+    trackEmailSubmitted: trackEmailSubmitted,
+    trackDiscountClaimed: trackDiscountClaimed,
     trackVariantSelection: trackVariantSelection,
     syncCartSession: syncCartSession
   };

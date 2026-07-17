@@ -1,0 +1,318 @@
+/* Premium ZYBAR Garage email capture popup */
+.zybar-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 250ms ease, visibility 250ms ease;
+}
+
+.zybar-popup-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.zybar-popup {
+  position: relative;
+  width: min(560px, 92vw);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  background: #171717;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65);
+  color: #fff;
+  transform: scale(0.96);
+  opacity: 0;
+  transition: transform 250ms ease, opacity 250ms ease;
+}
+
+.zybar-popup-overlay.is-open .zybar-popup {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.zybar-popup-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 3;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.zybar-popup-close:hover,
+.zybar-popup-close:focus-visible {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  outline: none;
+}
+
+.zybar-popup-hero {
+  width: 100%;
+  height: clamp(180px, 40vh, 280px);
+  object-fit: cover;
+  object-position: center 35%;
+  display: block;
+  border-radius: 17px 17px 0 0;
+}
+
+.zybar-popup-body {
+  padding: 1.35rem 1.6rem 1.7rem;
+}
+
+.zybar-popup-kicker {
+  margin: 0;
+  text-align: center;
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.zybar-popup-title {
+  margin: 0.35rem 0 0;
+  text-align: center;
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.55rem, 4vw, 2rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+
+.zybar-popup-offer {
+  margin: 0.85rem 0 0;
+  text-align: center;
+  font-family: Inter, Helvetica, Arial, sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.zybar-popup-offer strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.zybar-popup-benefits {
+  list-style: none;
+  margin: 1.15rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.zybar-popup-benefits li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.zybar-popup-benefits li span {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.9);
+  flex-shrink: 0;
+}
+
+.zybar-popup-form {
+  margin-top: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.zybar-popup-input,
+.zybar-popup-select {
+  width: 100%;
+  height: 52px;
+  padding: 0 1.05rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.zybar-popup-input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.zybar-popup-input:focus,
+.zybar-popup-select:focus {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.zybar-popup-input.is-invalid {
+  border-color: rgba(220, 80, 80, 0.75);
+}
+
+.zybar-popup-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.55) 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.55) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 2.4rem;
+  cursor: pointer;
+}
+
+.zybar-popup-select option {
+  color: #111;
+  background: #fff;
+}
+
+.zybar-popup-error {
+  min-height: 1.1rem;
+  margin: 0;
+  font-size: 0.78rem;
+  color: #ff8f8f;
+}
+
+.zybar-popup-cta {
+  width: 100%;
+  height: 60px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.zybar-popup-cta:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.zybar-popup-cta:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.zybar-popup-note {
+  margin: 0.15rem 0 0;
+  text-align: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.zybar-popup-success {
+  padding: 2.4rem 1.6rem 2rem;
+  text-align: center;
+}
+
+.zybar-popup-success-icon {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 1.15rem;
+  margin-bottom: 1rem;
+}
+
+.zybar-popup-success h2 {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 600;
+}
+
+.zybar-popup-success p {
+  margin: 0.7rem 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.zybar-popup-code-wrap {
+  margin: 1.35rem auto 0;
+  display: inline-block;
+  padding: 0.95rem 1.35rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.zybar-popup-code-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.zybar-popup-code {
+  margin-top: 0.35rem;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.55rem;
+  letter-spacing: 0.14em;
+}
+
+.zybar-popup-success .zybar-popup-cta {
+  margin-top: 1.4rem;
+}
+
+@media (max-width: 640px) {
+  .zybar-popup-overlay {
+    padding: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .zybar-popup {
+    width: 92vw;
+    max-height: 90vh;
+    border-radius: 18px 18px 12px 12px;
+  }
+
+  .zybar-popup-hero {
+    height: clamp(150px, 34vh, 220px);
+    border-radius: 17px 17px 0 0;
+  }
+
+  .zybar-popup-body {
+    padding: 1.15rem 1.15rem 1.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zybar-popup-overlay,
+  .zybar-popup {
+    transition: none;
+  }
+}

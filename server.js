@@ -1031,6 +1031,25 @@ app.post('/api/contact', async (req, res) => {
   return res.json({ ok: true, id: row.id, supabaseSaved: supabaseSaved });
 });
 
+// ----- Premium garage newsletter / email capture -----
+app.post('/api/newsletter/subscribe', async (req, res) => {
+  try {
+    const newsletter = require('./lib/newsletter.js');
+    const result = await newsletter.subscribeNewsletter(
+      {
+        supabase: supabase,
+        body: req.body || {},
+        req: req
+      },
+      process.env
+    );
+    return res.status(result.status || 200).json(result.json || {});
+  } catch (err) {
+    console.error('POST /api/newsletter/subscribe error:', err);
+    return res.status(500).json({ error: 'Unable to join right now. Please try again.' });
+  }
+});
+
 app.get('/api/contact-inquiries', async (req, res) => {
   if (supabase) {
     try {
