@@ -1651,15 +1651,23 @@ body.pdp-gallery-lightbox-open {
 
 /* Fixed 50/50 comparison with perfectly stacked images */
 .comparison-overlay {
-  --position: 50%;
+  --pos: 50;
+  --position: calc(var(--pos) * 1%);
   position: relative;
   width: 100%;
   max-width: 680px;
   aspect-ratio: 5/4;
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   background: #111;
+  touch-action: none;
+  contain: layout paint;
+  cursor: ew-resize;
+}
+
+.comparison-overlay.is-dragging,
+.comparison-overlay.is-dragging * {
+  cursor: ew-resize;
 }
 
 .comparison-image {
@@ -1671,49 +1679,39 @@ body.pdp-gallery-lightbox-open {
   object-fit: cover;
   object-position: center center;
   display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .comparison-image-a {
-  /* Show left side up to slider position */
-  clip-path: inset(0 calc(100% - var(--position)) 0 0);
+  z-index: 1;
+  clip-path: inset(0 calc(100% - (var(--pos) * 1%)) 0 0);
+  will-change: clip-path;
 }
 
 .comparison-image-b {
-  /* Show right side from slider position */
-  clip-path: inset(0 0 0 var(--position));
+  z-index: 0;
+  clip-path: none;
 }
 
 .comparison-divider {
   position: absolute;
-  left: var(--position);
+  left: 0;
   top: 0;
   bottom: 0;
-  width: 2px;
-  transform: translateX(-1px);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  width: 1px;
+  transform: translate3d(calc(var(--pos) * 1%), 0, 0);
+  background: rgba(255, 255, 255, 0.28);
+  box-shadow: none;
   z-index: 2;
   cursor: ew-resize;
+  pointer-events: none;
+  will-change: transform;
 }
 
 .comparison-divider::after {
-  content: "< >";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 42px;
-  height: 42px;
-  border-radius: 999px;
-  background: #fff;
-  color: #222;
-  display: grid;
-  place-items: center;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-  pointer-events: none;
+  display: none;
 }
 
 .comparison-labels {
@@ -4224,12 +4222,15 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   position: relative;
   width: 100%;
   max-width: 680px;
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
   background: #111;
   aspect-ratio: 5/4;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  --position: 50%;
+  --pos: 50;
+  --position: calc(var(--pos) * 1%);
+  touch-action: none;
+  contain: layout paint;
+  cursor: ew-resize;
 }
 
 .pdp-comparison-wrap .comparison-image {
@@ -4241,40 +4242,38 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   object-fit: cover;
   object-position: center;
   display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-.pdp-comparison-wrap .comparison-image-a { clip-path: inset(0 calc(100% - var(--position)) 0 0); }
-.pdp-comparison-wrap .comparison-image-b { clip-path: inset(0 0 0 var(--position)); }
+.pdp-comparison-wrap .comparison-image-a {
+  z-index: 1;
+  clip-path: inset(0 calc(100% - (var(--pos) * 1%)) 0 0);
+  will-change: clip-path;
+}
+
+.pdp-comparison-wrap .comparison-image-b {
+  z-index: 0;
+  clip-path: none;
+}
 
 .pdp-comparison-divider {
   position: absolute;
-  left: var(--position, 50%);
+  left: 0;
   top: 0;
   bottom: 0;
-  width: 2px;
-  transform: translateX(-1px);
-  background: rgba(255,255,255,0.9);
+  width: 1px;
+  transform: translate3d(calc(var(--pos) * 1%), 0, 0);
+  background: rgba(255, 255, 255, 0.28);
   z-index: 2;
   cursor: ew-resize;
+  pointer-events: none;
+  will-change: transform;
 }
 
 .pdp-comparison-divider::after {
-  content: "‹ ›";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #fff;
-  color: #111;
-  display: grid;
-  place-items: center;
-  font-size: 1rem;
-  font-weight: 700;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-  pointer-events: none;
+  display: none;
 }
 
 .pdp-comparison-labels {
