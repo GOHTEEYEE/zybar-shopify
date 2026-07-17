@@ -6,18 +6,28 @@
 
   var DATA_URL = '/data/lifestyle-gallery.json';
 
+  /* Visual rhythm — not a uniform square grid */
+  var SHAPE_CYCLE = [
+    'tall',
+    'wide',
+    'portrait',
+    'square',
+    'hero',
+    'wide',
+    'portrait',
+    'tall',
+    'square',
+    'wide',
+    'portrait',
+    'tall'
+  ];
+
   function escapeHtml(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
-  }
-
-  function sortByPriority(items) {
-    return (items || []).slice().sort(function (a, b) {
-      return (Number(b.priority) || 0) - (Number(a.priority) || 0);
-    });
   }
 
   function flattenPayload(payload) {
@@ -30,9 +40,37 @@
     return styled.concat(wild);
   }
 
+  /** Keep strong shots near top, then weave the rest so similar scenes don't stack. */
+  function arrangeItems(items) {
+    var list = (items || []).slice().sort(function (a, b) {
+      return (Number(b.priority) || 0) - (Number(a.priority) || 0);
+    });
+    if (list.length < 4) return list;
+
+    var lead = list.slice(0, 2);
+    var rest = list.slice(2);
+    var left = [];
+    var right = [];
+    rest.forEach(function (item, i) {
+      (i % 2 === 0 ? left : right).push(item);
+    });
+
+    var woven = [];
+    var i = 0;
+    while (i < left.length || i < right.length) {
+      if (i < left.length) woven.push(left[i]);
+      if (i < right.length) woven.push(right[i]);
+      i += 1;
+    }
+    return lead.concat(woven);
+  }
+
   function buildFigure(item, index) {
+    var shape = SHAPE_CYCLE[index % SHAPE_CYCLE.length];
     return (
-      '<figure class="lifestyle-item">' +
+      '<figure class="lifestyle-item lifestyle-item--' +
+      shape +
+      '">' +
       '<button type="button" class="lifestyle-item-hit" data-lifestyle-open="' +
       index +
       '" aria-label="View ' +
@@ -126,7 +164,7 @@
       }
     }
 
-    var items = sortByPriority(flattenPayload(payload));
+    var items = arrangeItems(flattenPayload(payload));
     gridEl.innerHTML = items.map(buildFigure).join('');
     bindLightbox(items);
     root.classList.add('is-ready');
