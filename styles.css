@@ -3250,10 +3250,10 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .pdp-luxury-options {
   margin-bottom: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1.5rem 1.25rem;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: stretch;
 }
 
 .pdp-luxury-size-group,
@@ -3291,10 +3291,8 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .pdp-luxury .product-size-options,
 .pdp-luxury .product-power-options {
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
   width: 100%;
   max-width: 100%;
@@ -3307,7 +3305,7 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   width: 100%;
   min-width: 0;
   min-height: 48px;
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 1rem;
   border-radius: 0;
   border-color: rgba(255, 255, 255, 0.28);
   font-size: 0.88rem;
@@ -5455,8 +5453,13 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
   .pdp-luxury-options {
     margin-bottom: 0;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 1.25rem 0.85rem;
+    gap: 1.25rem;
+  }
+
+  .pdp-luxury .product-size-options,
+  .pdp-luxury .product-power-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
   }
 
   .pdp-luxury .product-size-options button,
@@ -5465,8 +5468,8 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   .pdp-luxury .product-power-options .power-type-option {
     min-width: 0;
     min-height: 44px;
-    padding: 0.7rem 0.75rem;
-    font-size: 0.78rem;
+    padding: 0.7rem 0.55rem;
+    font-size: 0.76rem;
     white-space: normal;
   }
 
