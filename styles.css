@@ -1588,8 +1588,8 @@ body.pdp-gallery-lightbox-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1a1a1e;
-  background-image: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(40,40,48,0.5), transparent);
+  background: #000;
+  background-image: none;
   min-height: 520px;
 }
 
@@ -1762,7 +1762,7 @@ body.pdp-gallery-lightbox-open {
 
 /* ========== Technical Deep-Dive – 50/50 split (text left, image right) ========== */
 .technical-deep-dive {
-  background: #0a0a0a;
+  background: #000;
   padding: 100px 0;
 }
 
@@ -1872,9 +1872,9 @@ body.pdp-gallery-lightbox-open {
 
 /* ========== Power & Compatibility – 50/50 split (image left, text right) ========== */
 .power-compatibility {
-  background: #0a0a0a;
-  padding: 80px 0 100px;
-  margin-top: 80px;
+  background: #000;
+  padding: 100px 0;
+  margin-top: 0;
 }
 
 .power-compatibility-wrap {
@@ -2226,7 +2226,7 @@ body.pdp-gallery-lightbox-open {
 
 /* ========== Product Feature – 50/50 split (image left, copy right) ========== */
 .product-feature {
-  background: #0f0f0f;
+  background: #000;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -2828,8 +2828,14 @@ h2 {
 }
 
 /* Product showcase - two column: image left (textured), details right */
+body:has(.product-showcase-wrap) {
+  background: #000;
+  background-image: none;
+}
+
 .product-showcase-wrap {
   padding: 0 0 3rem;
+  background: #000;
 }
 
 /* Reserve space when sticky bar is present on product page */
