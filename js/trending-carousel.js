@@ -30,9 +30,15 @@
     return name + " Edition";
   }
 
+  var ON_IMAGE_JPG_SLUGS = {
+    "audi-r8-gt3": true,
+    "c-lamborghini-oragne": true,
+    "mercedes-benz-g63-double-tail-2": true
+  };
+
   function productImageSrc(slug) {
-    if (slug === "audi-r8-gt3") {
-      return "/Image/audi-r8-gt3-1-on.jpg";
+    if (ON_IMAGE_JPG_SLUGS[slug]) {
+      return "/Image/" + slug + "-1-on.jpg";
     }
     return "/Image/" + slug + "-1-on.webp";
   }
@@ -43,12 +49,13 @@
     var title = formatCardTitle(product, titleMap);
     var imgSrc = productImageSrc(slug);
     var prices = getCardPrices(pricing, slug);
+    var safeTitle = title.replace(/"/g, "&quot;");
 
     var article = document.createElement("article");
     article.className = "trending-card";
     article.innerHTML =
       '<a class="trending-card-stage" href="' + href + '">' +
-        '<img class="trending-card-img" src="' + imgSrc + '" alt="' + title.replace(/"/g, "&quot;") + '" loading="lazy" width="990" height="990" />' +
+        '<img class="trending-card-img" src="' + imgSrc + '" alt="' + safeTitle + '" loading="lazy" width="990" height="990" onerror="if(/-on\\.webp$/i.test(this.src)){this.onerror=null;this.src=this.src.replace(/-on\\.webp$/i,\'-on.jpg\');}" />' +
         '<span class="trending-sale-badge">Sale</span>' +
       "</a>" +
       '<div class="trending-card-meta">' +

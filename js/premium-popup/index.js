@@ -10,7 +10,7 @@
     { code: 'nl', label: 'Nederlands' }
   ];
 
-  var HERO_SRC = '/Poster/hero-maybach-night.jpg';
+  var HERO_SRC = '/Poster/popup-garage-hero.jpg';
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   function detectLanguage() {
