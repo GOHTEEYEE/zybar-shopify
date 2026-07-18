@@ -112,6 +112,26 @@
     return getDefaultProductImageUrl(slug);
   }
 
+  /** Cart/checkout thumb: try .jpg then -on.webp if the primary src 404s. */
+  function onProductThumbError(img) {
+    if (!img) return;
+    var step = Number(img.getAttribute("data-fallback-step") || "0");
+    var src = String(img.getAttribute("src") || "");
+    var next = "";
+    if (step === 0 && /\.webp$/i.test(src)) {
+      next = src.replace(/\.webp$/i, ".jpg");
+    } else if (step <= 1) {
+      next = src.replace(/-(\d+)(?:-on)?\.(webp|jpe?g|png)$/i, "-$1-on.webp");
+      if (next === src) next = "";
+    }
+    img.setAttribute("data-fallback-step", String(step + 1));
+    if (next && next !== src) {
+      img.src = next;
+      return;
+    }
+    img.onerror = null;
+  }
+
   function readCartItems() {
     try {
       var raw = window.localStorage.getItem(CART_STORAGE_KEY);
@@ -1555,6 +1575,7 @@
     beginCartCheckout: beginCartCheckout,
     refreshCartBadge: refreshCartBadge,
     getCartItemImageUrl: getCartItemImageUrl,
+    onProductThumbError: onProductThumbError,
     formatUsd: formatUsd,
     getCartTotalCount: getCartTotalCount,
     buildDisplayItemsFromCart: buildDisplayItemsFromCart,

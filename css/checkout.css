@@ -303,17 +303,6 @@
   padding-right: 2rem;
 }
 
-.checkout-inline-link {
-  margin: 0.25rem 0 0.85rem;
-  font-size: 13px;
-  color: var(--co-muted);
-}
-
-.checkout-inline-link a {
-  color: var(--co-accent);
-  text-decoration: underline;
-}
-
 .checkout-checkbox {
   display: flex;
   align-items: flex-start;

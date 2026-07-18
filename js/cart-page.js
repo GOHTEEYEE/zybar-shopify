@@ -395,7 +395,7 @@
       '/" class="cart-item-thumb-link" tabindex="-1" aria-hidden="true">' +
       '<img class="cart-item-thumb" src="' +
       imageUrl +
-      '" alt="" width="120" height="120" loading="lazy" />' +
+      '" alt="" width="120" height="120" loading="lazy" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.Cart&amp;&amp;ZYBAR.Cart.onProductThumbError)ZYBAR.Cart.onProductThumbError(this)" />' +
       "</a>" +
       '<div class="cart-item-body">' +
       '<a href="/products/' +

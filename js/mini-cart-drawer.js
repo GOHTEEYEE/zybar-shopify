@@ -212,7 +212,7 @@
       '<div class="mini-cart-thumb-wrap">' +
       '<img class="mini-cart-thumb" src="' +
       escapeHtml(imageUrl) +
-      '" alt="" width="120" height="120" loading="lazy" />' +
+      '" alt="" width="120" height="120" loading="lazy" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.Cart&amp;&amp;ZYBAR.Cart.onProductThumbError)ZYBAR.Cart.onProductThumbError(this)" />' +
       "</div>" +
       '<div class="mini-cart-product-info">' +
       '<h3 class="mini-cart-product-name">' +

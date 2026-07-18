@@ -10,19 +10,19 @@
       name: "Facebook",
       href: "https://www.facebook.com/people/ZY-Bar/61552413785446/",
       svg:
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 8.5h2.5V5.6c-.4-.1-1.6-.2-3-.2-3 0-5 1.8-5 5.2V13H5.8v3.3H8.5V22h3.4v-5.7h2.8l.4-3.3h-3.2v-2.2c0-1 .3-1.6 1.6-1.6z"/></svg>'
+        '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 8.5h2.5V5.6c-.4-.1-1.6-.2-3-.2-3 0-5 1.8-5 5.2V13H5.8v3.3H8.5V22h3.4v-5.7h2.8l.4-3.3h-3.2v-2.2c0-1 .3-1.6 1.6-1.6z"/></svg>'
     },
     {
       name: "Instagram",
       href: "https://www.instagram.com/zybar.shop?igsh=ZWtrbzJvMWtheG82",
       svg:
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 7.2A4.8 4.8 0 1 0 12 16.8 4.8 4.8 0 0 0 12 7.2zm0 7.9a3.1 3.1 0 1 1 0-6.2 3.1 3.1 0 0 1 0 6.2zm6.1-8.2a1.12 1.12 0 1 1-2.24 0 1.12 1.12 0 0 1 2.24 0zM12 3.5c-2.3 0-2.6 0-3.5.05-2.3.1-3.4 1.2-3.5 3.5C5 8 5 8.3 5 10.6s0 2.6.05 3.5c.1 2.3 1.2 3.4 3.5 3.5.9.05 1.2.05 3.5.05s2.6 0 3.5-.05c2.3-.1 3.4-1.2 3.5-3.5.05-.9.05-1.2.05-3.5s0-2.6-.05-3.5c-.1-2.3-1.2-3.4-3.5-3.5C14.6 3.5 14.3 3.5 12 3.5zm0 1.5c2.3 0 2.5 0 3.4.05 1.7.08 2.5.9 2.6 2.6.05.9.05 1.1.05 3.4s0 2.5-.05 3.4c-.08 1.7-.9 2.5-2.6 2.6-.9.05-1.1.05-3.4.05s-2.5 0-3.4-.05c-1.7-.08-2.5-.9-2.6-2.6C5.95 13 5.95 12.8 5.95 10.5s0-2.5.05-3.4c.08-1.7.9-2.5 2.6-2.6.9-.05 1.1-.05 3.4-.05z"/></svg>'
+        '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 7.2A4.8 4.8 0 1 0 12 16.8 4.8 4.8 0 0 0 12 7.2zm0 7.9a3.1 3.1 0 1 1 0-6.2 3.1 3.1 0 0 1 0 6.2zm6.1-8.2a1.12 1.12 0 1 1-2.24 0 1.12 1.12 0 0 1 2.24 0zM12 3.5c-2.3 0-2.6 0-3.5.05-2.3.1-3.4 1.2-3.5 3.5C5 8 5 8.3 5 10.6s0 2.6.05 3.5c.1 2.3 1.2 3.4 3.5 3.5.9.05 1.2.05 3.5.05s2.6 0 3.5-.05c2.3-.1 3.4-1.2 3.5-3.5.05-.9.05-1.2.05-3.5s0-2.6-.05-3.5c-.1-2.3-1.2-3.4-3.5-3.5C14.6 3.5 14.3 3.5 12 3.5zm0 1.5c2.3 0 2.5 0 3.4.05 1.7.08 2.5.9 2.6 2.6.05.9.05 1.1.05 3.4s0 2.5-.05 3.4c-.08 1.7-.9 2.5-2.6 2.6-.9.05-1.1.05-3.4.05s-2.5 0-3.4-.05c-1.7-.08-2.5-.9-2.6-2.6C5.95 13 5.95 12.8 5.95 10.5s0-2.5.05-3.4c.08-1.7.9-2.5 2.6-2.6.9-.05 1.1-.05 3.4-.05z"/></svg>'
     },
     {
       name: "TikTok",
       href: "https://www.tiktok.com/@zybar.shop?_r=1&_t=ZS-986wLWv44xA",
       svg:
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.6 7.3a5.7 5.7 0 0 1-3.4-1.1v7.3a5.5 5.5 0 1 1-4.7-5.4v2.8a2.7 2.7 0 1 0 1.9 2.6V2.5h2.8a5.7 5.7 0 0 0 3.4 3.3v1.5z"/></svg>'
+        '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.6 7.3a5.7 5.7 0 0 1-3.4-1.1v7.3a5.5 5.5 0 1 1-4.7-5.4v2.8a2.7 2.7 0 1 0 1.9 2.6V2.5h2.8a5.7 5.7 0 0 0 3.4 3.3v1.5z"/></svg>'
     }
   ];
 
@@ -103,6 +103,9 @@
     if (document.documentElement.getAttribute("data-zybar-footer") === "off") return;
     var path = (window.location.pathname || "").toLowerCase();
     if (path.indexOf("/admin") === 0) return;
+    // Checkout has its own minimal footer and does not load styles.css —
+    // injecting social SVGs there makes them fill the viewport.
+    if (path === "/checkout" || path.indexOf("/checkout/") === 0) return;
 
     var footer = document.querySelector(".site-footer");
     if (!footer) {

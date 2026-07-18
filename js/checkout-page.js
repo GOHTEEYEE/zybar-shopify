@@ -283,7 +283,9 @@
     return [
       '<article class="checkout-line-item">',
       '<div class="checkout-line-thumb-wrap">',
-      '<img class="checkout-line-thumb" src="' + escapeHtml(imageUrl) + '" alt="" width="64" height="64" loading="eager" />',
+      '<img class="checkout-line-thumb" src="' +
+        escapeHtml(imageUrl) +
+        '" alt="" width="64" height="64" loading="eager" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.Cart&amp;&amp;ZYBAR.Cart.onProductThumbError)ZYBAR.Cart.onProductThumbError(this)" />',
       '<span class="checkout-line-qty" aria-label="Quantity">' + safeQty + "</span>",
       "</div>",
       '<div class="checkout-line-details">',
