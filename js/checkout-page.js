@@ -18,9 +18,11 @@
     displayItems: [],
     clientSecret: "",
     stripeCheckout: null,
+    embeddedCheckout: null,
     paymentMode: "custom",
     returnUrl: "",
-    pending: null
+    pending: null,
+    mountToken: 0
   };
 
   function getConfig() {
@@ -458,6 +460,16 @@
     var payBtn = document.getElementById("checkout-pay-btn");
     if (payBtn && state.paymentMode === "custom") {
       payBtn.disabled = false;
+      payBtn.hidden = false;
+      payBtn.textContent = "Complete Secure Order";
+    }
+  }
+
+  function clearError() {
+    var errorEl = document.getElementById("checkout-error");
+    if (errorEl) {
+      errorEl.hidden = true;
+      errorEl.textContent = "";
     }
   }
 
@@ -465,7 +477,10 @@
     var loading = document.getElementById("checkout-loading");
     if (loading) loading.classList.add("is-hidden");
     var payBtn = document.getElementById("checkout-pay-btn");
-    if (payBtn) payBtn.disabled = false;
+    if (payBtn && state.paymentMode === "custom") {
+      payBtn.disabled = false;
+      payBtn.hidden = false;
+    }
   }
 
   function getAppearance() {
@@ -566,17 +581,29 @@
       return Promise.resolve();
     }
     var stripe = window.Stripe(pk);
+    var token = ++state.mountToken;
 
     if (result.data.checkoutMode !== "custom") {
-      return mountEmbeddedCheckout(stripe, result.data.clientSecret);
+      return mountEmbeddedCheckout(stripe, result.data.clientSecret, token);
     }
 
-    return mountCustomCheckout(result.data.clientSecret).catch(function () {
-      return mountEmbeddedCheckout(stripe, result.data.clientSecret);
+    return mountCustomCheckout(result.data.clientSecret, token).catch(function (err) {
+      console.warn("Custom checkout unavailable, falling back to embedded:", err);
+      if (token !== state.mountToken) return;
+      teardownStripeCheckout();
+      return mountEmbeddedCheckout(stripe, result.data.clientSecret, token);
     });
   }
 
   function teardownStripeCheckout() {
+    // Embedded Checkout is a Stripe singleton — must destroy() before creating another.
+    try {
+      if (state.embeddedCheckout && typeof state.embeddedCheckout.destroy === "function") {
+        state.embeddedCheckout.destroy();
+      }
+    } catch (_) {}
+    state.embeddedCheckout = null;
+
     try {
       if (state.stripeCheckout && typeof state.stripeCheckout.destroy === "function") {
         state.stripeCheckout.destroy();
@@ -592,10 +619,17 @@
     }
     var expressMount = document.getElementById("checkout-express-element");
     if (expressMount) expressMount.innerHTML = "";
+    var expressSection = document.querySelector(".checkout-block--express");
+    if (expressSection) expressSection.hidden = false;
     var embeddedHost = document.getElementById("checkout-stripe-embedded");
     if (embeddedHost) {
       embeddedHost.innerHTML = "";
       embeddedHost.hidden = true;
+    }
+    var payBtn = document.getElementById("checkout-pay-btn");
+    if (payBtn) {
+      payBtn.hidden = false;
+      payBtn.textContent = "Complete Secure Order";
     }
   }
 
@@ -650,7 +684,9 @@
       window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(state.pending));
     } catch (_) {}
 
+    var token = ++state.mountToken;
     setPaymentRefreshing(true);
+    clearError();
     teardownStripeCheckout();
 
     var reloadPricing =
@@ -662,23 +698,31 @@
 
     return reloadPricing
       .then(function () {
+        if (token !== state.mountToken) return null;
         updateOrderTotalsAnimated();
         renderDeliveryEstimate();
         updateShippingPriceLabels();
         return createCheckoutSession(state.pending);
       })
-      .then(mountStripeFromSessionResult)
+      .then(function (result) {
+        if (!result || token !== state.mountToken) return;
+        return mountStripeFromSessionResult(result);
+      })
       .then(function () {
+        if (token !== state.mountToken) return;
         setPaymentRefreshing(false);
+        clearError();
       })
       .catch(function (err) {
+        if (token !== state.mountToken) return;
         console.error(err);
         setPaymentRefreshing(false);
         showError((err && err.message) || "Could not update shipping. Please refresh and try again.");
       });
   }
 
-  function mountCustomCheckout(clientSecret) {
+  function mountCustomCheckout(clientSecret, token) {
+    token = token || ++state.mountToken;
     var config = getConfig();
     var publishableKey = config.publishableKey || "";
     if (!publishableKey || !window.Stripe) {
@@ -689,7 +733,7 @@
     state.clientSecret = clientSecret;
 
     if (typeof stripe.initCheckout !== "function") {
-      return mountEmbeddedFallback(stripe, clientSecret);
+      return mountEmbeddedCheckout(stripe, clientSecret, token);
     }
 
     try {
@@ -697,6 +741,12 @@
         clientSecret: clientSecret,
         elementsOptions: { appearance: getAppearance() }
       });
+      if (token !== state.mountToken) {
+        try {
+          if (typeof checkout.destroy === "function") checkout.destroy();
+        } catch (_) {}
+        return Promise.resolve();
+      }
       state.stripeCheckout = checkout;
       state.paymentMode = "custom";
 
@@ -746,7 +796,9 @@
       }
 
       return checkout.loadActions().then(function (result) {
+        if (token !== state.mountToken) return;
         hideLoading();
+        clearError();
         if (result.type !== "success") {
           var errMsg =
             result.error && result.error.message
@@ -792,11 +844,22 @@
         }
       });
     } catch (err) {
-      return mountEmbeddedFallback(stripe, clientSecret);
+      teardownStripeCheckout();
+      return mountEmbeddedCheckout(stripe, clientSecret, token);
     }
   }
 
-  function mountEmbeddedCheckout(stripe, clientSecret) {
+  function mountEmbeddedCheckout(stripe, clientSecret, token) {
+    token = token || ++state.mountToken;
+
+    // Stripe only allows one Embedded Checkout instance per page.
+    try {
+      if (state.embeddedCheckout && typeof state.embeddedCheckout.destroy === "function") {
+        state.embeddedCheckout.destroy();
+      }
+    } catch (_) {}
+    state.embeddedCheckout = null;
+
     state.paymentMode = "embedded";
     var expressSection = document.querySelector(".checkout-block--express");
     if (expressSection) expressSection.hidden = true;
@@ -804,14 +867,25 @@
     var embeddedHost = document.getElementById("checkout-stripe-embedded");
     var paymentSlot = document.getElementById("checkout-payment-element");
     if (paymentSlot) paymentSlot.hidden = true;
-    if (embeddedHost) embeddedHost.hidden = false;
+    if (embeddedHost) {
+      embeddedHost.innerHTML = "";
+      embeddedHost.hidden = false;
+    }
 
     if (typeof stripe.initEmbeddedCheckout !== "function") {
       return Promise.reject(new Error("Stripe Checkout is not available in this browser."));
     }
 
     return stripe.initEmbeddedCheckout({ clientSecret: clientSecret }).then(function (checkout) {
+      if (token !== state.mountToken) {
+        try {
+          if (checkout && typeof checkout.destroy === "function") checkout.destroy();
+        } catch (_) {}
+        return;
+      }
+      state.embeddedCheckout = checkout;
       hideLoading();
+      clearError();
       checkout.mount("#checkout-stripe-embedded");
       var payBtn = document.getElementById("checkout-pay-btn");
       if (payBtn) payBtn.hidden = true;
