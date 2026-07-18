@@ -516,7 +516,19 @@ app.post(
         try {
           const amount = typeof session.amount_total === 'number' ? session.amount_total : 0;
           const quantity = session.metadata && session.metadata.quantity ? parseInt(session.metadata.quantity, 10) || 1 : 1;
-          const { error } = await supabase.from('orders').insert({
+          const shippingMethod =
+            session.metadata && session.metadata.shippingMethod
+              ? String(session.metadata.shippingMethod)
+              : null;
+          let lineItems = null;
+          try {
+            if (session.metadata && session.metadata.variantDetails) {
+              lineItems = JSON.parse(session.metadata.variantDetails);
+            }
+          } catch (_) {
+            lineItems = null;
+          }
+          const baseOrder = {
             stripe_session_id: session.id,
             stripe_payment_intent: session.payment_intent || null,
             customer_name: customer.customer_name,
@@ -541,7 +553,18 @@ app.post(
                 : null,
             cart_id:
               session.metadata && session.metadata.cartId ? session.metadata.cartId : null
+          };
+          const extendedOrder = Object.assign({}, baseOrder, {
+            shipping_method: shippingMethod,
+            payment_method: null,
+            fulfillment_status: 'unfulfilled',
+            refund_status: 'none',
+            line_items: lineItems
           });
+          let { error } = await supabase.from('orders').insert(extendedOrder);
+          if (error && /shipping_method|fulfillment_status|line_items|refund_status|payment_method/i.test(error.message || '')) {
+            ({ error } = await supabase.from('orders').insert(baseOrder));
+          }
           if (error) {
             console.error('Supabase insert orders error:', error);
           } else {

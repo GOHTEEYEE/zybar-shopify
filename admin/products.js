@@ -11,7 +11,11 @@ window.renderAdminproducts = function (container) {
   }
 
   container.innerHTML =
+    '<div class="admin-page-header">' +
     '<h2 class="admin-page-title">Products</h2>' +
+    '<div class="admin-page-actions">' +
+    '<button type="button" class="admin-btn-secondary" id="productsExportCsv">Export CSV</button>' +
+    '</div></div>' +
     '<div class="admin-card">' +
     '  <h3>Add Product</h3>' +
     '  <p style="margin-top:0;color:#6b7280;font-size:13px;">Add product name, 2 size prices (USD), description, image and status.</p>' +
@@ -38,6 +42,27 @@ window.renderAdminproducts = function (container) {
   var msgEl = document.getElementById('productFormMsg');
   var selectedProductId = null;
   var productsById = {};
+  var lastProductRows = [];
+
+  var exportBtn = document.getElementById('productsExportCsv');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function () {
+      if (!window.AdminUtils || !window.AdminUtils.downloadCsv) return;
+      window.AdminUtils.downloadCsv(
+        'zybar-products.csv',
+        lastProductRows.map(function (p) {
+          return {
+            Name: p.name || '',
+            Slug: p.slug || '',
+            Price30x45: p.price_30x45_rm != null ? p.price_30x45_rm : '',
+            Price40x60: p.price_40x60_rm != null ? p.price_40x60_rm : '',
+            Status: p.status || '',
+            Created: p.created_at || ''
+          };
+        })
+      );
+    });
+  }
 
   function slugify(text) {
     return String(text || '')
@@ -220,10 +245,12 @@ window.renderAdminproducts = function (container) {
           return;
         }
         if (!data.length) {
+          lastProductRows = [];
           document.getElementById('productsTable').innerHTML = '<p>No products yet.</p>';
           renderEditor(null);
           return;
         }
+        lastProductRows = data;
         productsById = {};
         var html = '<table class="admin-table"><thead><tr><th>#</th><th>Name</th><th>Slug</th><th>Price 30x45 (USD)</th><th>Price 40x60 (USD)</th><th>Status</th><th>Image</th><th>Created</th></tr></thead><tbody>';
         function formatPrice(val) {

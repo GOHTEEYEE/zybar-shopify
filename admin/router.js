@@ -105,8 +105,145 @@
     }
   }
 
+  function initGlobalSearch() {
+    var topbar = document.getElementById('adminTopbar');
+    var input = document.getElementById('adminGlobalSearch');
+    var results = document.getElementById('adminGlobalSearchResults');
+    if (!topbar || !input || !results || input._bound) return;
+    input._bound = true;
+    topbar.hidden = false;
+
+    var timer = null;
+    function hide() {
+      results.hidden = true;
+      results.innerHTML = '';
+    }
+
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      var q = input.value.trim().toLowerCase();
+      if (q.length < 2) {
+        hide();
+        return;
+      }
+      timer = setTimeout(function () {
+        runSearch(q);
+      }, 220);
+    });
+    input.addEventListener('blur', function () {
+      setTimeout(hide, 180);
+    });
+
+    function runSearch(q) {
+      var sb = window.supabase;
+      if (!sb) {
+        results.innerHTML = '<div class="admin-search-empty">Connect Supabase to search</div>';
+        results.hidden = false;
+        return;
+      }
+      results.innerHTML = '<div class="admin-search-empty">Searching…</div>';
+      results.hidden = false;
+
+      Promise.all([
+        sb
+          .from('orders')
+          .select('id,stripe_session_id,customer_name,customer_email,product_slug,created_at')
+          .or(
+            'customer_name.ilike.%' +
+              q +
+              '%,customer_email.ilike.%' +
+              q +
+              '%,stripe_session_id.ilike.%' +
+              q +
+              '%,product_slug.ilike.%' +
+              q +
+              '%'
+          )
+          .limit(8),
+        sb
+          .from('products')
+          .select('id,name,slug,status')
+          .or('name.ilike.%' + q + '%,slug.ilike.%' + q + '%')
+          .limit(8)
+          .then(function (res) {
+            return res;
+          })
+          .catch(function () {
+            return { data: [] };
+          })
+      ]).then(function (res) {
+        var orders = (res[0] && res[0].data) || [];
+        var products = (res[1] && res[1].data) || [];
+        var customerKeys = {};
+        var customerItems = [];
+        orders.forEach(function (o) {
+          var key = (o.customer_email || o.customer_name || '').toLowerCase();
+          if (!key || customerKeys[key]) return;
+          customerKeys[key] = true;
+          customerItems.push(o);
+        });
+
+        var html = '';
+        if (orders.length) {
+          html += '<div class="admin-search-group"><div class="admin-search-group-title">Orders</div>';
+          orders.forEach(function (o) {
+            html +=
+              '<a href="#orders/' +
+              o.id +
+              '">' +
+              escapeHtml(o.customer_name || o.customer_email || o.stripe_session_id || 'Order') +
+              '<span>' +
+              escapeHtml(o.customer_email || '') +
+              '</span></a>';
+          });
+          html += '</div>';
+        }
+        if (customerItems.length) {
+          html += '<div class="admin-search-group"><div class="admin-search-group-title">Customers</div>';
+          customerItems.forEach(function (o) {
+            var key = encodeURIComponent((o.customer_email || o.customer_name || '').toLowerCase());
+            html +=
+              '<a href="#customers/' +
+              key +
+              '">' +
+              escapeHtml(o.customer_name || o.customer_email || 'Customer') +
+              '<span>' +
+              escapeHtml(o.customer_email || '') +
+              '</span></a>';
+          });
+          html += '</div>';
+        }
+        if (products.length) {
+          html += '<div class="admin-search-group"><div class="admin-search-group-title">Products</div>';
+          products.forEach(function (p) {
+            html +=
+              '<a href="#products">' +
+              escapeHtml(p.name || p.slug || 'Product') +
+              '<span>' +
+              escapeHtml(p.slug || '') +
+              '</span></a>';
+          });
+          html += '</div>';
+        }
+        if (!html) html = '<div class="admin-search-empty">No matches</div>';
+        results.innerHTML = html;
+        results.hidden = false;
+      });
+    }
+
+    function escapeHtml(v) {
+      return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  }
+
   function setPage(name) {
     if (window.adminAuth && window.adminAuth.showLogin) {
+      var topbarLogin = document.getElementById('adminTopbar');
+      if (topbarLogin) topbarLogin.hidden = true;
       renderLogin('', false);
       return;
     }
@@ -116,8 +253,11 @@
     });
     if (contentEl) contentEl.style.display = '';
     if (loadingEl) loadingEl.style.display = 'none';
+    initGlobalSearch();
     if (window['renderAdmin' + name]) {
       window['renderAdmin' + name](contentEl);
+    } else {
+      contentEl.innerHTML = '<p class="admin-error">Page not found.</p>';
     }
   }
 

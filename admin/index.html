@@ -2,42 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.ico?v=5" sizes="any" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=5" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=5" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=5" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=5" />
-    <link rel="manifest" href="/site.webmanifest" />
+  <link rel="icon" href="/favicon.ico?v=5" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=5" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=5" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=5" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=5" />
+  <link rel="manifest" href="/site.webmanifest" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Admin | ZYBAR</title>
-    <link rel="canonical" href="https://zybar-ledcar.pages.dev/admin/" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="canonical" href="https://zybar-ledcar.pages.dev/admin/" />
+  <link rel="stylesheet" href="styles.css?v=admin2" />
   <script src="zybar-my-env.js"></script>
 </head>
 <body>
   <div class="admin-wrap" id="adminWrap">
     <aside class="admin-sidebar">
-      <h1 id="adminSidebarTitle">ZYBAR Admin</h1>
+      <h1 id="adminSidebarTitle">ZYBAR</h1>
       <nav class="admin-nav">
         <a href="#dashboard" data-page="dashboard" class="active">Dashboard</a>
         <a href="#analytics" data-page="analytics">Analytics</a>
         <a href="#products" data-page="products">Products</a>
-        <a href="#pricing" data-page="pricing">Pricing</a>
-        <a href="#customers" data-page="customers">👥 Customers</a>
-        <a href="#reviews" data-page="reviews">⭐ Reviews</a>
-        <a href="#inquiries" data-page="inquiries">✉️ Inquiries</a>
-        <a href="#chatbot" data-page="chatbot">AI Chatbot</a>
+        <a href="#orders" data-page="orders">Orders</a>
+        <a href="#customers" data-page="customers">Customers</a>
+        <a href="#settings" data-page="settings">Settings</a>
         <a href="/">Back to site</a>
       </nav>
     </aside>
     <main class="admin-main" id="adminMain">
+      <div class="admin-topbar" id="adminTopbar" hidden>
+        <input type="search" id="adminGlobalSearch" class="admin-search-input admin-global-search" placeholder="Search orders, customers, products…" autocomplete="off" />
+        <div class="admin-global-search-results" id="adminGlobalSearchResults" hidden></div>
+      </div>
       <div class="admin-loading" id="adminLoading">Loading...</div>
       <div id="adminContent" style="display: none;"></div>
     </main>
   </div>
 
-  <!-- Supabase - skip when ZYBAR.MY test env -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script>
@@ -54,16 +55,15 @@
   <script src="config.js?v=2"></script>
   <script src="auth.js"></script>
   <script src="mock-data-zybar-my.js"></script>
-    <script>
+  <script>
     if (window.ZYBAR_MY_TEST) {
       document.title = 'Admin | ZYBAR.MY (BETA/TESTING)';
       document.addEventListener('DOMContentLoaded', function () {
         var h = document.getElementById('adminSidebarTitle');
         if (h) {
-          h.textContent = 'ZYBAR.MY Admin';
+          h.textContent = 'ZYBAR.MY';
           var badge = document.createElement('span');
           badge.className = 'zybar-my-admin-badge';
-          badge.setAttribute('aria-label', 'Testing environment');
           badge.textContent = 'TEST';
           h.appendChild(document.createTextNode(' '));
           h.appendChild(badge);
@@ -73,14 +73,17 @@
       });
     }
   </script>
+  <script src="utils.js?v=admin2"></script>
   <script src="dashboard.js?v=20260407-1"></script>
-  <script src="analytics.js"></script>
+  <script src="analytics.js?v=admin2"></script>
   <script src="products.js"></script>
+  <script src="orders.js?v=admin2"></script>
+  <script src="customers.js?v=admin2"></script>
   <script src="pricing.js"></script>
-  <script src="customers.js"></script>
   <script src="reviews.js"></script>
   <script src="inquiries.js"></script>
   <script src="chatbot.js"></script>
+  <script src="settings.js?v=admin2"></script>
   <script src="router.js"></script>
 </body>
 </html>
