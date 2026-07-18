@@ -24,11 +24,12 @@
   function styleDivider(divider) {
     if (!divider) return;
     divider.style.position = 'absolute';
-    divider.style.left = '0';
+    divider.style.left = '';
     divider.style.top = '0';
     divider.style.bottom = '0';
     divider.style.width = '3px';
-    divider.style.marginLeft = '-1.5px';
+    divider.style.marginLeft = '0';
+    divider.style.transform = 'translate3d(-50%, 0, 0)';
     divider.style.background = 'rgba(255,255,255,0.95)';
     divider.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.35), 0 0 20px rgba(0,0,0,0.45)';
     divider.style.zIndex = '5';
@@ -51,10 +52,18 @@
     handle.style.border = '1px solid rgba(255,255,255,0.7)';
     handle.style.background = 'rgba(10,10,12,0.82)';
     handle.style.boxShadow = '0 10px 28px rgba(0,0,0,0.5)';
-    handle.style.display = 'block';
+    handle.style.display = 'flex';
+    handle.style.alignItems = 'center';
+    handle.style.justifyContent = 'center';
+    handle.style.gap = '5px';
+    handle.style.color = '#fff';
+    handle.style.fontSize = '14px';
+    handle.style.lineHeight = '1';
     handle.style.pointerEvents = 'none';
-    handle.innerHTML =
-      '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:5px;color:#fff;font-size:14px;line-height:1;user-select:none;">‹ ›</span>';
+    handle.style.userSelect = 'none';
+    if (!handle.textContent.trim()) {
+      handle.textContent = '‹ ›';
+    }
   }
 
   function bindSlider(root, divider) {
@@ -78,7 +87,8 @@
       lastPos = percent;
       root.style.setProperty('--pos', String(percent));
       root.style.setProperty('--position', percent + '%');
-      divider.style.transform = 'translate3d(' + percent + '%, 0, 0)';
+      divider.style.left = percent + '%';
+      divider.style.transform = 'translate3d(-50%, 0, 0)';
       divider.setAttribute('aria-valuenow', String(Math.round(percent)));
     }
 

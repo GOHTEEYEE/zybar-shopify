@@ -1698,19 +1698,19 @@ body.pdp-gallery-lightbox-open {
 
 .comparison-divider {
   position: absolute;
-  left: 0;
+  left: calc(var(--pos) * 1%);
   top: 0;
   bottom: 0;
   width: 3px;
-  margin-left: -1.5px;
-  transform: translate3d(calc(var(--pos) * 1%), 0, 0);
+  margin-left: 0;
+  transform: translate3d(-50%, 0, 0);
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 20px rgba(0, 0, 0, 0.45);
   z-index: 5;
   cursor: ew-resize;
   pointer-events: auto;
   touch-action: none;
-  will-change: transform;
+  will-change: left;
   opacity: 1;
   visibility: visible;
 }
@@ -1727,7 +1727,22 @@ body.pdp-gallery-lightbox-open {
   background: rgba(10, 10, 12, 0.82);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  user-select: none;
+}
+
+.comparison-divider-handle::before {
+  content: "‹";
+}
+
+.comparison-divider-handle::after {
+  content: "›";
 }
 
 /* Wider invisible hit area so dragging is easy */
@@ -4567,19 +4582,19 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .pdp-comparison-divider {
   position: absolute;
-  left: 0;
+  left: calc(var(--pos) * 1%);
   top: 0;
   bottom: 0;
   width: 3px;
-  margin-left: -1.5px;
-  transform: translate3d(calc(var(--pos) * 1%), 0, 0);
+  margin-left: 0;
+  transform: translate3d(-50%, 0, 0);
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 20px rgba(0, 0, 0, 0.45);
   z-index: 5;
   cursor: ew-resize;
   pointer-events: auto;
   touch-action: none;
-  will-change: transform;
+  will-change: left;
   opacity: 1;
   visibility: visible;
 }

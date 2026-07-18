@@ -789,67 +789,7 @@
         sections.forEach(function (section) { observer.observe(section); });
       })();
     </script>
-    <script>
-      (function () {
-        var overlay = document.getElementById("comparisonOverlay");
-        var divider = document.getElementById("comparisonDivider");
-        if (!overlay || !divider) return;
-
-        var dragging = false;
-
-        function clamp(value, min, max) {
-          return Math.min(Math.max(value, min), max);
-        }
-
-        function setPositionFromClientX(clientX) {
-          var rect = overlay.getBoundingClientRect();
-          var percent = ((clientX - rect.left) / rect.width) * 100;
-          percent = clamp(percent, 0, 100);
-          overlay.style.setProperty("--position", percent + "%");
-          divider.setAttribute("aria-valuenow", String(Math.round(percent)));
-        }
-
-        overlay.addEventListener("pointerdown", function (event) {
-          dragging = true;
-          overlay.setPointerCapture(event.pointerId);
-          setPositionFromClientX(event.clientX);
-        });
-
-        overlay.addEventListener("pointermove", function (event) {
-          if (!dragging) return;
-          setPositionFromClientX(event.clientX);
-        });
-
-        overlay.addEventListener("pointerup", function () {
-          dragging = false;
-        });
-
-        overlay.addEventListener("pointercancel", function () {
-          dragging = false;
-        });
-
-        divider.addEventListener("keydown", function (event) {
-          var current = parseFloat(
-            getComputedStyle(overlay).getPropertyValue("--position")
-          );
-          if (Number.isNaN(current)) current = 50;
-
-          if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            var newVal = clamp(current - 5, 0, 100);
-            overlay.style.setProperty("--position", newVal + "%");
-            divider.setAttribute("aria-valuenow", String(Math.round(newVal)));
-          }
-
-          if (event.key === "ArrowRight") {
-            event.preventDefault();
-            var newVal = clamp(current + 5, 0, 100);
-            overlay.style.setProperty("--position", newVal + "%");
-            divider.setAttribute("aria-valuenow", String(Math.round(newVal)));
-          }
-        });
-      })();
-    </script>
+    <script src="/js/comparison-slider.js?v=3" defer></script>
     <!-- Analytics: paste your anon key from Supabase Dashboard → Project Settings → API -->
     <script src="/js/meta-pixel-config.js"></script>
     <script src="/js/meta-pixel.js"></script>
