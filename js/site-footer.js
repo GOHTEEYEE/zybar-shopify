@@ -106,6 +106,13 @@
     // Checkout has its own minimal footer and does not load styles.css —
     // injecting social SVGs there makes them fill the viewport.
     if (path === "/checkout" || path.indexOf("/checkout/") === 0) return;
+    // Receipt / confirmation pages use standalone CSS — same SVG blowout risk.
+    if (
+      path.indexOf("receipt") !== -1 ||
+      path.indexOf("purchase-confirmation") !== -1
+    ) {
+      return;
+    }
 
     var footer = document.querySelector(".site-footer");
     if (!footer) {
