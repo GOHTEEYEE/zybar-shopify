@@ -37,11 +37,11 @@
   }
 
   function ensureFavicons() {
-    upsertLink('icon', '/favicon.ico', { sizes: 'any' });
-    upsertLink('icon', '/favicon-32.png', { type: 'image/png', sizes: '32x32' });
-    upsertLink('icon', '/favicon-48.png', { type: 'image/png', sizes: '48x48' });
-    upsertLink('icon', '/favicon-192.png', { type: 'image/png', sizes: '192x192' });
-    upsertLink('apple-touch-icon', '/apple-touch-icon.png', { sizes: '180x180' });
+    upsertLink('icon', '/favicon.ico?v=2', { sizes: 'any' });
+    upsertLink('icon', '/favicon-32.png?v=2', { type: 'image/png', sizes: '32x32' });
+    upsertLink('icon', '/favicon-48.png?v=2', { type: 'image/png', sizes: '48x48' });
+    upsertLink('icon', '/favicon-192.png?v=2', { type: 'image/png', sizes: '192x192' });
+    upsertLink('apple-touch-icon', '/apple-touch-icon.png?v=2', { sizes: '180x180' });
   }
 
   function normalizePath(pathname) {
