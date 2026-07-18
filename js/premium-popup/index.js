@@ -53,7 +53,7 @@
     var link = document.createElement('link');
     link.id = 'zybar-premium-popup-css';
     link.rel = 'stylesheet';
-    link.href = '/css/premium-popup.css';
+    link.href = '/css/premium-popup.css?v=20260718-square';
     document.head.appendChild(link);
   }
 
