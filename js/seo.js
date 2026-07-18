@@ -17,15 +17,31 @@
     tag.setAttribute('content', content);
   }
 
-  function upsertLink(rel, href) {
+  function upsertLink(rel, href, attrs) {
     if (!href) return;
-    var link = document.head.querySelector('link[rel="' + rel + '"]');
+    var selector = 'link[rel="' + rel + '"]';
+    if (attrs && attrs.sizes) selector += '[sizes="' + attrs.sizes + '"]';
+    if (attrs && attrs.type) selector += '[type="' + attrs.type + '"]';
+    var link = document.head.querySelector(selector);
     if (!link) {
       link = document.createElement('link');
       link.setAttribute('rel', rel);
       document.head.appendChild(link);
     }
     link.setAttribute('href', href);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (key) {
+        link.setAttribute(key, attrs[key]);
+      });
+    }
+  }
+
+  function ensureFavicons() {
+    upsertLink('icon', '/favicon.ico', { sizes: 'any' });
+    upsertLink('icon', '/favicon-32.png', { type: 'image/png', sizes: '32x32' });
+    upsertLink('icon', '/favicon-48.png', { type: 'image/png', sizes: '48x48' });
+    upsertLink('icon', '/favicon-192.png', { type: 'image/png', sizes: '192x192' });
+    upsertLink('apple-touch-icon', '/apple-touch-icon.png', { sizes: '180x180' });
   }
 
   function normalizePath(pathname) {
@@ -65,8 +81,11 @@
     if (title) upsertMeta('name', 'twitter:title', title);
     if (description) upsertMeta('name', 'twitter:description', description);
     if (imageUrl) upsertMeta('name', 'twitter:image', imageUrl);
+
+    ensureFavicons();
   }
 
   window.applyZybarSeo = applySeo;
+  ensureFavicons();
   applySeo(window.ZYBAR_SEO || {});
 })();
