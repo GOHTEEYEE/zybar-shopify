@@ -576,30 +576,105 @@
     });
   }
 
+  function teardownStripeCheckout() {
+    try {
+      if (state.stripeCheckout && typeof state.stripeCheckout.destroy === "function") {
+        state.stripeCheckout.destroy();
+      }
+    } catch (_) {}
+    state.stripeCheckout = null;
+    state.clientSecret = "";
+
+    var paymentMount = document.getElementById("checkout-payment-element");
+    if (paymentMount) {
+      paymentMount.innerHTML = "";
+      paymentMount.hidden = false;
+    }
+    var expressMount = document.getElementById("checkout-express-element");
+    if (expressMount) expressMount.innerHTML = "";
+    var embeddedHost = document.getElementById("checkout-stripe-embedded");
+    if (embeddedHost) {
+      embeddedHost.innerHTML = "";
+      embeddedHost.hidden = true;
+    }
+  }
+
+  function setPaymentRefreshing(isRefreshing) {
+    var paymentSlot = document.getElementById("checkout-payment-element");
+    var expressSlot = document.getElementById("checkout-express-element");
+    var embeddedHost = document.getElementById("checkout-stripe-embedded");
+    [paymentSlot, expressSlot, embeddedHost].forEach(function (el) {
+      if (!el) return;
+      el.classList.toggle("is-refreshing", !!isRefreshing);
+    });
+    var payBtn = document.getElementById("checkout-pay-btn");
+    if (payBtn) {
+      payBtn.disabled = !!isRefreshing;
+      if (isRefreshing) payBtn.textContent = "Updating total…";
+      else if (state.paymentMode === "custom") payBtn.textContent = "Complete Secure Order";
+    }
+  }
+
+  function syncTotalsFromStripeCheckout(checkout) {
+    try {
+      var stripeMinor =
+        checkout &&
+        checkout.total &&
+        checkout.total.total &&
+        checkout.total.total.minorUnitsAmount;
+      var stripeLabel =
+        checkout && checkout.total && checkout.total.total && checkout.total.total.amount;
+      if (!Number.isFinite(Number(stripeMinor))) return;
+      var totalUsd = Number(stripeMinor) / 100;
+      state.total = totalUsd;
+      var grandEl = document.querySelector('[data-total="grand"]');
+      if (grandEl) {
+        grandEl.textContent = stripeLabel ? String(stripeLabel) : formatUsdLuxury(totalUsd);
+        grandEl.setAttribute("data-value", String(totalUsd));
+      }
+      var mobileTotal = document.getElementById("checkout-mobile-total");
+      if (mobileTotal) {
+        mobileTotal.textContent = formatUsdLuxury(totalUsd);
+        mobileTotal.setAttribute("data-value", String(totalUsd));
+      }
+    } catch (_) {}
+  }
+
   function refreshCheckoutSession() {
     if (!state.pending) return Promise.resolve();
     var pricing = getPricing();
     var shippingMethod = getSelectedShippingMethod();
     persistShippingSelection(shippingMethod);
+    state.pending.shippingMethod = shippingMethod;
     try {
       window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(state.pending));
     } catch (_) {}
 
-    var payBtn = document.getElementById("checkout-pay-btn");
-    if (payBtn) payBtn.disabled = true;
+    setPaymentRefreshing(true);
+    teardownStripeCheckout();
 
-    var paymentMount = document.getElementById("checkout-payment-element");
-    if (paymentMount) paymentMount.innerHTML = "";
-    var expressMount = document.getElementById("checkout-express-element");
-    if (expressMount) expressMount.innerHTML = "";
-    state.stripeCheckout = null;
+    var reloadPricing =
+      pricing && typeof pricing.load === "function"
+        ? pricing.load(true).catch(function () {
+            return pricing;
+          })
+        : Promise.resolve(pricing);
 
-    return createCheckoutSession(state.pending)
+    return reloadPricing
+      .then(function () {
+        updateOrderTotalsAnimated();
+        renderDeliveryEstimate();
+        updateShippingPriceLabels();
+        return createCheckoutSession(state.pending);
+      })
       .then(mountStripeFromSessionResult)
+      .then(function () {
+        setPaymentRefreshing(false);
+      })
       .catch(function (err) {
         console.error(err);
+        setPaymentRefreshing(false);
         showError((err && err.message) || "Could not update shipping. Please refresh and try again.");
-        if (payBtn) payBtn.disabled = false;
       });
   }
 
@@ -683,22 +758,8 @@
 
         var actions = result.actions;
 
-        // Custom Checkout requires reading session total into the page.
-        try {
-          var stripeTotalLabel =
-            checkout.total && checkout.total.total && checkout.total.total.amount;
-          var stripeMinor =
-            checkout.total &&
-            checkout.total.total &&
-            checkout.total.total.minorUnitsAmount;
-          var grandEl = document.querySelector('[data-total="grand"]');
-          if (grandEl && stripeTotalLabel != null) {
-            grandEl.textContent = String(stripeTotalLabel);
-            if (Number.isFinite(Number(stripeMinor))) {
-              grandEl.setAttribute("data-value", String(Number(stripeMinor) / 100));
-            }
-          }
-        } catch (_) {}
+        // Sync page TOTAL with the live Checkout Session amount (includes shipping).
+        syncTotalsFromStripeCheckout(checkout);
 
         // Required for Apple Pay / Google Pay / Link express buttons to complete.
         if (expressElement && typeof expressElement.on === "function") {

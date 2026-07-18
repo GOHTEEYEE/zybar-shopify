@@ -1333,7 +1333,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
   let catalog;
   try {
-    catalog = await Pricing.loadCatalog(supabase);
+    catalog = await Pricing.loadCatalog(supabase, { force: true });
   } catch (pricingErr) {
     console.error('Checkout pricing load failed:', pricingErr);
     return res.status(503).json({ error: 'Store pricing is temporarily unavailable' });

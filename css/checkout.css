@@ -684,11 +684,12 @@
 }
 
 /* Payment */
-.checkout-payment-slot,
-.checkout-stripe-embedded {
-  min-height: 120px;
-  margin: 0.5rem 0 0.25rem;
-  padding: 0.25rem 0 0.5rem;
+.checkout-payment-slot.is-refreshing,
+.checkout-express-slot.is-refreshing,
+.checkout-stripe-embedded.is-refreshing {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
 }
 
 .checkout-stripe-embedded:not([hidden]) {
