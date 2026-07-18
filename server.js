@@ -1440,6 +1440,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return base + join + 'session_id={CHECKOUT_SESSION_ID}';
   }
 
+  // Checkout Sessions (not PaymentIntents): omit payment_method_types so Stripe
+  // enables methods from Dashboard (card, Link, Apple Pay, Google Pay, etc.).
+  // Wallets appear in Payment Element / Express Checkout when domain + Dashboard
+  // wallet settings are configured. Do NOT use automatic_payment_methods here —
+  // that flag is PaymentIntent-only.
   const sessionBase = {
     mode: 'payment',
     line_items: stripeLineItems,

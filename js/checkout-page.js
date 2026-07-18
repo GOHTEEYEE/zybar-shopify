@@ -568,16 +568,41 @@
 
       var paymentMount = document.getElementById("checkout-payment-element");
       if (paymentMount && typeof checkout.createPaymentElement === "function") {
-        var paymentElement = checkout.createPaymentElement();
+        // Payment Element: cards + Link + eligible wallets (from Dashboard / session).
+        var paymentElement = checkout.createPaymentElement({
+          layout: "tabs"
+        });
         paymentElement.mount("#checkout-payment-element");
       }
 
       var expressMount = document.getElementById("checkout-express-element");
+      var expressSection = document.querySelector(".checkout-block--express");
+      var expressElement = null;
       if (expressMount && typeof checkout.createExpressCheckoutElement === "function") {
         try {
-          var expressElement = checkout.createExpressCheckoutElement();
+          // Prefer always showing Apple Pay / Google Pay on supported platforms.
+          expressElement = checkout.createExpressCheckoutElement({
+            paymentMethods: {
+              applePay: "always",
+              googlePay: "always",
+              link: "auto",
+              paypal: "auto",
+              amazonPay: "auto",
+              klarna: "auto"
+            },
+            paymentMethodOrder: ["applePay", "googlePay", "link", "paypal", "klarna", "amazonPay"],
+            layout: { maxColumns: 2, maxRows: 2, overflow: "auto" }
+          });
           expressElement.mount("#checkout-express-element");
-        } catch (_) {}
+          expressElement.on("availablepaymentmethodschange", function (event) {
+            var methods = (event && event.paymentMethods) || [];
+            if (expressSection) expressSection.hidden = !methods.length;
+          });
+        } catch (_) {
+          if (expressSection) expressSection.hidden = true;
+        }
+      } else if (expressSection) {
+        expressSection.hidden = true;
       }
 
       return checkout.loadActions().then(function (result) {
@@ -588,6 +613,56 @@
               ? result.error.message
               : "Could not initialize payment.";
           showError(errMsg);
+          return;
+        }
+
+        var actions = result.actions;
+
+        // Custom Checkout requires reading session total into the page.
+        try {
+          var stripeTotalLabel =
+            checkout.total && checkout.total.total && checkout.total.total.amount;
+          var stripeMinor =
+            checkout.total &&
+            checkout.total.total &&
+            checkout.total.total.minorUnitsAmount;
+          var grandEl = document.querySelector('[data-total="grand"]');
+          if (grandEl && stripeTotalLabel != null) {
+            grandEl.textContent = String(stripeTotalLabel);
+            if (Number.isFinite(Number(stripeMinor))) {
+              grandEl.setAttribute("data-value", String(Number(stripeMinor) / 100));
+            }
+          }
+        } catch (_) {}
+
+        // Required for Apple Pay / Google Pay / Link express buttons to complete.
+        if (expressElement && typeof expressElement.on === "function") {
+          expressElement.on("confirm", function (event) {
+            if (window.ZYBAR && window.ZYBAR.Analytics) {
+              window.ZYBAR.Analytics.trackPaymentStarted(
+                (event && event.expressPaymentType) || "express",
+                state.total
+              );
+            }
+            actions
+              .confirm({
+                expressCheckoutConfirmEvent: event,
+                returnUrl: state.returnUrl
+              })
+              .then(function (confirmResult) {
+                if (confirmResult && confirmResult.error) {
+                  showError(
+                    confirmResult.error.message || "Payment failed. Please try again."
+                  );
+                  return;
+                }
+                clearPendingCheckout();
+              })
+              .catch(function (err) {
+                console.error(err);
+                showError((err && err.message) || "Payment failed. Please try again.");
+              });
+          });
         }
       });
     } catch (err) {
