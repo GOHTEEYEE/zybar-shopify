@@ -619,7 +619,28 @@
         returnUrl: returnUrl,
         visitorId: pending.visitorId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getVisitorId() : null),
         sessionId: pending.sessionId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getSessionId() : null),
-        cartId: pending.cartId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getCartId() : null)
+        cartId: pending.cartId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getCartId() : null),
+        fbp: (function () {
+          try {
+            var m = document.cookie.match(/(?:^|;\s*)_fbp=([^;]+)/);
+            return m ? decodeURIComponent(m[1]) : null;
+          } catch (e) {
+            return null;
+          }
+        })(),
+        fbc: (function () {
+          try {
+            var m = document.cookie.match(/(?:^|;\s*)_fbc=([^;]+)/);
+            if (m) return decodeURIComponent(m[1]);
+            var params = new URLSearchParams(window.location.search);
+            var fbclid = params.get("fbclid");
+            if (fbclid) return "fb.1." + Date.now() + "." + fbclid;
+            return null;
+          } catch (e) {
+            return null;
+          }
+        })(),
+        clientUserAgent: navigator.userAgent || null
       })
     }).then(function (res) {
       return res.json().then(function (data) {

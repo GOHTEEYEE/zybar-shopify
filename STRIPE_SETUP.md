@@ -10,6 +10,8 @@ Copy `.env.example` to `.env` and set:
 |----------|------------------|
 | `STRIPE_SECRET_KEY` | [Stripe Dashboard](https://dashboard.stripe.com/apikeys) → API keys → Secret key (use **Test** key for development). |
 | `STRIPE_WEBHOOK_SECRET` | For **local** testing: from Stripe CLI (see below). For **production**: Dashboard → Developers → Webhooks → Add endpoint → select `checkout.session.completed` → copy “Signing secret”. |
+| `META_CAPI_ACCESS_TOKEN` | Optional but recommended. Meta Events Manager → Pixel → Settings → Generate access token. See `META_CAPI.md`. |
+| `META_PIXEL_ID` | Optional. Defaults to the storefront Pixel ID. |
 
 ## 2. Run the server
 

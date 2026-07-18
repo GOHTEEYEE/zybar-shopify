@@ -12,6 +12,7 @@ const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 const Pricing = require('./lib/pricing.js');
 const AnalyticsFallback = require('./lib/analytics-fallback.js');
+const MetaCapi = require('./lib/meta-capi.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +32,9 @@ if (!stripeSecretKey) {
 }
 if (!openAiApiKey) {
   console.warn('Missing OPENAI_API_KEY. Set it in .env to enable the chatbot.');
+}
+if (!MetaCapi.configured()) {
+  console.warn('Meta CAPI not configured — set META_CAPI_ACCESS_TOKEN (and optional META_PIXEL_ID) for server-side Purchase.');
 }
 
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
@@ -598,6 +602,20 @@ app.post(
         }
       } else {
         console.warn('Supabase client not configured; skipping order persistence.');
+      }
+
+      // Meta Conversions API — server Purchase (deduped with browser via event_id)
+      try {
+        await MetaCapi.sendPurchaseFromCheckoutSession(session, {
+          customer: customer,
+          amount_cents: typeof session.amount_total === 'number' ? session.amount_total : 0,
+          event_source_url:
+            (process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '') +
+            '/purchase-confirmation.html?session_id=' +
+            encodeURIComponent(session.id)
+        });
+      } catch (capiErr) {
+        console.error('Meta CAPI error:', capiErr && capiErr.message ? capiErr.message : capiErr);
       }
     }
 
@@ -1341,7 +1359,10 @@ app.post('/api/create-checkout-session', async (req, res) => {
     name,
     visitorId,
     sessionId,
-    cartId
+    cartId,
+    fbp,
+    fbc,
+    clientUserAgent
   } = req.body || {};
   const isEmbedded = embedded === true || embedded === 'true';
   const isCustom = custom === true || custom === 'true';
@@ -1454,6 +1475,17 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (visitorId) metadata.visitorId = String(visitorId);
   if (sessionId) metadata.analyticsSessionId = String(sessionId);
   if (cartId) metadata.cartId = String(cartId);
+  if (fbp) metadata.fbp = String(fbp).slice(0, 200);
+  if (fbc) metadata.fbc = String(fbc).slice(0, 200);
+  if (clientUserAgent) metadata.clientUserAgent = String(clientUserAgent).slice(0, 500);
+  const forwarded =
+    (req.headers['x-forwarded-for'] && String(req.headers['x-forwarded-for']).split(',')[0].trim()) ||
+    req.headers['cf-connecting-ip'] ||
+    req.ip ||
+    '';
+  if (forwarded) metadata.clientIp = String(forwarded).slice(0, 64);
+  const storeUrl = String(process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '');
+  metadata.eventSourceUrl = storeUrl + '/purchase-confirmation.html';
 
   function buildReturnUrl() {
     if (returnUrl) return String(returnUrl);
