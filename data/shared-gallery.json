@@ -1,11 +1,11 @@
 {
-  "updatedAt": "2026-07-17T13:30:00.000Z",
+  "updatedAt": "2026-07-18T05:08:19.786Z",
   "sourceFolder": "shared-gallery/",
   "items": [
     {
       "type": "video",
       "src": "/shared-gallery/A.mp4",
-      "poster": ""
+      "poster": "/shared-gallery/A-poster.jpg"
     },
     {
       "type": "image",
@@ -29,7 +29,7 @@
     {
       "type": "video",
       "src": "/shared-gallery/zybar-homepage.mp4",
-      "poster": ""
+      "poster": "/shared-gallery/zybar-homepage-poster.jpg"
     }
   ]
 }

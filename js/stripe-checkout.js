@@ -942,6 +942,24 @@
             posterImg.alt = "";
             posterImg.loading = "lazy";
             button.appendChild(posterImg);
+          } else {
+            /* Fallback when no poster file: show a loaded video frame */
+            var thumbVideo = document.createElement("video");
+            thumbVideo.src = item.src;
+            thumbVideo.muted = true;
+            thumbVideo.playsInline = true;
+            thumbVideo.preload = "metadata";
+            thumbVideo.setAttribute("playsinline", "");
+            thumbVideo.setAttribute("muted", "");
+            thumbVideo.style.width = "100%";
+            thumbVideo.style.height = "100%";
+            thumbVideo.style.objectFit = "cover";
+            thumbVideo.addEventListener("loadeddata", function () {
+              try {
+                if (thumbVideo.currentTime < 0.05) thumbVideo.currentTime = 0.12;
+              } catch (_) {}
+            });
+            button.appendChild(thumbVideo);
           }
           var playIcon = document.createElement("span");
           playIcon.className = "pdp-gallery-thumb-play";
