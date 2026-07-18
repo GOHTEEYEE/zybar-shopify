@@ -35,24 +35,7 @@ window.renderAdminsettings = function (container) {
           );
         })
         .join('') +
-      '</div>' +
-      '<div class="admin-card" style="margin-top:1.25rem">' +
-      '<h3>Appearance</h3>' +
-      '<p class="admin-muted">Theme follows your system preference. Toggle dark mode for this browser:</p>' +
-      '<button type="button" class="admin-btn-secondary" id="adminThemeToggle">Toggle dark mode</button>' +
       '</div>';
-
-    var btn = document.getElementById('adminThemeToggle');
-    if (btn) {
-      btn.addEventListener('click', function () {
-        var root = document.documentElement;
-        var next = root.getAttribute('data-admin-theme') === 'dark' ? 'light' : 'dark';
-        root.setAttribute('data-admin-theme', next);
-        try {
-          localStorage.setItem('zybar_admin_theme', next);
-        } catch (_) {}
-      });
-    }
     return;
   }
 
@@ -71,10 +54,10 @@ window.renderAdminsettings = function (container) {
   window[match.render](document.getElementById('adminSettingsHost'));
 };
 
-// Restore theme preference early
+// Always use light admin theme (clear any previous dark preference)
 (function () {
   try {
-    var t = localStorage.getItem('zybar_admin_theme');
-    if (t) document.documentElement.setAttribute('data-admin-theme', t);
+    localStorage.removeItem('zybar_admin_theme');
   } catch (_) {}
+  document.documentElement.removeAttribute('data-admin-theme');
 })();
