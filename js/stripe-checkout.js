@@ -478,43 +478,8 @@
   }
 
   function renderIncludedMediaSection(items) {
-    if (!items || !items.length) return;
-    if (document.querySelector(".pdp-included-media")) return;
-
-    var section = document.createElement("section");
-    section.className = "pdp-included-media";
-    section.setAttribute("aria-label", "Included accessories and guides");
-
-    var title = document.createElement("h2");
-    title.className = "pdp-included-media-title";
-    title.textContent = "Included & Guides";
-    section.appendChild(title);
-
-    var row = document.createElement("div");
-    row.className = "pdp-included-media-row";
-    items.forEach(function (item, index) {
-      if (item.type === "video") return;
-      var figure = document.createElement("figure");
-      figure.className = "pdp-included-media-card";
-      var img = document.createElement("img");
-      img.src = item.src;
-      img.alt = "Included item " + (index + 1);
-      img.loading = "lazy";
-      figure.appendChild(img);
-      row.appendChild(figure);
-    });
-    if (!row.children.length) return;
-    section.appendChild(row);
-
-    var buyBox = document.querySelector(".product-showcase");
-    var wrap = document.querySelector(".product-showcase-wrap");
-    if (buyBox && buyBox.parentNode) {
-      buyBox.parentNode.insertBefore(section, buyBox.nextSibling);
-      return;
-    }
-    if (wrap) {
-      wrap.appendChild(section);
-    }
+    /* Included & Guides section removed from PDP */
+    return;
   }
 
   function validateGalleryItems(items) {
@@ -910,8 +875,6 @@
 
     resolveGalleryMedia(mainSrc, slug).then(function (bundle) {
       var items = (bundle && bundle.showcase) || [];
-      var included = (bundle && bundle.included) || [];
-      renderIncludedMediaSection(included);
       if (!items || items.length < 2) return;
 
       var thumbs = document.createElement("div");
