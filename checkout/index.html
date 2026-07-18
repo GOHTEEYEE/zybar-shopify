@@ -17,7 +17,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@300;400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/css/checkout.css?v=luxury4" />
+    <link rel="stylesheet" href="/css/checkout.css?v=luxury5" />
     <script src="/js/stripe-config.js"></script>
     <script src="/lib/pricing-calc.js"></script>
     <script src="/js/pricing.js"></script>
@@ -27,7 +27,7 @@
     <script src="/js/analytics.js?v=4" async></script>
     <script src="https://js.stripe.com/v3/"></script>
     <script src="/js/country-selector.js" defer></script>
-    <script src="/js/checkout-page.js?v=luxury4" defer></script>
+    <script src="/js/checkout-page.js?v=luxury5" defer></script>
   </head>
   <body class="checkout-page">
     <header class="checkout-topbar">
@@ -64,49 +64,70 @@
           </p>
         </header>
 
-        <section class="checkout-summary" aria-label="Order summary">
-          <div class="checkout-line-items" id="checkout-product-list"></div>
-          <div class="checkout-discount">
-            <div class="checkout-discount-row">
-              <input
-                class="checkout-input checkout-discount-input"
-                type="text"
-                id="checkout-discount-code"
-                placeholder="Discount code"
-                autocomplete="off"
-              />
-              <button type="button" class="checkout-btn-apply" id="checkout-discount-apply">
-                Apply
-              </button>
-            </div>
-            <p class="checkout-discount-msg" id="checkout-discount-msg" hidden></p>
-          </div>
-          <div class="checkout-totals" id="checkout-order-totals"></div>
-          <div class="checkout-delivery-estimate" id="checkout-delivery-estimate"></div>
-          <ul class="checkout-craft-notes">
-            <li>Handcrafted</li>
-            <li>Premium Aluminium Finish</li>
-            <li>Built-in LED Lighting</li>
-            <li>2-Year Warranty</li>
-          </ul>
-        </section>
-
-        <!-- Mobile mirrors kept for JS compatibility; visually unused -->
-        <div id="checkout-mobile-summary" hidden>
-          <div id="checkout-mobile-product-list"></div>
-          <div id="checkout-mobile-totals"></div>
-          <span id="checkout-mobile-total"></span>
-          <button type="button" id="checkout-mobile-summary-toggle" hidden aria-hidden="true"></button>
-          <div id="checkout-mobile-summary-panel" hidden></div>
-        </div>
-
         <form class="checkout-main" id="checkout-form" novalidate>
-          <section class="checkout-block checkout-block--express" aria-label="Express checkout">
-            <h2 class="checkout-block-title">Express checkout</h2>
-            <div id="checkout-express-element" class="checkout-express-slot"></div>
-            <div class="checkout-divider" role="separator"><span>OR</span></div>
+          <!-- 1. Product summary -->
+          <section class="checkout-summary" aria-label="Product summary">
+            <div class="checkout-line-items" id="checkout-product-list"></div>
           </section>
 
+          <!-- 2. Discount -->
+          <section class="checkout-block checkout-block--discount" aria-label="Discount code">
+            <div class="checkout-discount">
+              <div class="checkout-discount-row">
+                <input
+                  class="checkout-input checkout-discount-input"
+                  type="text"
+                  id="checkout-discount-code"
+                  placeholder="Discount code"
+                  autocomplete="off"
+                />
+                <button type="button" class="checkout-btn-apply" id="checkout-discount-apply">
+                  Apply
+                </button>
+              </div>
+              <p class="checkout-discount-msg" id="checkout-discount-msg" hidden></p>
+            </div>
+          </section>
+
+          <!-- 3. Shipping experience -->
+          <section class="checkout-block checkout-block--shipping" aria-labelledby="checkout-shipping-heading">
+            <h2 class="checkout-block-title" id="checkout-shipping-heading">Delivery experience</h2>
+            <p class="checkout-block-sub">Choose how your artwork arrives.</p>
+            <div
+              class="checkout-shipping-options"
+              id="checkout-shipping-options"
+              role="radiogroup"
+              aria-label="Delivery experience"
+            >
+              <p class="checkout-shipping-empty">Loading delivery options…</p>
+            </div>
+          </section>
+
+          <!-- 4. Order summary totals -->
+          <section class="checkout-block checkout-block--totals" aria-label="Order totals">
+            <div class="checkout-totals" id="checkout-order-totals"></div>
+          </section>
+
+          <!-- 5. Estimated delivery -->
+          <section class="checkout-block checkout-block--estimate" aria-label="Estimated delivery">
+            <div class="checkout-delivery-estimate" id="checkout-delivery-estimate"></div>
+          </section>
+
+          <!-- 6. Trust -->
+          <section class="checkout-block checkout-block--trust" aria-label="Trust">
+            <div class="checkout-trust-panel">
+              <p class="checkout-trust-secure">Secure Checkout</p>
+              <p class="checkout-trust-meta">256-bit SSL Encryption · Powered by Stripe</p>
+              <ul class="checkout-craft-notes">
+                <li>Handcrafted Aluminium</li>
+                <li>Built-in LED Lighting</li>
+                <li>2-Year Warranty</li>
+                <li>Worldwide Shipping</li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- Contact + shipping address (required for fulfillment) -->
           <section class="checkout-block" aria-labelledby="checkout-contact-heading">
             <h2 class="checkout-block-title" id="checkout-contact-heading">Contact</h2>
             <div class="checkout-field">
@@ -127,7 +148,7 @@
           </section>
 
           <section class="checkout-block" aria-labelledby="checkout-delivery-heading">
-            <h2 class="checkout-block-title" id="checkout-delivery-heading">Delivery</h2>
+            <h2 class="checkout-block-title" id="checkout-delivery-heading">Shipping address</h2>
             <div class="checkout-field">
               <label class="checkout-label" for="checkout-country" id="checkout-country-label"
                 >Country / Region</label
@@ -243,21 +264,18 @@
             </div>
           </section>
 
-          <section class="checkout-block" aria-labelledby="checkout-shipping-heading">
-            <h2 class="checkout-block-title" id="checkout-shipping-heading">Shipping method</h2>
-            <div
-              class="checkout-shipping-options"
-              id="checkout-shipping-options"
-              role="radiogroup"
-              aria-label="Shipping method"
-            >
-              <p class="checkout-shipping-empty">Loading shipping options…</p>
-            </div>
+          <!-- Express + Payment -->
+          <section class="checkout-block checkout-block--express" aria-label="Express checkout">
+            <h2 class="checkout-block-title">Express checkout</h2>
+            <div id="checkout-express-element" class="checkout-express-slot"></div>
+            <div class="checkout-divider" role="separator"><span>OR</span></div>
           </section>
 
           <section class="checkout-block" aria-labelledby="checkout-payment-heading">
             <h2 class="checkout-block-title" id="checkout-payment-heading">Payment</h2>
-            <p class="checkout-block-sub">All transactions are secure and encrypted.</p>
+            <p class="checkout-block-sub">
+              Securely processed by Stripe. No hidden fees.
+            </p>
             <div id="checkout-payment-element" class="checkout-payment-slot"></div>
             <div id="checkout-stripe-embedded" class="checkout-stripe-embedded" hidden></div>
           </section>
@@ -311,10 +329,7 @@
             <p>Preparing secure checkout…</p>
           </div>
 
-          <div class="checkout-trust-inline">
-            <p class="checkout-trust-secure">Secure Checkout</p>
-            <p class="checkout-trust-meta">256-bit SSL Encryption · Powered by Stripe</p>
-          </div>
+          <p class="checkout-cta-note">Handcrafted for enthusiasts. Worldwide shipping.</p>
 
           <button type="submit" class="checkout-btn-pay" id="checkout-pay-btn" disabled>
             Complete Secure Order
@@ -327,6 +342,14 @@
             <li>Worldwide Shipping</li>
           </ul>
         </form>
+
+        <div id="checkout-mobile-summary" hidden>
+          <div id="checkout-mobile-product-list"></div>
+          <div id="checkout-mobile-totals"></div>
+          <span id="checkout-mobile-total"></span>
+          <button type="button" id="checkout-mobile-summary-toggle" hidden aria-hidden="true"></button>
+          <div id="checkout-mobile-summary-panel" hidden></div>
+        </div>
 
         <footer class="checkout-footer">
           <nav class="checkout-footer-links" aria-label="Policies">

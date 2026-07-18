@@ -79,16 +79,16 @@
         {
           code: 'standard',
           label: 'Standard Shipping',
-          description: 'Estimated delivery: 14–18 business days',
+          description: '14–18 Business Days',
           priceUsd: 20,
-          isDefault: true
+          isDefault: false
         },
         {
           code: 'priority',
           label: 'Priority Shipping',
-          description: 'Estimated delivery: 7–14 business days',
+          description: '7–14 Business Days',
           priceUsd: 25,
-          isDefault: false
+          isDefault: true
         }
       ];
     }

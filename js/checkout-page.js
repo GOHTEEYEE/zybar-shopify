@@ -54,31 +54,30 @@
   }
 
   function formatDeliveryRange(shippingMethod) {
-    var start = new Date();
-    var end = new Date();
-    var method = String(shippingMethod || "standard").toLowerCase();
-    var minDays = 10;
-    var maxDays = 16;
-    if (method.indexOf("express") !== -1 || method.indexOf("priority") !== -1) {
-      minDays = 5;
-      maxDays = 9;
-    }
-    start.setDate(start.getDate() + minDays);
-    end.setDate(end.getDate() + maxDays);
-    var opts = { month: "short", day: "numeric" };
-    return start.toLocaleDateString("en-US", opts) + " – " + end.toLocaleDateString("en-US", opts);
+    var method = String(shippingMethod || "priority").toLowerCase();
+    var isPriority =
+      method.indexOf("express") !== -1 || method.indexOf("priority") !== -1;
+    return {
+      isPriority: isPriority,
+      windowLabel: isPriority ? "7–14 Business Days" : "14–18 Business Days"
+    };
   }
 
   function renderDeliveryEstimate() {
     var el = document.getElementById("checkout-delivery-estimate");
     if (!el) return;
-    var range = formatDeliveryRange(getSelectedShippingMethod());
+    var info = formatDeliveryRange(getSelectedShippingMethod());
+    var meta = info.isPriority
+      ? "Priority Processing<br>Tracked Shipping Included<br>Worldwide Shipping"
+      : "Tracked Shipping Included<br>Worldwide Shipping";
     el.innerHTML =
       '<p class="checkout-delivery-label">Estimated Delivery</p>' +
       '<p class="checkout-delivery-dates">' +
-      escapeHtml(range) +
+      escapeHtml(info.windowLabel) +
       "</p>" +
-      '<p class="checkout-delivery-meta">Tracked Shipping Included<br>Worldwide Shipping</p>';
+      '<p class="checkout-delivery-meta">' +
+      meta +
+      "</p>";
   }
 
   function formatShippingUsd(amount) {
@@ -196,8 +195,45 @@
       var radio = option ? option.querySelector('input[name="shippingMethod"]') : null;
       if (!radio) return;
       var cost = pricing.getShippingCostUSD(radio.value);
-      el.textContent = formatShippingUsd(cost);
+      el.textContent = formatUsdLuxury(cost);
     });
+  }
+
+  function shippingIconSvg(code) {
+    if (String(code).indexOf("priority") !== -1 || String(code).indexOf("express") !== -1) {
+      return (
+        '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+        '<path d="M13 2L4 14h7l-1 8 10-14h-7l1-6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>' +
+        "</svg>"
+      );
+    }
+    return (
+      '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+      '<path d="M3 7h11v10H3V7zm11 3h4l3 3v4h-7V10z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>' +
+      '<circle cx="7" cy="18" r="1.6" stroke="currentColor" stroke-width="1.5"/>' +
+      '<circle cx="17" cy="18" r="1.6" stroke="currentColor" stroke-width="1.5"/>' +
+      "</svg>"
+    );
+  }
+
+  function shippingPerksHtml(code) {
+    var isPriority =
+      String(code).indexOf("priority") !== -1 || String(code).indexOf("express") !== -1;
+    if (isPriority) {
+      return (
+        '<ul class="checkout-shipping-perks">' +
+        "<li>Tracked Shipping</li>" +
+        "<li>Priority Processing</li>" +
+        "<li>Worldwide Shipping</li>" +
+        "</ul>"
+      );
+    }
+    return (
+      '<ul class="checkout-shipping-perks">' +
+      "<li>Tracked Shipping</li>" +
+      "<li>Worldwide Shipping</li>" +
+      "</ul>"
+    );
   }
 
   function renderShippingOptionsFromCatalog() {
@@ -208,27 +244,47 @@
 
     var methods = pricing.getShippingMethods();
     if (!methods.length) {
-      container.innerHTML =
-        '<p class="checkout-shipping-empty" style="color:#9ca3af;font-size:14px;">Shipping options are loading…</p>';
+      container.innerHTML = '<p class="checkout-shipping-empty">Loading delivery options…</p>';
       return;
     }
 
-    var saved = pricing.readShippingMethod();
-    var normalizedSaved = pricing.normalizeShippingMethod(saved);
-    var hasSaved = methods.some(function (m) {
-      return m && m.code === normalizedSaved;
+    // CRO: Priority is the default delivery experience (+$5, higher AOV).
+    var preferred = "priority";
+    var hasPreferred = methods.some(function (m) {
+      return m && m.code === preferred;
     });
-    var defaultCode = pricing.getDefaultShippingCode
-      ? pricing.getDefaultShippingCode()
-      : methods[0].code;
+    var selectedCode = hasPreferred ? preferred : methods[0] && methods[0].code;
+
+    // Keep an in-session choice if the customer already switched on this page.
+    if (
+      state.pending &&
+      state.pending._shippingChosen &&
+      state.pending.shippingMethod &&
+      methods.some(function (m) {
+        return m && m.code === state.pending.shippingMethod;
+      })
+    ) {
+      selectedCode = state.pending.shippingMethod;
+    }
 
     container.innerHTML = methods
       .map(function (method) {
         if (!method || !method.code) return "";
         var code = method.code;
-        var selected = hasSaved ? code === normalizedSaved : !!method.isDefault || code === defaultCode;
+        var selected = code === selectedCode;
         var price = pricing.getShippingCostUSD(code);
-        var meta = method.description ? escapeHtml(method.description) : "";
+        var isPriority =
+          code.indexOf("priority") !== -1 || code.indexOf("express") !== -1;
+        var days =
+          method.description ||
+          (isPriority ? "7–14 Business Days" : "14–18 Business Days");
+        days = String(days)
+          .replace(/^Estimated delivery:\s*/i, "")
+          .trim();
+        var badge = isPriority
+          ? '<span class="checkout-shipping-badge">Most Popular</span>'
+          : "";
+
         return (
           '<label class="checkout-shipping-option' +
           (selected ? " is-selected" : "") +
@@ -237,29 +293,38 @@
           '" tabindex="' +
           (selected ? "0" : "-1") +
           '">' +
+          badge +
           '<input type="radio" name="shippingMethod" value="' +
           escapeHtml(code) +
           '" class="checkout-shipping-input"' +
           (selected ? " checked" : "") +
           " />" +
-          '<span class="checkout-shipping-radio" aria-hidden="true"></span>' +
+          '<span class="checkout-shipping-icon">' +
+          shippingIconSvg(code) +
+          "</span>" +
           '<span class="checkout-shipping-option-body">' +
           '<span class="checkout-shipping-option-name">' +
           escapeHtml(method.label || code) +
           "</span>" +
-          (meta
-            ? '<span class="checkout-shipping-option-meta">' + meta + "</span>"
-            : "") +
+          '<span class="checkout-shipping-option-meta">' +
+          escapeHtml(days) +
+          "</span>" +
+          shippingPerksHtml(code) +
           "</span>" +
           '<span class="checkout-shipping-option-price" data-shipping-price="' +
           escapeHtml(code) +
           '">' +
-          formatShippingUsd(price) +
+          formatUsdLuxury(price) +
           "</span>" +
           "</label>"
         );
       })
       .join("");
+
+    if (selectedCode) {
+      persistShippingSelection(selectedCode);
+      if (state.pending) state.pending.shippingMethod = selectedCode;
+    }
   }
 
   function escapeHtml(text) {
@@ -338,7 +403,10 @@
       "</div>",
       '<div class="checkout-line-details">',
       '<p class="checkout-line-name">' + escapeHtml(titles.title) + "</p>",
-      '<p class="checkout-line-variant">' + metaLines.join("<br>") + "</p>",
+      '<p class="checkout-line-variant">' +
+      metaLines.join("<br>") +
+      (safeQty > 1 ? "<br>Qty " + safeQty : "<br>Qty 1") +
+      "</p>",
       "</div>",
       '<p class="checkout-line-price">' + formatUsdLuxury(lineTotal) + "</p>",
       "</article>"
@@ -1063,6 +1131,13 @@
 
   function handleShippingChange(method) {
     persistShippingSelection(method);
+    if (state.pending) {
+      state.pending.shippingMethod = method;
+      state.pending._shippingChosen = true;
+      try {
+        window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(state.pending));
+      } catch (_) {}
+    }
     syncShippingCardStates();
     updateOrderTotalsAnimated();
     renderDeliveryEstimate();
@@ -1223,8 +1298,13 @@
     state.pending = pending;
     var pricing = getPricing();
     if (pricing) {
+      // CRO default: Priority shipping (+$5) unless customer already chose on this checkout.
+      if (!pending._shippingChosen) {
+        pending.shippingMethod = "priority";
+        pricing.writeShippingMethod("priority");
+      }
       renderShippingOptionsFromCatalog();
-      var method = pending.shippingMethod || pricing.readShippingMethod();
+      var method = pending.shippingMethod || "priority";
       pricing.writeShippingMethod(method);
       setShippingRadio(method);
       if (Array.isArray(pending.displayItems)) {
