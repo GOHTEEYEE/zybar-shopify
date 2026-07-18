@@ -24,8 +24,9 @@
   position: relative;
   width: 400px;
   max-width: calc(100vw - 56px);
-  max-height: min(620px, 68vh);
-  overflow: hidden;
+  max-height: min(860px, 92vh);
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   background: #171717;
@@ -78,8 +79,9 @@
   position: relative;
   width: 100%;
   flex: 0 0 auto;
-  height: min(168px, 24vh);
-  min-height: 132px;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  min-height: 0;
   overflow: hidden;
   border-radius: 19px 19px 0 0;
   background: #101010;
@@ -322,13 +324,14 @@
   .zybar-popup {
     width: 84vw;
     max-width: 340px;
-    max-height: 68vh;
+    max-height: 92vh;
     border-radius: 18px;
   }
 
   .zybar-popup-hero-wrap {
-    height: min(140px, 22vh);
-    min-height: 120px;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    min-height: 0;
     border-radius: 17px 17px 0 0;
   }
 
