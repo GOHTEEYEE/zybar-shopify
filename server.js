@@ -1451,7 +1451,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     metadata,
     branding_settings: {
       background_color: '#111111',
-      button_color: '#d9ff00',
+      button_color: '#d4af37',
       border_style: 'rounded',
       font_family: 'inter'
     },

@@ -39,6 +39,43 @@
     return "$" + n.toFixed(2);
   }
 
+  /** Luxury total display: US$184 or US$184.50 */
+  function formatUsdLuxury(amount) {
+    var n = Number(amount);
+    if (!Number.isFinite(n)) return "US$0";
+    var rounded = Math.round(n * 100) / 100;
+    if (rounded % 1 === 0) return "US$" + String(Math.round(rounded));
+    return "US$" + rounded.toFixed(2);
+  }
+
+  function formatDeliveryRange(shippingMethod) {
+    var start = new Date();
+    var end = new Date();
+    var method = String(shippingMethod || "standard").toLowerCase();
+    var minDays = 10;
+    var maxDays = 16;
+    if (method.indexOf("express") !== -1 || method.indexOf("priority") !== -1) {
+      minDays = 5;
+      maxDays = 9;
+    }
+    start.setDate(start.getDate() + minDays);
+    end.setDate(end.getDate() + maxDays);
+    var opts = { month: "short", day: "numeric" };
+    return start.toLocaleDateString("en-US", opts) + " – " + end.toLocaleDateString("en-US", opts);
+  }
+
+  function renderDeliveryEstimate() {
+    var el = document.getElementById("checkout-delivery-estimate");
+    if (!el) return;
+    var range = formatDeliveryRange(getSelectedShippingMethod());
+    el.innerHTML =
+      '<p class="checkout-delivery-label">Estimated Delivery</p>' +
+      '<p class="checkout-delivery-dates">' +
+      escapeHtml(range) +
+      "</p>" +
+      '<p class="checkout-delivery-meta">Tracked Shipping Included<br>Worldwide Shipping</p>';
+  }
+
   function formatShippingUsd(amount) {
     var pricing = getPricing();
     if (pricing && typeof pricing.formatShippingUsd === "function") {
@@ -103,8 +140,11 @@
 
   function animateMoney(el, from, to, duration) {
     if (!el) return;
+    var isGrand =
+      el.getAttribute("data-total") === "grand" || el.id === "checkout-mobile-total";
+    var format = isGrand ? formatUsdLuxury : formatUsd;
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      el.textContent = formatUsd(to);
+      el.textContent = format(to);
       el.setAttribute("data-value", String(to));
       return;
     }
@@ -113,11 +153,11 @@
     function frame(now) {
       var t = Math.min(1, (now - start) / (duration || ANIM_MS));
       var val = from + (to - from) * moneyEase(t);
-      el.textContent = formatUsd(val);
+      el.textContent = format(val);
       if (t < 1) {
         requestAnimationFrame(frame);
       } else {
-        el.textContent = formatUsd(to);
+        el.textContent = format(to);
         el.setAttribute("data-value", String(to));
         el.classList.remove("is-updating");
       }
@@ -278,26 +318,24 @@
     var titles = splitProductTitle(item.name);
     var sizePart = item.sizeLabel || item.size || "";
     var powerPart = item.powerTypeLabel || "";
-    var variant = sizePart && powerPart ? sizePart + " · " + powerPart : sizePart || powerPart || "";
+    var metaLines = [];
+    if (sizePart) metaLines.push(escapeHtml(sizePart));
+    if (powerPart) metaLines.push(escapeHtml(powerPart));
+    if (!metaLines.length && titles.subtitle) metaLines.push(escapeHtml(titles.subtitle));
 
     return [
       '<article class="checkout-line-item">',
       '<div class="checkout-line-thumb-wrap">',
       '<img class="checkout-line-thumb" src="' +
         escapeHtml(imageUrl) +
-        '" alt="" width="64" height="64" loading="eager" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.Cart&amp;&amp;ZYBAR.Cart.onProductThumbError)ZYBAR.Cart.onProductThumbError(this)" />',
+        '" alt="" width="72" height="72" loading="eager" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.Cart&amp;&amp;ZYBAR.Cart.onProductThumbError)ZYBAR.Cart.onProductThumbError(this)" />',
       '<span class="checkout-line-qty" aria-label="Quantity">' + safeQty + "</span>",
       "</div>",
       '<div class="checkout-line-details">',
       '<p class="checkout-line-name">' + escapeHtml(titles.title) + "</p>",
-      '<p class="checkout-line-variant">' +
-        escapeHtml(variant || titles.subtitle) +
-        (variant && titles.subtitle && variant !== titles.subtitle
-          ? "<br>" + escapeHtml(titles.subtitle)
-          : "") +
-        "</p>",
+      '<p class="checkout-line-variant">' + metaLines.join("<br>") + "</p>",
       "</div>",
-      '<p class="checkout-line-price">' + formatUsd(lineTotal) + "</p>",
+      '<p class="checkout-line-price">' + formatUsdLuxury(lineTotal) + "</p>",
       "</article>"
     ].join("");
   }
@@ -338,29 +376,34 @@
   function renderTotalsHtml() {
     var taxRow =
       state.tax > 0
-        ? '<div class="checkout-total-row"><span>Taxes</span><span>' + formatUsd(state.tax) + "</span></div>"
+        ? '<div class="checkout-total-row"><span>Taxes</span><span>' +
+          formatUsdLuxury(state.tax) +
+          "</span></div>"
         : "";
 
     return [
       '<div class="checkout-total-row"><span>Subtotal</span><span class="checkout-money" data-total="subtotal" data-value="' +
         state.subtotal +
         '">' +
-        formatUsd(state.subtotal) +
+        formatUsdLuxury(state.subtotal) +
         "</span></div>",
       '<div class="checkout-total-row"><span>Shipping</span><span class="checkout-money" data-total="shipping" data-value="' +
         state.shipping +
         '">' +
-        formatUsd(state.shipping) +
+        formatUsdLuxury(state.shipping) +
         "</span></div>",
       taxRow,
       state.discount > 0
-        ? '<div class="checkout-total-row"><span>Discount</span><span>-' + formatUsd(state.discount) + "</span></div>"
+        ? '<div class="checkout-total-row"><span>Discount</span><span>-' +
+          formatUsdLuxury(state.discount) +
+          "</span></div>"
         : "",
-      '<div class="checkout-total-row checkout-total-row--grand"><span>Total</span><span class="checkout-money" data-total="grand" data-value="' +
+      '<div class="checkout-total-row checkout-total-row--grand"><span>TOTAL</span><span class="checkout-money" data-total="grand" data-value="' +
         state.total +
         '">' +
-        formatUsd(state.total) +
-        "</span></div>"
+        formatUsdLuxury(state.total) +
+        "</span></div>",
+      '<p class="checkout-tax-note">Tax Included</p>'
     ].join("");
   }
 
@@ -388,8 +431,9 @@
     if (mobileTotals) mobileTotals.innerHTML = totalsHtml;
     if (mobileTotal) {
       mobileTotal.setAttribute("data-value", String(state.total));
-      mobileTotal.textContent = formatUsd(state.total);
+      mobileTotal.textContent = formatUsdLuxury(state.total);
     }
+    renderDeliveryEstimate();
 
     var cartCount = document.getElementById("checkout-cart-count");
     if (cartCount) {
@@ -428,12 +472,27 @@
     return {
       theme: "night",
       variables: {
-        colorPrimary: "#d9ff00",
-        colorBackground: "#1a1a1a",
-        colorText: "#ffffff",
-        colorDanger: "#f87171",
-        fontFamily: "Inter, system-ui, sans-serif",
-        borderRadius: "8px"
+        colorPrimary: "#D4AF37",
+        colorBackground: "#111111",
+        colorText: "#FFFFFF",
+        colorDanger: "#D4AF37",
+        fontFamily: "Outfit, system-ui, sans-serif",
+        borderRadius: "12px",
+        spacingUnit: "4px"
+      },
+      rules: {
+        ".Input": {
+          backgroundColor: "#111111",
+          border: "1px solid rgba(255,255,255,0.12)"
+        },
+        ".Tab": {
+          backgroundColor: "#111111",
+          border: "1px solid rgba(255,255,255,0.12)"
+        },
+        ".Tab--selected": {
+          borderColor: "#D4AF37",
+          color: "#FFFFFF"
+        }
       }
     };
   }
@@ -568,9 +627,15 @@
 
       var paymentMount = document.getElementById("checkout-payment-element");
       if (paymentMount && typeof checkout.createPaymentElement === "function") {
-        // Payment Element: cards + Link + eligible wallets (from Dashboard / session).
+        // Payment Element: cards + PayPal; hide Link; wallets stay in Express.
         var paymentElement = checkout.createPaymentElement({
-          layout: "tabs"
+          layout: "tabs",
+          wallets: {
+            applePay: "never",
+            googlePay: "never",
+            link: "never"
+          },
+          paymentMethodOrder: ["card", "paypal"]
         });
         paymentElement.mount("#checkout-payment-element");
       }
@@ -580,17 +645,17 @@
       var expressElement = null;
       if (expressMount && typeof checkout.createExpressCheckoutElement === "function") {
         try {
-          // Prefer always showing Apple Pay / Google Pay on supported platforms.
+          // Apple Pay / Google Pay first; hide Link from express row.
           expressElement = checkout.createExpressCheckoutElement({
             paymentMethods: {
               applePay: "always",
               googlePay: "always",
-              link: "auto",
+              link: "never",
               paypal: "auto",
-              amazonPay: "auto",
-              klarna: "auto"
+              amazonPay: "never",
+              klarna: "never"
             },
-            paymentMethodOrder: ["applePay", "googlePay", "link", "paypal", "klarna", "amazonPay"],
+            paymentMethodOrder: ["applePay", "googlePay", "paypal"],
             layout: { maxColumns: 2, maxRows: 2, overflow: "auto" }
           });
           expressElement.mount("#checkout-express-element");
@@ -808,7 +873,7 @@
         showError((err && err.message) || "Payment could not be completed. Please try again.");
         if (payBtn) {
           payBtn.disabled = false;
-          payBtn.textContent = "Complete order";
+          payBtn.textContent = "Complete Secure Order";
         }
       });
   }
@@ -825,6 +890,7 @@
     persistShippingSelection(method);
     syncShippingCardStates();
     updateOrderTotalsAnimated();
+    renderDeliveryEstimate();
     if (window.ZYBAR && window.ZYBAR.Analytics) {
       window.ZYBAR.Analytics.trackShippingSelected(method, state.total);
     }
