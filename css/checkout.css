@@ -684,6 +684,10 @@
 }
 
 /* Payment */
+.checkout-updating-total .checkout-total-row--grand .checkout-money {
+  opacity: 0.72;
+}
+
 .checkout-payment-slot.is-refreshing,
 .checkout-express-slot.is-refreshing,
 .checkout-stripe-embedded.is-refreshing {

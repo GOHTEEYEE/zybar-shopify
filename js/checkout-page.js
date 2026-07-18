@@ -22,7 +22,10 @@
     paymentMode: "custom",
     returnUrl: "",
     pending: null,
-    mountToken: 0
+    mountToken: 0,
+    /** Cached Stripe session results by shipping method for instant swaps. */
+    sessionByShipping: {},
+    sessionFetchByShipping: {}
   };
 
   function getConfig() {
@@ -557,7 +560,7 @@
     });
   }
 
-  function mountStripeFromSessionResult(result) {
+  function mountStripeFromSessionResult(result, token) {
     if (!result.ok || !result.data) {
       showError(
         (result.data && result.data.error) ||
@@ -581,7 +584,7 @@
       return Promise.resolve();
     }
     var stripe = window.Stripe(pk);
-    var token = ++state.mountToken;
+    token = token || ++state.mountToken;
 
     if (result.data.checkoutMode !== "custom") {
       return mountEmbeddedCheckout(stripe, result.data.clientSecret, token);
@@ -592,6 +595,54 @@
       if (token !== state.mountToken) return;
       teardownStripeCheckout();
       return mountEmbeddedCheckout(stripe, result.data.clientSecret, token);
+    });
+  }
+
+  function invalidateSessionCache() {
+    state.sessionByShipping = {};
+    state.sessionFetchByShipping = {};
+  }
+
+  function rememberSession(shippingMethod, result) {
+    if (!shippingMethod || !result || !result.ok || !result.data || !result.data.clientSecret) {
+      return;
+    }
+    state.sessionByShipping[shippingMethod] = result;
+  }
+
+  function getOrCreateSession(shippingMethod) {
+    var method = shippingMethod || getSelectedShippingMethod();
+    if (state.sessionByShipping[method]) {
+      return Promise.resolve(state.sessionByShipping[method]);
+    }
+    if (state.sessionFetchByShipping[method]) {
+      return state.sessionFetchByShipping[method];
+    }
+    if (!state.pending) {
+      return Promise.reject(new Error("Checkout is not ready."));
+    }
+    var pending = Object.assign({}, state.pending, { shippingMethod: method });
+    var request = createCheckoutSession(pending)
+      .then(function (result) {
+        rememberSession(method, result);
+        delete state.sessionFetchByShipping[method];
+        return result;
+      })
+      .catch(function (err) {
+        delete state.sessionFetchByShipping[method];
+        throw err;
+      });
+    state.sessionFetchByShipping[method] = request;
+    return request;
+  }
+
+  function prefetchOtherShippingSessions() {
+    var pricing = getPricing();
+    if (!pricing || typeof pricing.getShippingMethods !== "function" || !state.pending) return;
+    var current = getSelectedShippingMethod();
+    pricing.getShippingMethods().forEach(function (row) {
+      if (!row || !row.code || row.code === current) return;
+      getOrCreateSession(row.code).catch(function () {});
     });
   }
 
@@ -634,18 +685,10 @@
   }
 
   function setPaymentRefreshing(isRefreshing) {
-    var paymentSlot = document.getElementById("checkout-payment-element");
-    var expressSlot = document.getElementById("checkout-express-element");
-    var embeddedHost = document.getElementById("checkout-stripe-embedded");
-    [paymentSlot, expressSlot, embeddedHost].forEach(function (el) {
-      if (!el) return;
-      el.classList.toggle("is-refreshing", !!isRefreshing);
-    });
+    document.documentElement.classList.toggle("checkout-updating-total", !!isRefreshing);
     var payBtn = document.getElementById("checkout-pay-btn");
-    if (payBtn) {
+    if (payBtn && state.paymentMode === "custom") {
       payBtn.disabled = !!isRefreshing;
-      if (isRefreshing) payBtn.textContent = "Updating total…";
-      else if (state.paymentMode === "custom") payBtn.textContent = "Complete Secure Order";
     }
   }
 
@@ -674,9 +717,13 @@
     } catch (_) {}
   }
 
+  /**
+   * Swap Stripe to the selected shipping total.
+   * Totals update instantly in the UI; payment remounts from a prefetched
+   * session when available so the customer rarely waits on the network.
+   */
   function refreshCheckoutSession() {
     if (!state.pending) return Promise.resolve();
-    var pricing = getPricing();
     var shippingMethod = getSelectedShippingMethod();
     persistShippingSelection(shippingMethod);
     state.pending.shippingMethod = shippingMethod;
@@ -684,37 +731,29 @@
       window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(state.pending));
     } catch (_) {}
 
-    var token = ++state.mountToken;
-    setPaymentRefreshing(true);
     clearError();
-    teardownStripeCheckout();
+    setPaymentRefreshing(true);
 
-    var reloadPricing =
-      pricing && typeof pricing.load === "function"
-        ? pricing.load(true).catch(function () {
-            return pricing;
-          })
-        : Promise.resolve(pricing);
+    var cached = !!state.sessionByShipping[shippingMethod];
 
-    return reloadPricing
-      .then(function () {
-        if (token !== state.mountToken) return null;
-        updateOrderTotalsAnimated();
-        renderDeliveryEstimate();
-        updateShippingPriceLabels();
-        return createCheckoutSession(state.pending);
-      })
+    return getOrCreateSession(shippingMethod)
       .then(function (result) {
-        if (!result || token !== state.mountToken) return;
-        return mountStripeFromSessionResult(result);
+        // User may have tapped another method while this request was in flight.
+        if (getSelectedShippingMethod() !== shippingMethod) {
+          setPaymentRefreshing(false);
+          return;
+        }
+        var token = ++state.mountToken;
+        teardownStripeCheckout();
+        return mountStripeFromSessionResult(result, token);
       })
       .then(function () {
-        if (token !== state.mountToken) return;
+        if (getSelectedShippingMethod() !== shippingMethod) return;
         setPaymentRefreshing(false);
         clearError();
+        if (!cached) prefetchOtherShippingSessions();
       })
       .catch(function (err) {
-        if (token !== state.mountToken) return;
         console.error(err);
         setPaymentRefreshing(false);
         showError((err && err.message) || "Could not update shipping. Please refresh and try again.");
@@ -1015,10 +1054,11 @@
 
   function scheduleShippingRefresh() {
     if (shippingRefreshTimer) clearTimeout(shippingRefreshTimer);
+    // Tiny coalesce only — UI totals already updated instantly.
     shippingRefreshTimer = setTimeout(function () {
       shippingRefreshTimer = null;
       refreshCheckoutSession();
-    }, 350);
+    }, 40);
   }
 
   function handleShippingChange(method) {
@@ -1056,7 +1096,8 @@
         window.ZYBAR.Analytics.trackEvent("checkout_country_selected", { country: code });
       }
 
-      // Re-sync Stripe payment/shipping when country changes (taxes, rates).
+      // Country can affect tax/shipping eligibility — rebuild session cache.
+      invalidateSessionCache();
       scheduleShippingRefresh();
     });
   }
@@ -1148,6 +1189,7 @@
         updateOrderTotalsAnimated();
         msg.textContent = "Discount applied.";
         msg.className = "checkout-discount-msg is-success";
+        invalidateSessionCache();
         scheduleShippingRefresh();
         return;
       }
@@ -1212,7 +1254,13 @@
     if (form) form.addEventListener("submit", handlePaySubmit);
 
     createCheckoutSession(pending)
-      .then(mountStripeFromSessionResult)
+      .then(function (result) {
+        rememberSession(getSelectedShippingMethod(), result);
+        return mountStripeFromSessionResult(result);
+      })
+      .then(function () {
+        prefetchOtherShippingSessions();
+      })
       .catch(function (err) {
         console.error(err);
         showError((err && err.message) || "Something went wrong. Please refresh and try again.");
