@@ -505,13 +505,17 @@ window.renderAdmindashboard = function (container) {
     Promise.all([
       sb.from('sessions').select('started_at').gte('started_at', startStr).lt('started_at', endExcl),
       sb.from('sessions').select('started_at').gte('started_at', startPrevStr).lt('started_at', endPrevExcl),
-      sb.from('orders').select('created_at, amount_total_cents').eq('test_mode', true).gte('created_at', startStr).lt('created_at', endExcl),
-      sb.from('orders').select('created_at, amount_total_cents').eq('test_mode', true).gte('created_at', startPrevStr).lt('created_at', endPrevExcl)
+      sb.from('orders').select('created_at, amount_total_cents, status, test_mode').gte('created_at', startStr).lt('created_at', endExcl),
+      sb.from('orders').select('created_at, amount_total_cents, status, test_mode').gte('created_at', startPrevStr).lt('created_at', endPrevExcl)
     ]).then(function (results) {
       var sessionsData = (results[0] && results[0].data) || [];
       var sessionsPrevData = (results[1] && results[1].data) || [];
-      var ordersData = (results[2] && results[2].data) || [];
-      var ordersPrevData = (results[3] && results[3].data) || [];
+      function keepOrder(o) {
+        var s = String((o && o.status) || '').toLowerCase();
+        return s !== 'failed' && s !== 'canceled' && s !== 'cancelled';
+      }
+      var ordersData = ((results[2] && results[2].data) || []).filter(keepOrder);
+      var ordersPrevData = ((results[3] && results[3].data) || []).filter(keepOrder);
 
       var sessions = sessionsData.length;
       var sessionsPrev = sessionsPrevData.length;
