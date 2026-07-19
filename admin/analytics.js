@@ -821,15 +821,12 @@ window.renderAdminanalytics = function (container) {
             formatUsdCents(r.revenue_cents) +
             '</td>' +
             '<td>' +
-            formatUsdCents(r.aov_cents) +
-            '</td>' +
-            '<td>' +
             r.conversion_rate +
             '%</td></tr>'
           );
         })
         .join('') ||
-      '<tr><td colspan="6" class="admin-cell-empty">No country data yet</td></tr>';
+      '<tr><td colspan="5" class="admin-cell-empty">No country data yet</td></tr>';
 
     return (
       '<div class="admin-card"><h3>Country Performance</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
@@ -837,7 +834,6 @@ window.renderAdminanalytics = function (container) {
       sortableTh('Visitors', 'visitors', 'countries') +
       sortableTh('Orders', 'orders', 'countries') +
       sortableTh('Revenue', 'revenue_cents', 'countries') +
-      sortableTh('Average Order Value', 'aov_cents', 'countries') +
       sortableTh('Conversion Rate', 'conversion_rate', 'countries') +
       '</tr></thead><tbody>' +
       body +
