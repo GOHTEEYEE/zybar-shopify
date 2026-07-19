@@ -1,674 +1,391 @@
 /**
- * Admin Dashboard - KPIs with date range, sparklines, live visitors (no traffic source)
- * Sessions, Total sales, Orders, Conversion rate
+ * Admin Dashboard — production KPIs from real analytics APIs.
+ * Date filter drives every widget. No fake metrics.
  */
-
-function renderDashboardMock(container) {
-  var mock = window.MOCK_DATA && window.MOCK_DATA.dashboard;
-  if (!mock) return;
-  var state = { chartData: null, expandedKpi: null, chartInstance: null };
-  var now = new Date();
-  function formatAxisDate(isoStr) {
-    if (!isoStr) return '';
-    var d = new Date(isoStr);
-    return (d.getMonth() + 1) + '\u6708' + d.getDate() + '\u65E5';
-  }
-  function formatDateRangeLabel() {
-    var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var start = mock.labels && mock.labels[0] ? new Date(mock.labels[0]) : now;
-    var end = mock.labels && mock.labels.length ? new Date(mock.labels[mock.labels.length - 1]) : now;
-    return m[start.getMonth()] + ' ' + start.getDate() + '-' + end.getDate() + ', ' + start.getFullYear();
-  }
-  function drawSparkline(elId, values) {
-    var el = document.getElementById(elId);
-    if (!el || !values || values.length === 0) return;
-    var max = Math.max.apply(null, values);
-    if (max === 0) max = 1;
-    var w = 80, h = 40;
-    var n = values.length;
-    var xs = [], ys = [];
-    for (var i = 0; i < n; i++) {
-      xs.push((i / (n - 1 || 1)) * w);
-      ys.push(h - (values[i] / max) * h);
-    }
-    var path = 'M ' + xs[0] + ',' + ys[0];
-    for (var j = 1; j < n; j++) {
-      var dx = xs[j] - xs[j - 1];
-      path += ' C ' + (xs[j - 1] + dx / 2) + ',' + ys[j - 1] + ' ' + (xs[j] - dx / 2) + ',' + ys[j] + ' ' + xs[j] + ',' + ys[j];
-    }
-    el.innerHTML = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><path fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="' + path + '"/></svg>';
-  }
-  function formatNum(n) {
-    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-    return String(n);
-  }
-  function renderChange(elId, pct) {
-    var el = document.getElementById(elId);
-    if (!el) return;
-    if (pct == null || isNaN(pct)) { el.textContent = '\u2014'; el.className = 'admin-kpi-change'; return; }
-    el.className = 'admin-kpi-change ' + (pct >= 0 ? 'admin-kpi-up' : 'admin-kpi-down');
-    el.textContent = (pct >= 0 ? '+' : '') + pct + '%';
-  }
-  function padPrevToLength(prevArr, len) {
-    if (!prevArr || prevArr.length >= len) return (prevArr || []).slice(0, len);
-    var out = prevArr.slice();
-    while (out.length < len) out.push(0);
-    return out;
-  }
-  state.chartData = {
-    labels: mock.labels,
-    sessionsCurr: mock.sessionsCurr,
-    sessionsPrev: mock.sessionsPrev,
-    salesCurr: mock.salesCurr,
-    salesPrev: mock.salesPrev,
-    ordersCurr: mock.ordersCurr,
-    ordersPrev: mock.ordersPrev,
-    convCurr: mock.convCurr,
-    convPrev: mock.convPrev
-  };
-  container.innerHTML =
-    '<h2 class="admin-page-title">Dashboard</h2>' +
-    '<div class="admin-dashboard-header">' +
-    '  <div class="admin-dashboard-toolbar">' +
-    '    <div class="admin-date-range" id="adminDateRange">' + formatDateRangeLabel() + '</div>' +
-    '    <div class="admin-live-visitors" id="adminLiveVisitors"><span class="admin-live-dot"></span> <span id="adminLiveCount">' + (mock.liveVisitors || 0) + '</span> live visitors</div>' +
-    '  </div>' +
-    '</div>' +
-    '<div class="admin-kpi-cards" id="adminKpiCards">' +
-    '  <div class="admin-kpi-card" data-kpi="sessions" role="button" tabindex="0">' +
-    '    <div class="admin-kpi-card-inner">' +
-    '      <div class="admin-kpi-card-top"><span class="admin-kpi-label">Sessions</span><div class="admin-kpi-spark" id="sparkSessions"></div></div>' +
-    '      <div class="admin-kpi-value-wrap"><span class="admin-kpi-value" id="kpiSessions">—</span></div>' +
-    '      <div class="admin-kpi-card-bottom"><span class="admin-kpi-change" id="kpiSessionsChange">—</span><span class="admin-kpi-vs-label">vs last month</span></div>' +
-    '    </div><div class="admin-kpi-chart-panel" id="chartPanelSessions" aria-hidden="true"></div></div>' +
-    '  <div class="admin-kpi-card" data-kpi="sales" role="button" tabindex="0">' +
-    '    <div class="admin-kpi-card-inner">' +
-    '      <div class="admin-kpi-card-top"><span class="admin-kpi-label">Total sales</span><div class="admin-kpi-spark" id="sparkSales"></div></div>' +
-    '      <div class="admin-kpi-value-wrap"><span class="admin-kpi-currency" id="kpiSalesCurrency">RM</span> <span class="admin-kpi-value" id="kpiSales">—</span></div>' +
-    '      <div class="admin-kpi-card-bottom"><span class="admin-kpi-change" id="kpiSalesChange">—</span><span class="admin-kpi-vs-label">vs last month</span></div>' +
-    '    </div><div class="admin-kpi-chart-panel" id="chartPanelSales" aria-hidden="true"></div></div>' +
-    '  <div class="admin-kpi-card" data-kpi="orders" role="button" tabindex="0">' +
-    '    <div class="admin-kpi-card-inner">' +
-    '      <div class="admin-kpi-card-top"><span class="admin-kpi-label">Orders</span><div class="admin-kpi-spark" id="sparkOrders"></div></div>' +
-    '      <div class="admin-kpi-value-wrap"><span class="admin-kpi-value" id="kpiOrders">—</span></div>' +
-    '      <div class="admin-kpi-card-bottom"><span class="admin-kpi-change" id="kpiOrdersChange">—</span><span class="admin-kpi-vs-label">vs last month</span></div>' +
-    '    </div><div class="admin-kpi-chart-panel" id="chartPanelOrders" aria-hidden="true"></div></div>' +
-    '  <div class="admin-kpi-card" data-kpi="conv" role="button" tabindex="0">' +
-    '    <div class="admin-kpi-card-inner">' +
-    '      <div class="admin-kpi-card-top"><span class="admin-kpi-label">Conversion rate</span><div class="admin-kpi-spark" id="sparkConv"></div></div>' +
-    '      <div class="admin-kpi-value-wrap"><span class="admin-kpi-value" id="kpiConv">—</span></div>' +
-    '      <div class="admin-kpi-card-bottom"><span class="admin-kpi-change" id="kpiConvChange">—</span><span class="admin-kpi-vs-label">vs last month</span></div>' +
-    '    </div><div class="admin-kpi-chart-panel" id="chartPanelConv" aria-hidden="true"></div></div>' +
-    '</div>' +
-    '<div class="admin-card"><h3>Most viewed pages</h3><div id="topPages" class="admin-loading">Loading...</div></div>' +
-    '<div class="admin-card"><h3>Top products</h3><div id="topProducts" class="admin-loading">Loading...</div></div>';
-  document.getElementById('kpiSessions').textContent = formatNum(mock.sessionsTotal);
-  var salesCurEl = document.getElementById('kpiSalesCurrency');
-  if (salesCurEl) salesCurEl.textContent = 'RM ';
-  document.getElementById('kpiSales').textContent = (mock.salesTotalRM || 0).toFixed(2);
-  document.getElementById('kpiOrders').textContent = formatNum(mock.ordersTotal);
-  document.getElementById('kpiConv').textContent = (mock.conversionPct || 0).toFixed(2) + '%';
-  renderChange('kpiSessionsChange', 12);
-  renderChange('kpiSalesChange', 8);
-  renderChange('kpiOrdersChange', 5);
-  renderChange('kpiConvChange', -5);
-  drawSparkline('sparkSessions', mock.sessionsCurr);
-  drawSparkline('sparkSales', mock.salesCurr);
-  drawSparkline('sparkOrders', mock.ordersCurr);
-  drawSparkline('sparkConv', mock.convCurr || mock.sessionsCurr.map(function (s, i) { return s > 0 ? (mock.ordersCurr[i] / s * 100) : 0; }));
-  var topPages = mock.topPages || [];
-  var topProducts = mock.topProducts || [];
-  var pagesHtml = topPages.length ? '<table class="admin-table"><thead><tr><th>Page</th><th>Views</th></tr></thead><tbody>' + topPages.map(function (r) { return '<tr><td>' + (r.page_url || '-') + '</td><td>' + (r.count || 0) + '</td></tr>'; }).join('') + '</tbody></table>' : '<p>No data yet.</p>';
-  var productsHtml = topProducts.length ? '<table class="admin-table"><thead><tr><th>Product</th><th>Views</th></tr></thead><tbody>' + topProducts.map(function (r) { return '<tr><td>' + (r.product_id || r.name || '-') + '</td><td>' + (r.count || 0) + '</td></tr>'; }).join('') + '</tbody></table>' : '<p>No data yet.</p>';
-  document.getElementById('topPages').innerHTML = pagesHtml;
-  document.getElementById('topProducts').innerHTML = productsHtml;
-  function renderFullChart(panelId, chartData, kpiKey) {
-    var panel = document.getElementById(panelId);
-    if (!panel || !chartData || !chartData.labels || chartData.labels.length === 0) return;
-    var labels = chartData.labels;
-    var curr = chartData[kpiKey + 'Curr'] || [];
-    var prev = chartData[kpiKey + 'Prev'] || [];
-    var prevPadded = padPrevToLength(prev, labels.length);
-    var formatValue = kpiKey === 'sales' ? function (v) { return (v || 0).toFixed(2); } : (kpiKey === 'conv' ? function (v) { return (v || 0).toFixed(1) + '%'; } : function (v) { return String(v || 0); });
-    if (state.chartInstance) { state.chartInstance.destroy(); state.chartInstance = null; }
-    panel.innerHTML = '<div class="admin-kpi-chart-header"><span class="admin-kpi-chart-range">' + formatAxisDate(labels[0]) + ' \u2013 ' + formatAxisDate(labels[labels.length - 1]) + '</span><button type="button" class="admin-kpi-chart-close" aria-label="Close chart">\u2715</button></div><div class="admin-kpi-chart-canvas-wrap"><canvas id="adminKpiChartCanvas"></canvas></div>';
-    panel.querySelector('.admin-kpi-chart-close').addEventListener('click', function (e) { e.stopPropagation(); collapseKpi(); });
-    var ctx = document.getElementById('adminKpiChartCanvas');
-    if (!ctx || typeof Chart === 'undefined') return;
-    state.chartInstance = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels.map(formatAxisDate),
-        datasets: [
-          { label: 'Current period', data: curr, borderColor: '#1e40af', backgroundColor: 'rgba(30,64,175,0.08)', fill: true, tension: 0.3, borderWidth: 2 },
-          { label: 'Previous period', data: prevPadded, borderColor: '#93c5fd', borderDash: [5, 5], fill: false, tension: 0.3, borderWidth: 2 }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { intersect: false, mode: 'index' },
-        plugins: { legend: { display: true, position: 'top' } },
-        scales: { x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 11 } } }, y: { beginAtZero: true, ticks: { callback: formatValue } } }
-      }
-    });
-  }
-  function expandKpi(kpiKey) {
-    if (state.expandedKpi === kpiKey) return;
-    collapseKpi();
-    state.expandedKpi = kpiKey;
-    var card = document.querySelector('.admin-kpi-card[data-kpi="' + kpiKey + '"]');
-    var panel = document.getElementById('chartPanel' + kpiKey.charAt(0).toUpperCase() + kpiKey.slice(1));
-    if (card) card.classList.add('kpi-card-expanded');
-    if (panel && state.chartData) {
-      panel.setAttribute('aria-hidden', 'false');
-      panel.classList.add('admin-kpi-chart-panel-visible');
-      renderFullChart(panel.id, state.chartData, kpiKey);
-    }
-  }
-  function collapseKpi() {
-    if (state.chartInstance) { state.chartInstance.destroy(); state.chartInstance = null; }
-    state.expandedKpi = null;
-    document.querySelectorAll('.admin-kpi-card.kpi-card-expanded').forEach(function (c) { c.classList.remove('kpi-card-expanded'); });
-    document.querySelectorAll('.admin-kpi-chart-panel').forEach(function (p) {
-      p.setAttribute('aria-hidden', 'true');
-      p.classList.remove('admin-kpi-chart-panel-visible');
-      p.innerHTML = '';
-    });
-  }
-  document.querySelectorAll('.admin-kpi-card[data-kpi]').forEach(function (card) {
-    var kpi = card.getAttribute('data-kpi');
-    card.addEventListener('click', function (e) {
-      if (e.target.closest('.admin-kpi-chart-close')) return;
-      if (state.expandedKpi === kpi) collapseKpi(); else expandKpi(kpi);
-    });
-    card.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
-    });
-  });
-}
-
 window.renderAdmindashboard = function (container) {
   if (!container) return;
 
-  if (window.ZYBAR_MY_TEST && window.MOCK_DATA && window.MOCK_DATA.dashboard) {
-    renderDashboardMock(container);
-    return;
+  var U = window.AdminUtils || {};
+  var rangeState = { preset: '30', customStart: '', customEnd: '' };
+  var range = U.resolveRange ? U.resolveRange('30') : { days: 30, start: '', end: '', startDate: '', endDate: '' };
+  var charts = {};
+  var cache = {};
+  var CACHE_TTL = 45000;
+
+  function apiBase() {
+    return window.location.origin;
   }
 
-  var sb = window.supabase;
-  if (!sb) {
-    container.innerHTML = '<p class="admin-error">Supabase not configured.</p>';
-    return;
+  function apiQuery() {
+    return U.apiQuery ? U.apiQuery(range) : 'days=' + (range.days || 30);
   }
 
-  var state = {
-    start: null,
-    end: null,
-    startPrev: null,
-    endPrev: null,
-    chartData: null,
-    expandedKpi: null,
-    chartInstance: null
-  };
-
-  function getMonthRange(year, month) {
-    var s = new Date(year, month, 1);
-    var e = new Date(year, month + 1, 0);
-    e.setHours(23, 59, 59, 999);
-    return { start: s, end: e };
+  function granularityForRange() {
+    var days = Number(range.days) || 30;
+    if (days <= 14) return 'day';
+    if (days <= 90) return 'week';
+    return 'month';
   }
 
-  function setCurrentMonth() {
-    var now = new Date();
-    var cur = getMonthRange(now.getFullYear(), now.getMonth());
-    var prev = getMonthRange(now.getFullYear(), now.getMonth() - 1);
-    state.start = cur.start;
-    state.end = cur.end;
-    state.startPrev = prev.start;
-    state.endPrev = prev.end;
+  function fetchJson(path) {
+    var key = path + '|' + range.startDate + '|' + range.endDate;
+    var hit = cache[key];
+    if (hit && Date.now() - hit.t < CACHE_TTL) return Promise.resolve(hit.data);
+    var joiner = path.indexOf('?') === -1 ? '?' : '&';
+    return fetch(apiBase() + path + joiner + apiQuery())
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .then(function (data) {
+        if (!data || data.error) return null;
+        cache[key] = { t: Date.now(), data: data };
+        return data;
+      })
+      .catch(function () {
+        return null;
+      });
   }
 
-  setCurrentMonth();
-
-  function formatDateRangeLabel() {
-    var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return m[state.start.getMonth()] + ' ' + state.start.getDate() + '-' + state.end.getDate() + ', ' + state.start.getFullYear();
+  function money(cents) {
+    return U.formatUsdCents ? U.formatUsdCents(cents) : 'US$' + ((Number(cents) || 0) / 100).toFixed(2);
   }
 
-  function iso(date) { return date.toISOString().slice(0, 19).replace('T', ' '); }
-  function isoDate(d) { return d.toISOString().slice(0, 10); }
-
-  function formatAxisDate(isoStr) {
-    if (!isoStr) return '';
-    var d = new Date(isoStr);
-    var m = d.getMonth() + 1;
-    var day = d.getDate();
-    return m + '\u6708' + day + '\u65E5';
+  function num(n) {
+    return U.formatNum ? U.formatNum(n) : String(Number(n) || 0);
   }
 
-  container.innerHTML =
-    '<h2 class="admin-page-title">Dashboard</h2>' +
-    '<div class="admin-dashboard-header">' +
-    '  <div class="admin-dashboard-toolbar">' +
-    '    <div class="admin-date-range" id="adminDateRange">' + formatDateRangeLabel() + '</div>' +
-    '    <div class="admin-live-visitors" id="adminLiveVisitors"><span class="admin-live-dot"></span> <span id="adminLiveCount">0</span> live visitors</div>' +
-    '  </div>' +
-    '</div>' +
-    '<div class="admin-kpi-cards" id="adminKpiCards">' +
-    '  <div class="admin-kpi-card" data-kpi="sessions" role="button" tabindex="0">' +
-    '    <div class="admin-kpi-card-inner">' +
-    '      <div class="admin-kpi-card-top"><span class="admin-kpi-label">Sessions</span><div class="admin-kpi-spark" id="sparkSessions"></div></div>' +
-    '      <div class="admin-kpi-value-wrap"><span class="admin-kpi-value" id="kpiSessions">—</span></div>' +
-    '      <div class="admin-kpi-card-bottom"><span class="admin-kpi-change" id="kpiSessionsChange">—</span><span class="admin-kpi-vs-label">vs last month</span></div>' +
-    '    </div><div class="admin-kpi-chart-panel" id="chartPanelSessions" aria-hidden="true"></div>' +
-    '  </div>' +
-    '  <div class="admin-kpi-card" data-kpi="sales" role="button" tabindex="0">' +
-    '    <div class="admin-kpi-card-inner">' +
-    '      <div class="admin-kpi-card-top"><span class="admin-kpi-label">Total sales</span><div class="admin-kpi-spark" id="sparkSales"></div></div>' +
-    '      <div class="admin-kpi-value-wrap"><span class="admin-kpi-currency" id="kpiSalesCurrency">USD</span> <span class="admin-kpi-value" id="kpiSales">—</span></div>' +
-    '      <div class="admin-kpi-card-bottom"><span class="admin-kpi-change" id="kpiSalesChange">—</span><span class="admin-kpi-vs-label">vs last month</span></div>' +
-    '    </div><div class="admin-kpi-chart-panel" id="chartPanelSales" aria-hidden="true"></div>' +
-    '  </div>' +
-    '  <div class="admin-kpi-card" data-kpi="orders" role="button" tabindex="0">' +
-    '    <div class="admin-kpi-card-inner">' +
-    '      <div class="admin-kpi-card-top"><span class="admin-kpi-label">Orders</span><div class="admin-kpi-spark" id="sparkOrders"></div></div>' +
-    '      <div class="admin-kpi-value-wrap"><span class="admin-kpi-value" id="kpiOrders">—</span></div>' +
-    '      <div class="admin-kpi-card-bottom"><span class="admin-kpi-change" id="kpiOrdersChange">—</span><span class="admin-kpi-vs-label">vs last month</span></div>' +
-    '    </div><div class="admin-kpi-chart-panel" id="chartPanelOrders" aria-hidden="true"></div>' +
-    '  </div>' +
-    '  <div class="admin-kpi-card" data-kpi="conv" role="button" tabindex="0">' +
-    '    <div class="admin-kpi-card-inner">' +
-    '      <div class="admin-kpi-card-top"><span class="admin-kpi-label">Conversion rate</span><div class="admin-kpi-spark" id="sparkConv"></div></div>' +
-    '      <div class="admin-kpi-value-wrap"><span class="admin-kpi-value" id="kpiConv">—</span></div>' +
-    '      <div class="admin-kpi-card-bottom"><span class="admin-kpi-change" id="kpiConvChange">—</span><span class="admin-kpi-vs-label">vs last month</span></div>' +
-    '    </div><div class="admin-kpi-chart-panel" id="chartPanelConv" aria-hidden="true"></div>' +
-    '  </div>' +
-    '</div>' +
-    '<div class="admin-card"><h3>Most viewed pages</h3><div id="topPages" class="admin-loading">Loading...</div></div>' +
-    '<div class="admin-card"><h3>Top products</h3><div id="topProducts" class="admin-loading">Loading...</div></div>';
-
-  function drawSparkline(elId, values) {
-    var el = document.getElementById(elId);
-    if (!el || !values || values.length === 0) return;
-    var max = Math.max.apply(null, values);
-    if (max === 0) max = 1;
-    var w = 80, h = 40;
-    var n = values.length;
-    var xs = [], ys = [];
-    for (var i = 0; i < n; i++) {
-      xs.push((i / (n - 1 || 1)) * w);
-      ys.push(h - (values[i] / max) * h);
-    }
-    var path = 'M ' + xs[0] + ',' + ys[0];
-    for (var j = 1; j < n; j++) {
-      var dx = xs[j] - xs[j - 1];
-      path += ' C ' + (xs[j - 1] + dx / 2) + ',' + ys[j - 1] + ' ' + (xs[j] - dx / 2) + ',' + ys[j] + ' ' + xs[j] + ',' + ys[j];
-    }
-    el.innerHTML = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><path fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="' + path + '"/></svg>';
+  function esc(v) {
+    return U.escapeHtml ? U.escapeHtml(v) : String(v == null ? '' : v);
   }
 
-  function formatNum(n) {
-    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-    return String(n);
+  function when(iso) {
+    return U.formatDateTime ? U.formatDateTime(iso) : String(iso || '—');
   }
 
-  function pctChange(curr, prev) {
-    if (prev === 0) return curr > 0 ? 100 : 0;
-    return Math.round(((curr - prev) / prev) * 100);
+  function productName(slug) {
+    if (!slug) return '—';
+    return String(slug)
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, function (c) {
+        return c.toUpperCase();
+      });
   }
 
-  function renderChange(elId, pct) {
-    var el = document.getElementById(elId);
-    if (!el) return;
-    if (pct == null || isNaN(pct)) { el.textContent = '\u2014'; el.className = 'admin-kpi-change'; return; }
-    el.className = 'admin-kpi-change ' + (pct >= 0 ? 'admin-kpi-up' : 'admin-kpi-down');
-    el.textContent = (pct >= 0 ? '+' : '') + pct + '%';
+  function kpi(label, value) {
+    return (
+      '<div class="admin-kpi-card admin-kpi-card--static">' +
+      '<div class="admin-kpi-card-inner">' +
+      '<div class="admin-kpi-card-top"><span class="admin-kpi-label">' +
+      esc(label) +
+      '</span></div>' +
+      '<div class="admin-kpi-value-wrap"><span class="admin-kpi-value">' +
+      value +
+      '</span></div>' +
+      '</div></div>'
+    );
   }
 
-  function padPrevToLength(prevArr, len) {
-    if (!prevArr || prevArr.length >= len) return (prevArr || []).slice(0, len);
-    var out = prevArr.slice();
-    while (out.length < len) out.push(0);
-    return out;
+  function destroyCharts() {
+    Object.keys(charts).forEach(function (k) {
+      if (charts[k]) {
+        charts[k].destroy();
+        charts[k] = null;
+      }
+    });
   }
 
-  function renderFullChart(panelId, chartData, kpiKey) {
-    var panel = document.getElementById(panelId);
-    if (!panel || !chartData || !chartData.labels || chartData.labels.length === 0) return;
-    var labels = chartData.labels;
-    var curr = chartData[kpiKey + 'Curr'] || [];
-    var prev = chartData[kpiKey + 'Prev'] || [];
-    var prevPadded = padPrevToLength(prev, labels.length);
-    var formatValue = kpiKey === 'sales' ? function (v) { return (v || 0).toFixed(2); } : (kpiKey === 'conv' ? function (v) { return (v || 0).toFixed(1) + '%'; } : function (v) { return String(v || 0); });
-    if (state.chartInstance) {
-      state.chartInstance.destroy();
-      state.chartInstance = null;
-    }
-    panel.innerHTML = '<div class="admin-kpi-chart-header">' +
-      '<span class="admin-kpi-chart-range">' + formatAxisDate(labels[0]) + ' \u2013 ' + formatAxisDate(labels[labels.length - 1]) + '</span>' +
-      '<button type="button" class="admin-kpi-chart-close" aria-label="Close chart">\u2715</button>' +
-      '</div><div class="admin-kpi-chart-canvas-wrap"><canvas id="adminKpiChartCanvas"></canvas></div>';
-    var closeBtn = panel.querySelector('.admin-kpi-chart-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function (e) { e.stopPropagation(); collapseKpi(); });
-    }
-    var ctx = document.getElementById('adminKpiChartCanvas');
-    if (!ctx || typeof Chart === 'undefined') return;
-    state.chartInstance = new Chart(ctx, {
+  function series(arr) {
+    arr = Array.isArray(arr) ? arr : [];
+    return {
+      labels: arr.map(function (r) {
+        return r.date || r.bucket || r.day || '';
+      }),
+      values: arr.map(function (r) {
+        return Number(r.value != null ? r.value : r.count != null ? r.count : r.amount_cents) || 0;
+      })
+    };
+  }
+
+  function drawLine(id, labels, values, asMoney) {
+    var el = document.getElementById(id);
+    if (!el || typeof Chart === 'undefined') return;
+    if (charts[id]) charts[id].destroy();
+    var accent =
+      getComputedStyle(document.documentElement).getPropertyValue('--admin-accent').trim() ||
+      '#0d6efd';
+    charts[id] = new Chart(el, {
       type: 'line',
       data: {
-        labels: labels.map(formatAxisDate),
+        labels: labels,
         datasets: [
-          { label: 'Current period', data: curr, borderColor: '#1e40af', backgroundColor: 'rgba(30,64,175,0.08)', fill: true, tension: 0.3, borderWidth: 2 },
-          { label: 'Previous period', data: prevPadded, borderColor: '#93c5fd', backgroundColor: 'transparent', borderDash: [5, 5], fill: false, tension: 0.3, borderWidth: 2 }
+          {
+            data: values,
+            borderColor: accent,
+            backgroundColor: 'rgba(13, 110, 253, 0.08)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 0,
+            borderWidth: 2
+          }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: { intersect: false, mode: 'index' },
-        plugins: { legend: { display: true, position: 'top' } },
+        plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 11 } } },
-          y: { beginAtZero: true, ticks: { callback: formatValue } }
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+          y: {
+            beginAtZero: true,
+            ticks: asMoney
+              ? {
+                  callback: function (v) {
+                    return 'US$' + Number(v).toFixed(0);
+                  }
+                }
+              : {}
+          }
         }
       }
     });
   }
 
-  function expandKpi(kpiKey) {
-    if (state.expandedKpi === kpiKey) return;
-    collapseKpi();
-    state.expandedKpi = kpiKey;
-    var card = document.querySelector('.admin-kpi-card[data-kpi="' + kpiKey + '"]');
-    var panel = document.getElementById('chartPanel' + kpiKey.charAt(0).toUpperCase() + kpiKey.slice(1));
-    if (card) card.classList.add('kpi-card-expanded');
-    if (panel && state.chartData) {
-      panel.setAttribute('aria-hidden', 'false');
-      panel.classList.add('admin-kpi-chart-panel-visible');
-      renderFullChart(panel.id, state.chartData, kpiKey);
-    }
-  }
-
-  function collapseKpi() {
-    if (state.chartInstance) {
-      state.chartInstance.destroy();
-      state.chartInstance = null;
-    }
-    state.expandedKpi = null;
-    document.querySelectorAll('.admin-kpi-card.kpi-card-expanded').forEach(function (c) { c.classList.remove('kpi-card-expanded'); });
-    document.querySelectorAll('.admin-kpi-chart-panel').forEach(function (p) {
-      p.setAttribute('aria-hidden', 'true');
-      p.classList.remove('admin-kpi-chart-panel-visible');
-      p.innerHTML = '';
-    });
-  }
-
-  function bindKpiCards() {
-    document.querySelectorAll('.admin-kpi-card[data-kpi]').forEach(function (card) {
-      var kpi = card.getAttribute('data-kpi');
-      card.addEventListener('click', function (e) {
-        if (e.target.closest('.admin-kpi-chart-close')) return;
-        if (state.expandedKpi === kpi) collapseKpi(); else expandKpi(kpi);
-      });
-      card.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
-      });
-    });
-  }
-
-  function loadLiveVisitors() {
-    var el = document.getElementById('adminLiveCount');
-    function setCount(value) {
-      if (!el) return;
-      var n = Number(value);
-      el.textContent = Number.isFinite(n) && n >= 0 ? String(Math.floor(n)) : '0';
-    }
-    function fetchFromRpc() {
-      return sb.rpc('get_live_visitor_count')
-        .then(function (r) {
-          return r && r.data != null ? Number(r.data) : NaN;
-        })
-        .catch(function () { return NaN; });
-    }
-    function fetchFromSessions() {
-      var sinceIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      return sb
-        .from('sessions')
-        .select('id', { count: 'exact', head: true })
-        .gte('last_activity_at', sinceIso)
-        .then(function (res) {
-          return res && typeof res.count === 'number' ? Number(res.count) : NaN;
-        })
-        .catch(function () { return NaN; });
-    }
-    function fetchFromPageViewsDistinctVisitors() {
-      var sinceIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      return sb
-        .from('page_views')
-        .select('session_id,visitor_id')
-        .gte('created_at', sinceIso)
-        .then(function (res) {
-          var rows = (res && res.data) || [];
-          if (!rows.length) return 0;
-          var uniq = {};
-          rows.forEach(function (row) {
-            var id = row && row.session_id ? String(row.session_id) : '';
-            if (!id && row && row.visitor_id) id = String(row.visitor_id);
-            if (id) uniq[id] = true;
-          });
-          return Object.keys(uniq).length;
-        })
-        .catch(function () { return NaN; });
-    }
-
-    Promise.all([fetchFromRpc(), fetchFromSessions(), fetchFromPageViewsDistinctVisitors()])
-      .then(function (counts) {
-        var fromRpc = Number(counts[0]);
-        var fromSessions = Number(counts[1]);
-        var fromPageViews = Number(counts[2]);
-
-        // Prefer the authoritative DB function first, then fallback progressively.
-        if (Number.isFinite(fromRpc) && fromRpc >= 0) {
-          setCount(fromRpc);
-          return;
-        }
-        if (Number.isFinite(fromSessions) && fromSessions >= 0) {
-          setCount(fromSessions);
-          return;
-        }
-        if (Number.isFinite(fromPageViews) && fromPageViews >= 0) {
-          setCount(fromPageViews);
-          return;
-        }
-        setCount(0);
+  function loadRecentOrders() {
+    var sb = window.supabase;
+    if (!sb) return Promise.resolve([]);
+    return sb
+      .from('orders')
+      .select(
+        'id,stripe_session_id,customer_name,customer_email,country,amount_total_cents,status,created_at'
+      )
+      .gte('created_at', range.start)
+      .lt('created_at', range.end)
+      .order('created_at', { ascending: false })
+      .limit(12)
+      .then(function (res) {
+        return res.data || [];
       })
       .catch(function () {
-        setCount(0);
+        return [];
       });
   }
 
-  loadLiveVisitors();
-  setInterval(loadLiveVisitors, 10000);
-  bindKpiCards();
+  function mergeTopProducts(data) {
+    data = data || {};
+    var map = {};
+    function ensure(id) {
+      if (!map[id]) {
+        map[id] = { product_id: id, name: productName(id), orders: 0, revenue_cents: 0, views: 0 };
+      }
+      return map[id];
+    }
+    (data.highest_revenue || []).forEach(function (r) {
+      var row = ensure(r.product_id || 'unknown');
+      row.orders = Number(r.orders) || 0;
+      row.revenue_cents = Number(r.revenue_cents) || 0;
+    });
+    (data.most_viewed || []).forEach(function (r) {
+      var row = ensure(r.product_id || 'unknown');
+      row.views = Number(r.views) || 0;
+    });
+    return Object.keys(map)
+      .map(function (k) {
+        var r = map[k];
+        return {
+          name: r.name,
+          orders: r.orders,
+          revenue_cents: r.revenue_cents,
+          conversion_rate: r.views > 0 ? Number(((r.orders / r.views) * 100).toFixed(2)) : 0
+        };
+      })
+      .sort(function (a, b) {
+        return b.revenue_cents - a.revenue_cents || b.orders - a.orders;
+      })
+      .slice(0, 8);
+  }
 
-  function loadKpis() {
-    var startStr = state.start.toISOString().slice(0, 10);
-    var endStr = state.end.toISOString().slice(0, 10);
-    var endExcl = new Date(state.end.getTime() + 1).toISOString().slice(0, 10);
-    var startPrevStr = state.startPrev.toISOString().slice(0, 10);
-    var endPrevExcl = new Date(state.endPrev.getTime() + 1).toISOString().slice(0, 10);
+  function renderShell() {
+    container.innerHTML =
+      '<div class="admin-page-header"><h2 class="admin-page-title">Dashboard</h2>' +
+      '<div class="admin-live-visitors" id="adminLiveVisitors"><span class="admin-live-dot"></span> <span id="adminLiveCount">—</span> live</div>' +
+      '</div>' +
+      '<div class="admin-analytics-toolbar">' +
+      (U.renderDateFilter ? U.renderDateFilter(rangeState.preset, { extra: '' }) : '') +
+      '</div>' +
+      '<div id="dashHost">' +
+      (U.skeletonCards ? U.skeletonCards(10) : '<div class="admin-loading">Loading…</div>') +
+      '</div>';
 
+    if (U.bindDateFilter) {
+      U.bindDateFilter(container, rangeState, function (next) {
+        range = next;
+        rangeState.preset = next.preset || rangeState.preset;
+        cache = {};
+        loadAll();
+      });
+    }
+  }
+
+  function renderBody(overview, trends, products, orders, extras, live) {
+    overview = overview || {};
+    extras = extras || {};
+    var visitors = overview.unique_visitors != null ? overview.unique_visitors : overview.visitors || 0;
+    var sessions = overview.sessions != null ? overview.sessions : 0;
+    var ordersCount = overview.orders || 0;
+    var revenue = overview.revenue_cents || 0;
+    var aov =
+      overview.avg_order_value_cents != null
+        ? overview.avg_order_value_cents
+        : ordersCount > 0
+          ? Math.round(revenue / ordersCount)
+          : 0;
+    var conv =
+      overview.conversion_rate != null
+        ? overview.conversion_rate + '%'
+        : visitors > 0
+          ? ((ordersCount / visitors) * 100).toFixed(2) + '%'
+          : '0%';
+
+    var top = mergeTopProducts(products);
+    var topHtml =
+      top
+        .map(function (p) {
+          return (
+            '<tr><td>' +
+            esc(p.name) +
+            '</td><td>' +
+            num(p.orders) +
+            '</td><td>' +
+            money(p.revenue_cents) +
+            '</td><td>' +
+            p.conversion_rate +
+            '%</td></tr>'
+          );
+        })
+        .join('') || '<tr><td colspan="4" class="admin-cell-empty">No product sales in this range</td></tr>';
+
+    var recentHtml =
+      (orders || [])
+        .map(function (o) {
+          return (
+            '<tr><td><a href="#orders/' +
+            esc(o.id) +
+            '"><code>' +
+            esc(String(o.stripe_session_id || o.id).slice(0, 12)) +
+            '…</code></a></td><td>' +
+            esc(o.customer_name || o.customer_email || '—') +
+            '</td><td>' +
+            esc(o.country || '—') +
+            '</td><td>' +
+            money(o.amount_total_cents) +
+            '</td><td>' +
+            esc(o.status || '—') +
+            '</td><td>' +
+            esc(when(o.created_at)) +
+            '</td></tr>'
+          );
+        })
+        .join('') || '<tr><td colspan="6" class="admin-cell-empty">No orders in this range</td></tr>';
+
+    var liveCount = live && (live.active_visitors != null ? live.active_visitors : live.visitors);
+    var liveEl = document.getElementById('adminLiveCount');
+    if (liveEl) liveEl.textContent = liveCount != null ? String(liveCount) : '0';
+
+    var gran = granularityForRange();
+    var granLabel = gran === 'day' ? 'Daily' : gran === 'week' ? 'Weekly' : 'Monthly';
+
+    return (
+      '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
+      kpi('Visitors', num(visitors)) +
+      kpi('Sessions', num(sessions)) +
+      kpi('Orders', num(ordersCount)) +
+      kpi('Revenue', money(revenue)) +
+      kpi('Average Order Value', money(aov)) +
+      kpi('Conversion Rate', conv) +
+      kpi('Add To Cart', num(overview.add_to_cart)) +
+      kpi('Checkout Started', num(overview.checkout_started)) +
+      kpi('Email Leads', num(extras.email_leads)) +
+      kpi('Abandoned Carts', num(extras.abandoned_carts)) +
+      '</div>' +
+      '<div class="admin-grid-2">' +
+      '<div class="admin-card"><h3>Revenue (' +
+      granLabel +
+      ')</h3><div class="chart-container"><canvas id="dashChartRevenue"></canvas></div></div>' +
+      '<div class="admin-card"><h3>Orders (' +
+      granLabel +
+      ')</h3><div class="chart-container"><canvas id="dashChartOrders"></canvas></div></div>' +
+      '</div>' +
+      '<div class="admin-grid-2">' +
+      '<div class="admin-card"><h3>Top Products</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Product</th><th>Orders</th><th>Revenue</th><th>Conversion</th></tr></thead><tbody>' +
+      topHtml +
+      '</tbody></table></div></div>' +
+      '<div class="admin-card"><h3>Recent Orders</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Country</th><th>Total</th><th>Status</th><th>Created</th></tr></thead><tbody>' +
+      recentHtml +
+      '</tbody></table></div></div>' +
+      '</div>'
+    );
+  }
+
+  function loadAll() {
+    var host = document.getElementById('dashHost');
+    if (!host) return;
+    host.innerHTML = U.skeletonCards
+      ? U.skeletonCards(10) + (U.skeletonTable ? U.skeletonTable(5) : '')
+      : '<div class="admin-loading">Loading…</div>';
+    destroyCharts();
+
+    var gran = granularityForRange();
     Promise.all([
-      sb.from('sessions').select('started_at').gte('started_at', startStr).lt('started_at', endExcl),
-      sb.from('sessions').select('started_at').gte('started_at', startPrevStr).lt('started_at', endPrevExcl),
-      sb.from('orders').select('created_at, amount_total_cents, status, test_mode').gte('created_at', startStr).lt('created_at', endExcl),
-      sb.from('orders').select('created_at, amount_total_cents, status, test_mode').gte('created_at', startPrevStr).lt('created_at', endPrevExcl)
-    ]).then(function (results) {
-      var sessionsData = (results[0] && results[0].data) || [];
-      var sessionsPrevData = (results[1] && results[1].data) || [];
-      function keepOrder(o) {
-        var s = String((o && o.status) || '').toLowerCase();
-        return s !== 'failed' && s !== 'canceled' && s !== 'cancelled';
+      fetchJson('/api/analytics/dashboard'),
+      fetchJson('/api/analytics/trends?granularity=' + encodeURIComponent(gran)),
+      fetchJson('/api/analytics/products'),
+      loadRecentOrders(),
+      fetchJson('/api/analytics/realtime')
+    ]).then(function (res) {
+      var dash = res[0];
+      var overview;
+      var extras;
+
+      function finish(ov, ex) {
+        host.innerHTML = renderBody(ov, res[1], res[2], res[3], ex, res[4]);
+        requestAnimationFrame(function () {
+          var rev = series((res[1] || {}).revenue);
+          var ord = series((res[1] || {}).orders);
+          drawLine(
+            'dashChartRevenue',
+            rev.labels,
+            rev.values.map(function (v) {
+              return (Number(v) || 0) / 100;
+            }),
+            true
+          );
+          drawLine('dashChartOrders', ord.labels, ord.values, false);
+        });
       }
-      var ordersData = ((results[2] && results[2].data) || []).filter(keepOrder);
-      var ordersPrevData = ((results[3] && results[3].data) || []).filter(keepOrder);
 
-      var sessions = sessionsData.length;
-      var sessionsPrev = sessionsPrevData.length;
-      var orders = ordersData.length;
-      var ordersPrev = ordersPrevData.length;
-
-      var salesCents = ordersData.reduce(function (sum, r) { return sum + (r.amount_total_cents || 0); }, 0);
-      var salesPrevCents = ordersPrevData.reduce(function (sum, r) { return sum + (r.amount_total_cents || 0); }, 0);
-
-      var conv = sessions > 0 ? (orders / sessions) * 100 : 0;
-      var convPrev = sessionsPrev > 0 ? (ordersPrev / sessionsPrev) * 100 : 0;
-
-      var pctSessions = pctChange(sessions, sessionsPrev);
-      var pctOrders = pctChange(orders, ordersPrev);
-      var pctSales = salesPrevCents > 0 ? Math.round(((salesCents - salesPrevCents) / salesPrevCents) * 100) : (salesCents > 0 ? 100 : 0);
-      var pctConv = convPrev > 0 ? Math.round(((conv - convPrev) / convPrev) * 100) : (conv > 0 ? 100 : 0);
-
-      var sales = salesCents / 100;
-
-      document.getElementById('kpiSessions').textContent = formatNum(sessions);
-      var salesCur = document.getElementById('kpiSalesCurrency');
-      if (salesCur) salesCur.textContent = 'USD ';
-      document.getElementById('kpiSales').textContent = sales.toFixed(2);
-      document.getElementById('kpiOrders').textContent = formatNum(orders);
-      document.getElementById('kpiConv').textContent = conv.toFixed(2) + '%';
-
-      renderChange('kpiSessionsChange', pctSessions);
-      renderChange('kpiSalesChange', pctSales);
-      renderChange('kpiOrdersChange', pctOrders);
-      renderChange('kpiConvChange', pctConv);
-
-      var byDaySessions = {};
-      var byDayOrders = {};
-      var byDaySales = {};
-      for (var d = new Date(state.start); d <= state.end; d.setDate(d.getDate() + 1)) {
-        var k = isoDate(new Date(d));
-        byDaySessions[k] = 0;
-        byDayOrders[k] = 0;
-        byDaySales[k] = 0;
+      if (dash && (dash.overview || dash.revenue_cents != null || dash.orders != null)) {
+        overview = dash.overview || dash;
+        extras = {
+          email_leads: dash.email_leads || 0,
+          abandoned_carts: dash.abandoned_carts || 0
+        };
+        finish(overview, extras);
+        return;
       }
-      sessionsData.forEach(function (r) {
-        var k = (r.started_at || '').slice(0, 10);
-        if (byDaySessions[k] !== undefined) byDaySessions[k]++;
-      });
-      ordersData.forEach(function (r) {
-        var k = (r.created_at || '').slice(0, 10);
-        if (byDayOrders[k] !== undefined) byDayOrders[k]++;
-        if (byDaySales[k] !== undefined) byDaySales[k] += (r.amount_total_cents || 0) / 100;
-      });
-      var byDaySessionsPrev = {};
-      var byDayOrdersPrev = {};
-      var byDaySalesPrev = {};
-      for (var d2 = new Date(state.startPrev); d2 <= state.endPrev; d2.setDate(d2.getDate() + 1)) {
-        var k2 = isoDate(new Date(d2));
-        byDaySessionsPrev[k2] = 0;
-        byDayOrdersPrev[k2] = 0;
-        byDaySalesPrev[k2] = 0;
-      }
-      sessionsPrevData.forEach(function (r) {
-        var k2 = (r.started_at || '').slice(0, 10);
-        if (byDaySessionsPrev[k2] !== undefined) byDaySessionsPrev[k2]++;
-      });
-      ordersPrevData.forEach(function (r) {
-        var k2 = (r.created_at || '').slice(0, 10);
-        if (byDayOrdersPrev[k2] !== undefined) { byDayOrdersPrev[k2]++; byDaySalesPrev[k2] += (r.amount_total_cents || 0) / 100; }
-      });
-      var days = Object.keys(byDaySessions).sort();
-      var daysPrev = Object.keys(byDaySessionsPrev).sort();
-      var sparkSessions = days.map(function (k) { return byDaySessions[k] || 0; });
-      var sparkOrders = days.map(function (k) { return byDayOrders[k] || 0; });
-      var sparkSales = days.map(function (k) { return byDaySales[k] || 0; });
-      var sparkConv = days.map(function (k) {
-        var s = byDaySessions[k] || 0;
-        var o = byDayOrders[k] || 0;
-        return s > 0 ? (o / s) * 100 : 0;
-      });
-      var sessionsPrevArr = daysPrev.map(function (k) { return byDaySessionsPrev[k] || 0; });
-      var ordersPrevArr = daysPrev.map(function (k) { return byDayOrdersPrev[k] || 0; });
-      var salesPrevArr = daysPrev.map(function (k) { return byDaySalesPrev[k] || 0; });
-      var convPrevArr = daysPrev.map(function (k) {
-        var s = byDaySessionsPrev[k] || 0;
-        var o = byDayOrdersPrev[k] || 0;
-        return s > 0 ? (o / s) * 100 : 0;
-      });
 
-      state.chartData = {
-        labels: days,
-        sessionsCurr: sparkSessions,
-        sessionsPrev: sessionsPrevArr,
-        salesCurr: sparkSales,
-        salesPrev: salesPrevArr,
-        ordersCurr: sparkOrders,
-        ordersPrev: ordersPrevArr,
-        convCurr: sparkConv,
-        convPrev: convPrevArr
-      };
-
-      drawSparkline('sparkSessions', sparkSessions);
-      drawSparkline('sparkSales', sparkSales);
-      drawSparkline('sparkOrders', sparkOrders);
-      drawSparkline('sparkConv', sparkConv);
-    }).catch(function () {
-      document.getElementById('kpiSessions').textContent = '0';
-      var salesCur0 = document.getElementById('kpiSalesCurrency');
-      if (salesCur0) salesCur0.textContent = 'USD ';
-      document.getElementById('kpiSales').textContent = '0.00';
-      document.getElementById('kpiOrders').textContent = '0';
-      document.getElementById('kpiConv').textContent = '0%';
+      Promise.all([
+        fetchJson('/api/analytics/overview'),
+        fetchJson('/api/customer-activity/leads'),
+        fetchJson('/api/customer-activity/abandoned')
+      ]).then(function (parts) {
+        finish(parts[0] || {}, {
+          email_leads: (parts[1] && parts[1].leads && parts[1].leads.length) || 0,
+          abandoned_carts: (parts[2] && parts[2].carts && parts[2].carts.length) || 0
+        });
+      });
     });
   }
 
-  loadKpis();
-
-  var today = state.start.toISOString().slice(0, 10);
-  var tomorrow = new Date(state.end.getTime() + 86400000).toISOString().slice(0, 10);
-
-  function renderTopPages(rows) {
-    var el = document.getElementById('topPages');
-    if (!el) return;
-    if (!rows || rows.length === 0) { el.innerHTML = '<p>No data yet.</p>'; return; }
-    var html = '<table class="admin-table"><thead><tr><th>Page</th><th>Views</th></tr></thead><tbody>';
-    rows.forEach(function (r) { html += '<tr><td>' + (r.page_url || '-') + '</td><td>' + (r.count || 0) + '</td></tr>'; });
-    html += '</tbody></table>';
-    el.innerHTML = html;
-  }
-
-  function renderTopProducts(rows) {
-    var el = document.getElementById('topProducts');
-    if (!el) return;
-    if (!rows || rows.length === 0) { el.innerHTML = '<p>No data yet.</p>'; return; }
-    var html = '<table class="admin-table"><thead><tr><th>Product</th><th>Views</th></tr></thead><tbody>';
-    rows.forEach(function (r) { html += '<tr><td>' + (r.product_id || r.name || '-') + '</td><td>' + (r.count || 0) + '</td></tr>'; });
-    html += '</tbody></table>';
-    el.innerHTML = html;
-  }
-
-  sb.from('page_views').select('page_url').gte('created_at', today).lt('created_at', tomorrow)
-    .then(function (res) {
-      var data = (res && res.data) || [];
-      var map = {};
-      data.forEach(function (r) { map[r.page_url] = (map[r.page_url] || 0) + 1; });
-      var arr = Object.keys(map).map(function (url) { return { page_url: url, count: map[url] }; }).sort(function (a, b) { return b.count - a.count; }).slice(0, 10);
-      renderTopPages(arr);
-    })
-    .catch(function () { renderTopPages([]); });
-
-  sb.from('events').select('product_id').eq('event_type', 'product_view').gte('created_at', today).lt('created_at', tomorrow)
-    .then(function (res) {
-      var data = (res && res.data) || [];
-      var map = {};
-      data.forEach(function (r) { var id = r.product_id || 'unknown'; map[id] = (map[id] || 0) + 1; });
-      var arr = Object.keys(map).map(function (id) { return { product_id: id, count: map[id] }; }).sort(function (a, b) { return b.count - a.count; }).slice(0, 10);
-      renderTopProducts(arr);
-    })
-    .catch(function () { renderTopProducts([]); });
+  renderShell();
+  loadAll();
 };

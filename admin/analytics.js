@@ -1,5 +1,5 @@
 /**
- * Admin Analytics — Overview · Conversion · Traffic · Countries · Products · Orders
+ * Admin Analytics — Overview · Revenue · Conversion · Products · Countries · Traffic Sources
  * Real Supabase / API data only. Date presets refresh every KPI and chart.
  */
 window.renderAdminanalytics = function (container) {
@@ -8,11 +8,11 @@ window.renderAdminanalytics = function (container) {
   var U = window.AdminUtils || {};
   var tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'revenue', label: 'Revenue' },
     { id: 'conversion', label: 'Conversion' },
-    { id: 'traffic', label: 'Traffic' },
-    { id: 'countries', label: 'Countries' },
     { id: 'products', label: 'Products' },
-    { id: 'orders', label: 'Orders' }
+    { id: 'countries', label: 'Countries' },
+    { id: 'traffic', label: 'Traffic Sources' }
   ];
 
   var hash = (window.location.hash || '#analytics').slice(1);
@@ -26,6 +26,14 @@ window.renderAdminanalytics = function (container) {
   var CACHE_TTL = 45000;
   var sortState = { countries: { key: 'revenue_cents', dir: -1 }, products: { key: 'revenue_cents', dir: -1 } };
   var lastPayload = {};
+  var productSearch = '';
+
+  function granularityForRange() {
+    var days = Number(range.days) || 30;
+    if (days <= 14) return 'day';
+    if (days <= 90) return 'week';
+    return 'month';
+  }
 
   function apiBase() {
     return window.location.origin;
@@ -78,12 +86,13 @@ window.renderAdminanalytics = function (container) {
   }
 
   function loadTrends() {
-    return fetchJson('/api/analytics/trends').then(function (data) {
+    var gran = granularityForRange();
+    return fetchJson('/api/analytics/trends?granularity=' + encodeURIComponent(gran)).then(function (data) {
       if (data && (data.visitors || data.orders || data.revenue)) return data;
       return rpc('get_analytics_trends', {
         p_start: range.start,
         p_end: range.end,
-        p_granularity: 'day'
+        p_granularity: gran
       });
     });
   }
@@ -262,13 +271,14 @@ window.renderAdminanalytics = function (container) {
     if (s === 'direct' || s === '(direct)') return 'Direct';
     if (s.indexOf('facebook') !== -1 || s === 'fb' || s === 'meta') return 'Facebook';
     if (s.indexOf('instagram') !== -1 || s === 'ig') return 'Instagram';
-    if (s.indexOf('google') !== -1 || s === 'gads' || s === 'adwords') return 'Google';
+    if (s.indexOf('google') !== -1 || s === 'gads' || s === 'adwords' || s === 'cpc') return 'Google';
     if (s.indexOf('tiktok') !== -1 || s === 'tt') return 'TikTok';
+    if (s.indexOf('email') !== -1 || s === 'newsletter' || s === 'mail') return 'Email';
     if (s === 'unknown') return 'Unknown';
     return 'Unknown';
   }
 
-  var CANONICAL_SOURCES = ['Facebook', 'Instagram', 'Google', 'TikTok', 'Direct', 'Unknown'];
+  var CANONICAL_SOURCES = ['Direct', 'Facebook', 'Instagram', 'TikTok', 'Google', 'Email', 'Unknown'];
 
   function aggregateTraffic(geo, traffic) {
     var map = {};
@@ -345,6 +355,7 @@ window.renderAdminanalytics = function (container) {
           thumb: thumbUrl(id),
           views: 0,
           add_to_cart: 0,
+          checkout: 0,
           orders: 0,
           revenue_cents: 0
         };
@@ -365,7 +376,8 @@ window.renderAdminanalytics = function (container) {
       row.revenue_cents = Number(r.revenue_cents) || 0;
     });
     (data.highest_conversion || []).forEach(function (r) {
-      ensure(r.product_id || 'unknown');
+      var row = ensure(r.product_id || 'unknown');
+      if (r.checkout != null) row.checkout = Number(r.checkout) || 0;
     });
     return Object.keys(map)
       .map(function (k) {
@@ -376,6 +388,7 @@ window.renderAdminanalytics = function (container) {
           thumb: r.thumb,
           views: r.views,
           add_to_cart: r.add_to_cart,
+          checkout: r.checkout,
           orders: r.orders,
           revenue_cents: r.revenue_cents,
           conversion_rate: r.views > 0 ? Number(((r.orders / r.views) * 100).toFixed(2)) : 0
@@ -577,11 +590,14 @@ window.renderAdminanalytics = function (container) {
               '</td>' +
               '<td>' +
               formatUsdCents(p.revenue_cents) +
-              '</td></tr>'
+              '</td>' +
+              '<td>' +
+              p.conversion_rate +
+              '%</td></tr>'
             );
           })
           .join('')
-      : '<tr><td colspan="4" class="admin-cell-empty">No product sales in this range</td></tr>';
+      : '<tr><td colspan="5" class="admin-cell-empty">No product sales in this range</td></tr>';
 
     var recent = (orders || [])
       .slice(0, 8)
@@ -597,40 +613,68 @@ window.renderAdminanalytics = function (container) {
           escapeHtml(o.customer_name || '—') +
           '</td>' +
           '<td>' +
-          escapeHtml(o.customer_email || '—') +
+          escapeHtml(o.country || '—') +
           '</td>' +
           '<td>' +
           formatUsdCents(o.amount_total_cents) +
+          '</td>' +
+          '<td>' +
+          escapeHtml(o.status || '—') +
           '</td>' +
           '<td>' +
           formatDate(o.created_at) +
           '</td></tr>'
         );
       })
-      .join('') || '<tr><td colspan="5" class="admin-cell-empty">No orders yet</td></tr>';
+      .join('') || '<tr><td colspan="6" class="admin-cell-empty">No orders yet</td></tr>';
 
     return (
       '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
-      kpiCard('Revenue', formatUsdCents(overview.revenue_cents)) +
-      kpiCard('Orders', formatNum(overview.orders)) +
       kpiCard('Visitors', formatNum(visitors)) +
-      kpiCard('Conversion Rate', conv) +
+      kpiCard('Sessions', formatNum(overview.sessions)) +
+      kpiCard('Orders', formatNum(overview.orders)) +
+      kpiCard('Revenue', formatUsdCents(overview.revenue_cents)) +
       kpiCard('Average Order Value', aov) +
-      kpiCard('Checkout Started', formatNum(overview.checkout_started)) +
+      kpiCard('Conversion Rate', conv) +
       kpiCard('Add To Cart', formatNum(overview.add_to_cart)) +
+      kpiCard('Checkout Started', formatNum(overview.checkout_started)) +
       '</div>' +
       '<div class="admin-grid-2">' +
       '<div class="admin-card"><h3>Revenue Trend</h3><div class="chart-container"><canvas id="chartOverviewRevenue"></canvas></div></div>' +
       '<div class="admin-card"><h3>Orders Trend</h3><div class="chart-container"><canvas id="chartOverviewOrders"></canvas></div></div>' +
       '</div>' +
       '<div class="admin-grid-2">' +
-      '<div class="admin-card"><h3>Top Selling Products</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th></th><th>Product</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>' +
+      '<div class="admin-card"><h3>Top Selling Products</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th></th><th>Product</th><th>Orders</th><th>Revenue</th><th>Conversion</th></tr></thead><tbody>' +
       topHtml +
       '</tbody></table></div></div>' +
-      '<div class="admin-card"><h3>Recent Orders</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Email</th><th>Total</th><th>Date</th></tr></thead><tbody>' +
+      '<div class="admin-card"><h3>Recent Orders</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Country</th><th>Total</th><th>Status</th><th>Created</th></tr></thead><tbody>' +
       recent +
       '</tbody></table></div></div>' +
       '</div>'
+    );
+  }
+
+  function renderRevenue(overview, trends) {
+    overview = overview || {};
+    var aov =
+      overview.avg_order_value_cents != null
+        ? formatUsdCents(overview.avg_order_value_cents)
+        : overview.orders > 0
+          ? formatUsdCents(overview.revenue_cents / overview.orders)
+          : '—';
+    var gran = granularityForRange();
+    var granLabel = gran === 'day' ? 'Daily' : gran === 'week' ? 'Weekly' : 'Monthly';
+    return (
+      '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
+      kpiCard('Revenue', formatUsdCents(overview.revenue_cents)) +
+      kpiCard('Orders', formatNum(overview.orders)) +
+      kpiCard('Average Order Value', aov) +
+      kpiCard('Refunds', '—') +
+      '</div>' +
+      '<div class="admin-card"><h3>Revenue Trend (' +
+      granLabel +
+      ')</h3><div class="chart-container"><canvas id="chartRevenueTab"></canvas></div></div>' +
+      '<p class="admin-muted" style="margin-top:0.75rem">Refunds are future-ready and will appear here once refund tracking is enabled.</p>'
     );
   }
 
@@ -662,6 +706,10 @@ window.renderAdminanalytics = function (container) {
       funnelStepValue(steps, ['checkout', 'begin_checkout']) ||
       Number(overview.checkout_started) ||
       0;
+    var payment =
+      funnelStepValue(steps, ['payment']) ||
+      Number(overview.payment_started) ||
+      0;
     var purchases =
       funnelStepValue(steps, ['purchase', 'purchases', 'orders', 'completed']) ||
       Number(overview.orders) ||
@@ -675,12 +723,17 @@ window.renderAdminanalytics = function (container) {
       '<div class="admin-funnel">' +
       [
         { label: 'Visitors', value: visitors },
-        { label: 'Product Views', value: views },
+        { label: 'Product View', value: views },
         { label: 'Add To Cart', value: atc },
         { label: 'Checkout Started', value: checkout },
-        { label: 'Completed Purchase', value: purchases }
+        { label: 'Payment Success', value: payment },
+        { label: 'Order Completed', value: purchases }
       ]
         .map(function (step, i, arr) {
+          var rate =
+            i === 0
+              ? ''
+              : '<div class="admin-funnel-step-rate">' + pct(step.value, arr[i - 1].value) + '</div>';
           var html =
             '<div class="admin-funnel-step">' +
             '<div class="admin-funnel-step-label">' +
@@ -688,7 +741,9 @@ window.renderAdminanalytics = function (container) {
             '</div>' +
             '<div class="admin-funnel-step-value">' +
             formatNum(step.value) +
-            '</div></div>';
+            '</div>' +
+            rate +
+            '</div>';
           if (i < arr.length - 1) html += '<div class="admin-funnel-arrow" aria-hidden="true">↓</div>';
           return html;
         })
@@ -700,7 +755,8 @@ window.renderAdminanalytics = function (container) {
       '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
       kpiCard('View → Cart', pct(atc, views)) +
       kpiCard('Cart → Checkout', pct(checkout, atc)) +
-      kpiCard('Checkout → Purchase', pct(purchases, checkout)) +
+      kpiCard('Checkout → Payment', pct(payment, checkout)) +
+      kpiCard('Payment → Order', pct(purchases, payment || checkout)) +
       kpiCard('Overall Conversion', pct(purchases, visitors)) +
       '</div>' +
       '<h3 class="admin-section-title">Cart Analytics</h3>' +
@@ -791,7 +847,17 @@ window.renderAdminanalytics = function (container) {
 
   function renderProductsTable(rows) {
     var st = sortState.products;
-    var sorted = sortRows(rows, st.key, st.dir);
+    var filtered = rows;
+    if (productSearch) {
+      var q = productSearch.toLowerCase();
+      filtered = rows.filter(function (r) {
+        return (
+          String(r.name || '').toLowerCase().indexOf(q) !== -1 ||
+          String(r.product_id || '').toLowerCase().indexOf(q) !== -1
+        );
+      });
+    }
+    var sorted = sortRows(filtered, st.key, st.dir);
     var body =
       sorted
         .map(function (r) {
@@ -810,6 +876,9 @@ window.renderAdminanalytics = function (container) {
             formatNum(r.add_to_cart) +
             '</td>' +
             '<td>' +
+            formatNum(r.checkout) +
+            '</td>' +
+            '<td>' +
             formatNum(r.orders) +
             '</td>' +
             '<td>' +
@@ -821,73 +890,39 @@ window.renderAdminanalytics = function (container) {
           );
         })
         .join('') ||
-      '<tr><td colspan="7" class="admin-cell-empty">No product data yet</td></tr>';
+      '<tr><td colspan="8" class="admin-cell-empty">No product data yet</td></tr>';
 
     return (
-      '<div class="admin-card"><h3>Products</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th></th>' +
-      sortableTh('Product Name', 'name', 'products') +
+      '<div class="admin-card"><div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:0.75rem"><h3 style="margin:0">Products</h3>' +
+      '<input type="search" id="analyticsProductSearch" class="admin-search-input" placeholder="Search products…" value="' +
+      escapeHtml(productSearch) +
+      '" /></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th></th>' +
+      sortableTh('Product', 'name', 'products') +
       sortableTh('Views', 'views', 'products') +
       sortableTh('Add To Cart', 'add_to_cart', 'products') +
+      sortableTh('Checkout', 'checkout', 'products') +
       sortableTh('Orders', 'orders', 'products') +
       sortableTh('Revenue', 'revenue_cents', 'products') +
-      sortableTh('Conversion Rate', 'conversion_rate', 'products') +
+      sortableTh('Conversion %', 'conversion_rate', 'products') +
       '</tr></thead><tbody>' +
       body +
       '</tbody></table></div></div>'
     );
   }
 
-  function classifyPaymentStatus(status) {
-    var s = String(status || '').toLowerCase();
-    if (s === 'paid' || s === 'completed' || s === 'no_payment_required') return 'paid';
-    if (s === 'unpaid' || s === 'pending' || s === 'requires_payment') return 'pending';
-    if (s === 'canceled' || s === 'cancelled') return 'cancelled';
-    if (s === 'refunded' || s === 'partially_refunded') return 'refunded';
-    return s || 'unknown';
-  }
-
-  function renderOrdersAnalytics(orders, trends) {
-    var todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    var revenueToday = 0;
-    var ordersToday = 0;
-    var counts = { pending: 0, paid: 0, cancelled: 0, refunded: 0 };
-
-    (orders || []).forEach(function (o) {
-      var created = o.created_at ? new Date(o.created_at) : null;
-      var status = classifyPaymentStatus(o.status);
-      if (o.refund_status === 'full' || o.refund_status === 'partial') status = 'refunded';
-      if (counts[status] != null) counts[status] += 1;
-      else if (status === 'paid') counts.paid += 1;
-
-      if (created && created >= todayStart) {
-        ordersToday += 1;
-        revenueToday += Number(o.amount_total_cents) || 0;
-      }
+  function bindProductSearch(host) {
+    var input = host.querySelector('#analyticsProductSearch');
+    if (!input) return;
+    var t;
+    input.addEventListener('input', function () {
+      clearTimeout(t);
+      t = setTimeout(function () {
+        productSearch = input.value.trim();
+        host.innerHTML = renderProductsTable(lastPayload.products || []);
+        bindSortable(host, 'products', renderProductsTable);
+        bindProductSearch(host);
+      }, 200);
     });
-
-    lastPayload.orderRows = (orders || []).map(function (o) {
-      return {
-        Order: o.stripe_session_id || o.id,
-        Customer: o.customer_name || '',
-        Email: o.customer_email || '',
-        Total: ((o.amount_total_cents || 0) / 100).toFixed(2),
-        Status: o.status || '',
-        Created: o.created_at || ''
-      };
-    });
-
-    return (
-      '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
-      kpiCard('Revenue Today', formatUsdCents(revenueToday)) +
-      kpiCard('Orders Today', formatNum(ordersToday)) +
-      kpiCard('Pending Orders', formatNum(counts.pending)) +
-      kpiCard('Paid Orders', formatNum(counts.paid)) +
-      kpiCard('Cancelled Orders', formatNum(counts.cancelled)) +
-      kpiCard('Refunded Orders', formatNum(counts.refunded)) +
-      '</div>' +
-      '<div class="admin-card"><h3>Order Trend</h3><div class="chart-container"><canvas id="chartOrdersTrend"></canvas></div></div>'
-    );
   }
 
   function loadRecentOrders(limit) {
@@ -896,8 +931,10 @@ window.renderAdminanalytics = function (container) {
     return sb
       .from('orders')
       .select(
-        'id,stripe_session_id,customer_name,customer_email,amount_total_cents,status,refund_status,created_at,country,product_slug,quantity'
+        'id,stripe_session_id,customer_name,customer_email,amount_total_cents,status,created_at,country,product_slug'
       )
+      .gte('created_at', range.start)
+      .lt('created_at', range.end)
       .order('created_at', { ascending: false })
       .limit(limit || 200)
       .then(function (res) {
@@ -935,6 +972,24 @@ window.renderAdminanalytics = function (container) {
           });
         }
       );
+      return;
+    }
+
+    if (activeTab === 'revenue') {
+      Promise.all([loadOverview(), loadTrends()]).then(function (res) {
+        host.innerHTML = renderRevenue(res[0], res[1]);
+        requestAnimationFrame(function () {
+          var rev = series((res[1] || {}).revenue);
+          drawLineChart(
+            'chartRevenueTab',
+            rev.labels,
+            rev.values.map(function (v) {
+              return (Number(v) || 0) / 100;
+            }),
+            'Revenue'
+          );
+        });
+      });
       return;
     }
 
@@ -982,17 +1037,7 @@ window.renderAdminanalytics = function (container) {
         lastPayload.products = rows;
         host.innerHTML = renderProductsTable(rows);
         bindSortable(host, 'products', renderProductsTable);
-      });
-      return;
-    }
-
-    if (activeTab === 'orders') {
-      Promise.all([loadRecentOrders(500), loadTrends()]).then(function (res) {
-        host.innerHTML = renderOrdersAnalytics(res[0], res[1]);
-        requestAnimationFrame(function () {
-          var ord = series((res[1] || {}).orders);
-          drawLineChart('chartOrdersTrend', ord.labels, ord.values, 'Orders');
-        });
+        bindProductSearch(host);
       });
       return;
     }

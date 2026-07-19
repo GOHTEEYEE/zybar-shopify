@@ -1874,6 +1874,46 @@ function parseAnalyticsRange(req) {
   return { start: start.toISOString(), end: endExcl.toISOString() };
 }
 
+app.get('/api/analytics/dashboard', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const [overview, leads, abandoned] = await Promise.all([
+      AnalyticsFallback.rpcOrFallback(
+        supabase,
+        'get_shopify_analytics_overview',
+        { p_start: range.start, p_end: range.end },
+        function () {
+          return AnalyticsFallback.overviewFallback(supabase, range);
+        }
+      ),
+      CustomerActivity.listEmailLeads(supabase, {
+        preset: 'custom',
+        start: range.start,
+        end: range.end
+      }).catch(function () {
+        return [];
+      }),
+      CustomerActivity.listAbandoned(supabase, {
+        preset: 'custom',
+        start: range.start,
+        end: range.end
+      }).catch(function () {
+        return [];
+      })
+    ]);
+    return res.json({
+      overview: overview || {},
+      email_leads: Array.isArray(leads) ? leads.length : 0,
+      abandoned_carts: Array.isArray(abandoned) ? abandoned.length : 0,
+      range: range
+    });
+  } catch (err) {
+    console.error('Analytics dashboard error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load dashboard' });
+  }
+});
+
 app.get('/api/analytics/overview', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
@@ -1895,13 +1935,19 @@ app.get('/api/analytics/funnel', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    const data = await AnalyticsFallback.rpcOrFallback(
+    let data = await AnalyticsFallback.rpcOrFallback(
       supabase,
       'get_shopify_conversion_funnel',
       { p_start: range.start, p_end: range.end },
       function () { return AnalyticsFallback.funnelFallback(supabase, range); }
     );
-    const steps = Array.isArray(data) ? data : (data && data.steps) || [];
+    let steps = Array.isArray(data) ? data : (data && data.steps) || [];
+    const hasPayment = steps.some(function (s) {
+      return /payment/i.test(String(s && s.step || ''));
+    });
+    if (!hasPayment) {
+      steps = await AnalyticsFallback.funnelFallback(supabase, range);
+    }
     return res.json({ steps: steps });
   } catch (err) {
     return res.status(500).json({ error: err.message });
