@@ -1,37 +1,15 @@
-const chatbotProductCatalog = [
-  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi RS6', slug: 'audi-rs6', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Dodge Hellcat 02', slug: 'b-dodge-hellcat-02', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Dodge Hellcat 03', slug: 'b-dodge-hellcat-03', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Ferrari F40', slug: 'b-ferrari-f40', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Maserati MC20', slug: 'b-maserati-mc20', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' }
-];
+import { buildSystemPrompt, loadShippingMethods } from '../_lib/chatbot-knowledge.js';
 
-const chatbotSystemPrompt = [
-  'You are the ZYBAR website assistant for LED automotive wall art.',
-  'Help with product recommendations and customer support.',
-  'Be concise, friendly, and practical.',
-  'If the user wants a recommendation, ask 1-2 short questions if needed, then recommend 1-3 products from the catalog.',
-  'If the user asks support questions, answer using the store information below only.',
-  'Do not invent policies, prices, shipping times, or unavailable products.',
-  'If you are unsure, say so and suggest using the contact page at /contact.html.',
-  'When useful, mention the catalog page at /collections/all/.',
-  'Store facts:',
-  '- Brand: ZYBAR',
-  '- Products: LED automotive wall art / automotive light painting',
-  '- Standard product sizes: 30 x 45 cm and 40 x 60 cm',
-  '- Power options: USB powered (worldwide) and 3 AA batteries',
-  '- Features: remote control, multiple lighting modes, memory function, premium acrylic panel, matte backing, easy wall mount, no drilling required',
-  '- Shipping: worldwide shipping is available',
-  '- Returns: 30-day easy returns',
-  '- Customization: customers can send a photo and discuss a custom art request',
-  'Catalog:',
-  chatbotProductCatalog.map(function (product) {
-    return '- ' + product.name + ' (' + product.slug + '): ' + product.price + ', sizes ' + product.sizes;
-  }).join('\n')
-].join('\n');
+const chatbotProductCatalog = [
+  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi RS6', slug: 'audi-rs6', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Dodge Hellcat 02', slug: 'b-dodge-hellcat-02', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Dodge Hellcat 03', slug: 'b-dodge-hellcat-03', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Ferrari F40', slug: 'b-ferrari-f40', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Maserati MC20', slug: 'b-maserati-mc20', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' }
+];
 
 function json(data, status) {
   return new Response(JSON.stringify(data), {
@@ -193,7 +171,12 @@ export async function onRequestPost(context) {
     contextParts.push('Visible heading: ' + pageContext.heading.trim().slice(0, 200));
   }
 
-  const promptMessages = [{ role: 'system', content: chatbotSystemPrompt }];
+  const shippingMethods = await loadShippingMethods(env);
+  const systemPrompt = buildSystemPrompt({
+    shippingMethods: shippingMethods,
+    products: chatbotProductCatalog
+  });
+  const promptMessages = [{ role: 'system', content: systemPrompt }];
   if (contextParts.length) {
     promptMessages.push({
       role: 'system',

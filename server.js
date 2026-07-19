@@ -13,6 +13,7 @@ const { createClient } = require('@supabase/supabase-js');
 const Pricing = require('./lib/pricing.js');
 const AnalyticsFallback = require('./lib/analytics-fallback.js');
 const MetaCapi = require('./lib/meta-capi.js');
+const ChatbotKnowledge = require('./lib/chatbot-knowledge.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -185,16 +186,7 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi) {
   return stripeItems;
 }
 
-const chatbotProductCatalog = [
-  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi RS6', slug: 'audi-rs6', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Dodge Hellcat 02', slug: 'b-dodge-hellcat-02', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Dodge Hellcat 03', slug: 'b-dodge-hellcat-03', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Ferrari F40', slug: 'b-ferrari-f40', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Maserati MC20', slug: 'b-maserati-mc20', price: '$76.00', sizes: '30 x 45 cm, 40 x 60 cm' }
-];
+const chatbotProductCatalog = ChatbotKnowledge.DEFAULT_PRODUCTS;
 const allowedProductSlugs = new Set(chatbotProductCatalog.map(function (item) { return item.slug; }));
 
 /** data URLs from review uploads (jpeg includes legacy image/pjpeg). */
@@ -208,29 +200,15 @@ function normalizeReviewImageDataUrl(value) {
   return value.trim().replace(/\s+/g, '');
 }
 
-const chatbotSystemPrompt = [
-  'You are the ZYBAR website assistant for LED automotive wall art.',
-  'Help with product recommendations and customer support.',
-  'Be concise, friendly, and practical.',
-  'If the user wants a recommendation, ask 1-2 short questions if needed, then recommend 1-3 products from the catalog.',
-  'If the user asks support questions, answer using the store information below only.',
-  'Do not invent policies, prices, shipping times, or unavailable products.',
-  'If you are unsure, say so and suggest using the contact page at /contact.html.',
-  'When useful, mention the catalog page at /collections/all/.',
-  'Store facts:',
-  '- Brand: ZYBAR',
-  '- Products: LED automotive wall art / automotive light painting',
-  '- Standard product sizes: 30 x 45 cm and 40 x 60 cm',
-  '- Power options: USB powered (worldwide) and 3 AA batteries',
-  '- Features: remote control, multiple lighting modes, memory function, premium acrylic panel, matte backing, easy wall mount, no drilling required',
-  '- Shipping: worldwide shipping is available',
-  '- Returns: 30-day easy returns',
-  '- Customization: customers can send a photo and discuss a custom art request',
-  'Catalog:',
-  chatbotProductCatalog.map(function (product) {
-    return '- ' + product.name + ' (' + product.slug + '): ' + product.price + ', sizes ' + product.sizes;
-  }).join('\n')
-].join('\n');
+async function buildChatbotSystemPrompt() {
+  try {
+    const catalog = await Pricing.loadCatalog(supabase);
+    return ChatbotKnowledge.buildSystemPrompt({ catalog: catalog });
+  } catch (err) {
+    console.warn('Chatbot pricing load failed, using defaults:', err && err.message ? err.message : err);
+    return ChatbotKnowledge.buildSystemPrompt({});
+  }
+}
 
 function ensureInquiriesStore() {
   try {
@@ -899,7 +877,8 @@ app.post('/api/chatbot', async (req, res) => {
     contextParts.push('Visible heading: ' + pageContext.heading.trim().slice(0, 200));
   }
 
-  const promptMessages = [{ role: 'system', content: chatbotSystemPrompt }];
+  const systemPrompt = await buildChatbotSystemPrompt();
+  const promptMessages = [{ role: 'system', content: systemPrompt }];
   if (contextParts.length) {
     promptMessages.push({
       role: 'system',
