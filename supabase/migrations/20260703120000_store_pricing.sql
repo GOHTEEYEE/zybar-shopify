@@ -80,8 +80,8 @@ CREATE POLICY "Anon manage discount_codes"
 -- --------------------------------------------
 INSERT INTO public.shipping_methods (code, label, description, price_usd, sort_order, is_default, active)
 VALUES
-  ('standard', 'Standard Shipping', 'Estimated delivery: 14–18 business days', 20.00, 1, true, true),
-  ('priority', 'Priority Shipping', 'Estimated delivery: 7–14 business days', 25.00, 2, false, true)
+  ('standard', 'Standard Shipping', 'Estimated delivery: 14–18 business days', 15.00, 1, true, true),
+  ('priority', 'Priority Shipping', 'Estimated delivery: 7–14 business days', 18.00, 2, false, true)
 ON CONFLICT (code) DO UPDATE SET
   label = EXCLUDED.label,
   description = EXCLUDED.description,

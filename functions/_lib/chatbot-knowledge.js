@@ -7,14 +7,14 @@ var DEFAULT_SHIPPING = [
     code: 'standard',
     label: 'Standard Shipping',
     description: 'Estimated delivery: 14–18 business days',
-    priceUsd: 20,
+    priceUsd: 15,
     isDefault: true
   },
   {
     code: 'priority',
     label: 'Priority Shipping',
     description: 'Estimated delivery: 7–14 business days',
-    priceUsd: 25,
+    priceUsd: 18,
     isDefault: false
   }
 ];
