@@ -507,98 +507,20 @@ app.post(
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      const customer = extractOrderCustomerFields(session);
       console.log(
         'Checkout completed:',
         session.id,
-        customer.customer_email,
-        customer.customer_name,
+        session.customer_details && session.customer_details.email,
         session.metadata
       );
 
+      let customer = extractOrderCustomerFields(session);
       if (supabase) {
         try {
-          const amount = typeof session.amount_total === 'number' ? session.amount_total : 0;
-          const quantity = session.metadata && session.metadata.quantity ? parseInt(session.metadata.quantity, 10) || 1 : 1;
-          const shippingMethod =
-            session.metadata && session.metadata.shippingMethod
-              ? String(session.metadata.shippingMethod)
-              : null;
-          let lineItems = null;
-          try {
-            if (session.metadata && session.metadata.variantDetails) {
-              lineItems = JSON.parse(session.metadata.variantDetails);
-            }
-          } catch (_) {
-            lineItems = null;
-          }
-          const baseOrder = {
-            stripe_session_id: session.id,
-            stripe_payment_intent: session.payment_intent || null,
-            customer_name: customer.customer_name,
-            customer_email: customer.customer_email,
-            customer_phone: customer.customer_phone,
-            shipping_address: customer.shipping_address,
-            city: customer.city,
-            state: customer.state,
-            postcode: customer.postcode,
-            country: customer.country,
-            currency: (session.currency || 'usd').toLowerCase(),
-            amount_total_cents: amount,
-            product_slug: session.metadata && session.metadata.productSlug ? session.metadata.productSlug : null,
-            size: session.metadata && session.metadata.size ? session.metadata.size : null,
-            quantity: quantity,
-            status: session.payment_status || 'completed',
-            test_mode: !!session.livemode === false,
-            visitor_id: session.metadata && session.metadata.visitorId ? session.metadata.visitorId : null,
-            analytics_session_id:
-              session.metadata && session.metadata.analyticsSessionId
-                ? session.metadata.analyticsSessionId
-                : null,
-            cart_id:
-              session.metadata && session.metadata.cartId ? session.metadata.cartId : null
-          };
-          const extendedOrder = Object.assign({}, baseOrder, {
-            shipping_method: shippingMethod,
-            payment_method: null,
-            fulfillment_status: 'unfulfilled',
-            refund_status: 'none',
-            line_items: lineItems
-          });
-          let { error } = await supabase.from('orders').insert(extendedOrder);
-          if (error && /shipping_method|fulfillment_status|line_items|refund_status|payment_method/i.test(error.message || '')) {
-            ({ error } = await supabase.from('orders').insert(baseOrder));
-          }
-          if (error) {
-            console.error('Supabase insert orders error:', error);
-          } else {
-            const cartIdMeta = session.metadata && session.metadata.cartId;
-            if (cartIdMeta) {
-              await supabase
-                .from('cart_sessions')
-                .update({
-                  status: 'purchased',
-                  purchased_at: new Date().toISOString(),
-                  stripe_session_id: session.id,
-                  recovery_status: 'purchased_later'
-                })
-                .eq('id', cartIdMeta);
-            }
-            await supabase.from('events').insert({
-              event_type: 'payment_success',
-              visitor_id: (session.metadata && session.metadata.visitorId) || 'server',
-              session_id: (session.metadata && session.metadata.analyticsSessionId) || null,
-              cart_id: cartIdMeta || null,
-              metadata: {
-                stripe_session_id: session.id,
-                amount_cents: amount
-              },
-              dedup_key: 'payment_success:' + session.id,
-              created_at: new Date().toISOString()
-            });
-          }
+          const persisted = await persistPaidCheckoutSession(session);
+          if (persisted && persisted.customer) customer = persisted.customer;
         } catch (e) {
-          console.error('Supabase orders insert exception:', e);
+          console.error('Supabase orders persist exception:', e);
         }
       } else {
         console.warn('Supabase client not configured; skipping order persistence.');
@@ -1207,6 +1129,122 @@ function extractOrderCustomerFields(session) {
   };
 }
 
+/**
+ * Persist a paid Checkout Session into orders (idempotent upsert).
+ * Used by Stripe webhook and by /api/checkout-session as a webhook fallback.
+ */
+async function persistPaidCheckoutSession(session) {
+  if (!supabase || !session || !session.id) {
+    return { ok: false, skipped: true, reason: 'not_ready' };
+  }
+  const customer = extractOrderCustomerFields(session);
+  const amount = typeof session.amount_total === 'number' ? session.amount_total : 0;
+  const quantity =
+    session.metadata && session.metadata.quantity
+      ? parseInt(session.metadata.quantity, 10) || 1
+      : 1;
+  const shippingMethod =
+    session.metadata && session.metadata.shippingMethod
+      ? String(session.metadata.shippingMethod)
+      : null;
+  let lineItems = null;
+  try {
+    if (session.metadata && session.metadata.variantDetails) {
+      lineItems = JSON.parse(session.metadata.variantDetails);
+    }
+  } catch (_) {
+    lineItems = null;
+  }
+
+  const baseOrder = {
+    stripe_session_id: session.id,
+    stripe_payment_intent: session.payment_intent || null,
+    customer_name: customer.customer_name,
+    customer_email: customer.customer_email,
+    customer_phone: customer.customer_phone,
+    shipping_address: customer.shipping_address,
+    city: customer.city,
+    state: customer.state,
+    postcode: customer.postcode,
+    country: customer.country,
+    currency: (session.currency || 'usd').toLowerCase(),
+    amount_total_cents: amount,
+    product_slug:
+      session.metadata && session.metadata.productSlug
+        ? session.metadata.productSlug
+        : null,
+    size: session.metadata && session.metadata.size ? session.metadata.size : null,
+    quantity: quantity,
+    status: session.payment_status || 'completed',
+    test_mode: session.livemode === false,
+    visitor_id:
+      session.metadata && session.metadata.visitorId ? session.metadata.visitorId : null,
+    analytics_session_id:
+      session.metadata && session.metadata.analyticsSessionId
+        ? session.metadata.analyticsSessionId
+        : null,
+    cart_id: session.metadata && session.metadata.cartId ? session.metadata.cartId : null
+  };
+  if (session.created) {
+    baseOrder.created_at = new Date(session.created * 1000).toISOString();
+  }
+
+  const extendedOrder = Object.assign({}, baseOrder, {
+    shipping_method: shippingMethod,
+    fulfillment_status: 'unfulfilled',
+    refund_status: 'none',
+    line_items: lineItems
+  });
+
+  let { error } = await supabase
+    .from('orders')
+    .upsert(extendedOrder, { onConflict: 'stripe_session_id' });
+  if (
+    error &&
+    /shipping_method|fulfillment_status|line_items|refund_status|payment_method/i.test(
+      error.message || ''
+    )
+  ) {
+    ({ error } = await supabase
+      .from('orders')
+      .upsert(baseOrder, { onConflict: 'stripe_session_id' }));
+  }
+  if (error) {
+    console.error('Supabase upsert orders error:', error);
+    return { ok: false, error: error };
+  }
+
+  const cartIdMeta = session.metadata && session.metadata.cartId;
+  if (cartIdMeta) {
+    await supabase
+      .from('cart_sessions')
+      .update({
+        status: 'purchased',
+        purchased_at: new Date().toISOString(),
+        stripe_session_id: session.id,
+        recovery_status: 'purchased_later'
+      })
+      .eq('id', cartIdMeta);
+  }
+
+  try {
+    await supabase.from('events').insert({
+      event_type: 'payment_success',
+      visitor_id: (session.metadata && session.metadata.visitorId) || 'server',
+      session_id: (session.metadata && session.metadata.analyticsSessionId) || null,
+      cart_id: cartIdMeta || null,
+      metadata: {
+        stripe_session_id: session.id,
+        amount_cents: amount
+      },
+      dedup_key: 'payment_success:' + session.id,
+      created_at: new Date().toISOString()
+    });
+  } catch (_) {}
+
+  return { ok: true, customer: customer, amount_cents: amount };
+}
+
 async function getPaymentMethodLabel(paymentIntentId) {
   if (!paymentIntentId || !stripe) return null;
   try {
@@ -1248,6 +1286,16 @@ app.get('/api/checkout-session', async (req, res) => {
         status: session.status,
         paymentStatus: session.payment_status
       });
+    }
+
+    // Fallback: if Stripe webhook missed this order, sync it when the buyer opens confirmation
+    try {
+      await persistPaidCheckoutSession(session);
+    } catch (persistErr) {
+      console.warn(
+        'checkout-session persist fallback:',
+        persistErr && persistErr.message ? persistErr.message : persistErr
+      );
     }
 
     const lineItemsRes = await stripe.checkout.sessions.listLineItems(sessionId, {
