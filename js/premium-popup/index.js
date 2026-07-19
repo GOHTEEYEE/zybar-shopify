@@ -328,11 +328,14 @@
     cta.textContent = 'Unlocking…';
 
     var utm = readUtm();
+    var analytics = window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics : null;
     var body = {
       email: email,
       language: language,
       source: 'premium_popup',
       userAgent: navigator.userAgent || '',
+      visitor_id: analytics && analytics.getVisitorId ? analytics.getVisitorId() : null,
+      session_id: analytics && analytics.getSessionId ? analytics.getSessionId() : null,
       utm_source: utm.utm_source,
       utm_medium: utm.utm_medium,
       utm_campaign: utm.utm_campaign

@@ -14,6 +14,7 @@ const Pricing = require('./lib/pricing.js');
 const AnalyticsFallback = require('./lib/analytics-fallback.js');
 const MetaCapi = require('./lib/meta-capi.js');
 const ChatbotKnowledge = require('./lib/chatbot-knowledge.js');
+const CustomerActivity = require('./lib/customer-activity.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1226,19 +1227,21 @@ async function persistPaidCheckoutSession(session) {
       .eq('id', cartIdMeta);
   }
 
+  await supabase.from('events').insert({
+    event_type: 'payment_success',
+    visitor_id: (session.metadata && session.metadata.visitorId) || 'server',
+    session_id: (session.metadata && session.metadata.analyticsSessionId) || null,
+    cart_id: cartIdMeta || null,
+    metadata: {
+      stripe_session_id: session.id,
+      amount_cents: amount
+    },
+    dedup_key: 'payment_success:' + session.id,
+    created_at: new Date().toISOString()
+  }).catch(function () {});
+
   try {
-    await supabase.from('events').insert({
-      event_type: 'payment_success',
-      visitor_id: (session.metadata && session.metadata.visitorId) || 'server',
-      session_id: (session.metadata && session.metadata.analyticsSessionId) || null,
-      cart_id: cartIdMeta || null,
-      metadata: {
-        stripe_session_id: session.id,
-        amount_cents: amount
-      },
-      dedup_key: 'payment_success:' + session.id,
-      created_at: new Date().toISOString()
-    });
+    await CustomerActivity.upsertProfileFromOrder(supabase, session, customer);
   } catch (_) {}
 
   return { ok: true, customer: customer, amount_cents: amount };
@@ -1381,6 +1384,72 @@ app.get('/api/pricing', async (req, res) => {
   } catch (err) {
     console.error('GET /api/pricing error:', err);
     return res.status(500).json({ error: err.message || 'Failed to load pricing' });
+  }
+});
+
+// ----- Customer Activity (admin intelligence) -----
+app.get('/api/customer-activity', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Not configured' });
+  try {
+    const data = await CustomerActivity.listActivities(supabase, req.query || {});
+    return res.json(data);
+  } catch (err) {
+    console.error('customer-activity list:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load activity' });
+  }
+});
+
+app.get('/api/customer-activity/detail', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Not configured' });
+  const visitorId = typeof req.query.visitor_id === 'string' ? req.query.visitor_id.trim() : '';
+  if (!visitorId) return res.status(400).json({ error: 'visitor_id required' });
+  try {
+    const data = await CustomerActivity.getActivityDetail(supabase, visitorId);
+    if (!data) return res.status(404).json({ error: 'Not found' });
+    return res.json(data);
+  } catch (err) {
+    console.error('customer-activity detail:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load detail' });
+  }
+});
+
+app.get('/api/customer-activity/leads', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Not configured' });
+  try {
+    const data = await CustomerActivity.listEmailLeads(supabase, req.query || {});
+    return res.json({ leads: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to load leads' });
+  }
+});
+
+app.get('/api/customer-activity/abandoned', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Not configured' });
+  try {
+    const data = await CustomerActivity.listAbandoned(supabase, req.query || {});
+    return res.json({ carts: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to load abandoned carts' });
+  }
+});
+
+app.get('/api/customer-activity/countries', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Not configured' });
+  try {
+    const data = await CustomerActivity.countryAnalytics(supabase, req.query || {});
+    return res.json({ countries: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to load countries' });
+  }
+});
+
+app.get('/api/customer-activity/traffic', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Not configured' });
+  try {
+    const data = await CustomerActivity.trafficAnalytics(supabase, req.query || {});
+    return res.json({ sources: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to load traffic' });
   }
 });
 
