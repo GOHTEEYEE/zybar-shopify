@@ -233,13 +233,18 @@ const chatbotSystemPrompt = [
 ].join('\n');
 
 function ensureInquiriesStore() {
-  const dir = path.dirname(inquiriesStorePath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(inquiriesStorePath)) fs.writeFileSync(inquiriesStorePath, '[]', 'utf8');
+  try {
+    const dir = path.dirname(inquiriesStorePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(inquiriesStorePath)) fs.writeFileSync(inquiriesStorePath, '[]', 'utf8');
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function readInquiriesStore() {
-  ensureInquiriesStore();
+  if (!ensureInquiriesStore()) return [];
   try {
     const raw = fs.readFileSync(inquiriesStorePath, 'utf8');
     const parsed = JSON.parse(raw);
@@ -250,8 +255,13 @@ function readInquiriesStore() {
 }
 
 function writeInquiriesStore(list) {
-  ensureInquiriesStore();
-  fs.writeFileSync(inquiriesStorePath, JSON.stringify(list, null, 2), 'utf8');
+  if (!ensureInquiriesStore()) return false;
+  try {
+    fs.writeFileSync(inquiriesStorePath, JSON.stringify(list, null, 2), 'utf8');
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function sanitizeReviewInput(body) {
@@ -957,7 +967,6 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Please provide a valid name, email, and message.' });
   }
 
-  const inquiries = readInquiriesStore();
   const row = {
     id: 'inq_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
     name: name,
@@ -967,30 +976,41 @@ app.post('/api/contact', async (req, res) => {
     message: message,
     created_at: new Date().toISOString()
   };
-  inquiries.unshift(row);
-  writeInquiriesStore(inquiries);
+
+  // Local/dev file fallback only — never block serverless on disk writes
+  try {
+    const inquiries = readInquiriesStore();
+    inquiries.unshift(row);
+    writeInquiriesStore(inquiries);
+  } catch (_) {}
 
   var supabaseSaved = false;
-  if (supabase) {
-    try {
-      const { error } = await supabase.from('contact_inquiries').insert({
-        inquiry_id: row.id,
-        name: row.name,
-        email: row.email,
-        phone: row.phone,
-        car_model_interest: row.car_model_interest,
-        message: row.message,
-        created_at: row.created_at
-      });
-      if (error) {
-        console.error('Supabase insert contact_inquiries error:', error);
-      } else {
-        supabaseSaved = true;
-      }
-    } catch (e) {
-      console.error('Supabase contact_inquiries insert exception:', e);
-    }
+  if (!supabase) {
+    return res.status(503).json({
+      error: 'Inquiry service is temporarily unavailable. Please email us or try again later.'
+    });
   }
+
+  try {
+    const { error } = await supabase.from('contact_inquiries').insert({
+      inquiry_id: row.id,
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      car_model_interest: row.car_model_interest,
+      message: row.message,
+      created_at: row.created_at
+    });
+    if (error) {
+      console.error('Supabase insert contact_inquiries error:', error);
+      return res.status(500).json({ error: 'Unable to submit inquiry. Please try again.' });
+    }
+    supabaseSaved = true;
+  } catch (e) {
+    console.error('Supabase contact_inquiries insert exception:', e);
+    return res.status(500).json({ error: 'Unable to submit inquiry. Please try again.' });
+  }
+
   return res.json({ ok: true, id: row.id, supabaseSaved: supabaseSaved });
 });
 

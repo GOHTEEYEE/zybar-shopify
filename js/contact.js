@@ -56,14 +56,32 @@
     }
 
     var submitBtn = form.querySelector('button[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
+    var originalLabel = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+    }
+    setStatus('Sending your inquiry…', false);
+
     try {
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = controller
+        ? window.setTimeout(function () {
+            controller.abort();
+          }, 20000)
+        : null;
+
       var res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller ? controller.signal : undefined
       });
-      var json = await res.json().catch(function () { return {}; });
+      if (timer) window.clearTimeout(timer);
+
+      var json = await res.json().catch(function () {
+        return {};
+      });
       if (!res.ok) throw new Error(json.error || 'Unable to submit inquiry.');
 
       if (window.ZYBAR && window.ZYBAR.Analytics && typeof window.ZYBAR.Analytics.trackContactSubmit === 'function') {
@@ -73,9 +91,18 @@
       setStatus('Thank you! Your inquiry has been submitted.', false);
       showToast('Thank you! We will contact you soon.');
     } catch (err) {
-      setStatus(err && err.message ? err.message : 'Submission failed. Please try again.', true);
+      var msg =
+        err && err.name === 'AbortError'
+          ? 'Request timed out. Please try again in a moment.'
+          : err && err.message
+            ? err.message
+            : 'Submission failed. Please try again.';
+      setStatus(msg, true);
     } finally {
-      if (submitBtn) submitBtn.disabled = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel || 'Send Inquiry';
+      }
     }
   });
 })();
