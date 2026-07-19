@@ -6468,6 +6468,126 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   border-radius: 16px;
 }
 
+/* PDP reuses homepage Customers are saying + In the wild */
+.pdp-social-proof {
+  margin: 0;
+  width: 100%;
+}
+
+.pdp-social-proof .customers-saying {
+  margin: 0;
+}
+
+.pdp-review-write {
+  background: #000;
+  color: #fff;
+  padding: 48px 0 72px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pdp-review-write-inner {
+  max-width: 720px;
+}
+
+.pdp-review-write h3 {
+  margin: 0 0 1.25rem;
+  font-family: "Playfair Display", "DM Serif Display", Georgia, serif;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+  text-align: center;
+  color: #fff;
+}
+
+.pdp-review-write-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.pdp-review-write label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pdp-review-write-comment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.pdp-review-write input,
+.pdp-review-write select,
+.pdp-review-write textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+}
+
+.pdp-review-write input:focus,
+.pdp-review-write select:focus,
+.pdp-review-write textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.pdp-review-write textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.pdp-review-write select option {
+  color: #111;
+}
+
+.pdp-review-write-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pdp-review-write-btn {
+  background: #fff !important;
+  color: #111 !important;
+  border: none !important;
+}
+
+.pdp-review-write .review-form-status {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.pdp-review-write .review-form-status.is-success {
+  color: #86efac;
+}
+
+.pdp-review-write .review-form-status.is-error {
+  color: #fca5a5;
+}
+
+.pdp-review-write .review-upload-preview {
+  margin: 0 0 0.85rem;
+}
+
+.pdp-review-write .review-upload-preview img {
+  max-width: 160px;
+  border-radius: 10px;
+}
+
+@media (max-width: 700px) {
+  .pdp-review-write-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .reviews-head {
   text-align: center;
   margin-bottom: 1.6rem;
