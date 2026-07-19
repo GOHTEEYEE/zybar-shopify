@@ -92,12 +92,24 @@
     window.localStorage.setItem(getStorageKey(slug), JSON.stringify(existing.slice(0, 60)));
   }
 
+  function ensurePlayfairFont() {
+    if (document.getElementById("zybar-playfair-font")) return;
+    var link = document.createElement("link");
+    link.id = "zybar-playfair-font";
+    link.rel = "stylesheet";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap";
+    document.head.appendChild(link);
+  }
+
   function buildSection() {
     var slug = getProductSlug();
     if (!slug) return;
     if (document.getElementById("customers-saying") || document.getElementById("pdp-social-proof")) {
       return;
     }
+
+    ensurePlayfairFont();
 
     var anchor =
       document.querySelector(".pdp-customization") || document.querySelector(".product-showcase");
