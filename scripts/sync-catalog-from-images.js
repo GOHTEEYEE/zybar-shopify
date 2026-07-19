@@ -69,7 +69,7 @@ function getPriceForCard(slug, productsCfg) {
     ? productsCfg.perProductPricesBySize[slug]['30x45']
     : null;
   if (per !== null) return per;
-  return Number(productsCfg.pricesBySize && productsCfg.pricesBySize['30x45']) || 76;
+  return Number(productsCfg.pricesBySize && productsCfg.pricesBySize['30x45']) || 98;
 }
 
 function productPageTemplate(slug, name, imagePath, price30) {

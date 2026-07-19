@@ -1,14 +1,14 @@
 import { buildSystemPrompt, loadShippingMethods } from '../_lib/chatbot-knowledge.js';
 
 const chatbotProductCatalog = [
-  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi RS6', slug: 'audi-rs6', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Dodge Hellcat 02', slug: 'b-dodge-hellcat-02', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Dodge Hellcat 03', slug: 'b-dodge-hellcat-03', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Ferrari F40', slug: 'b-ferrari-f40', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'B Maserati MC20', slug: 'b-maserati-mc20', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' }
+  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi RS6', slug: 'audi-rs6', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Dodge Hellcat 02', slug: 'b-dodge-hellcat-02', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Dodge Hellcat 03', slug: 'b-dodge-hellcat-03', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Ferrari F40', slug: 'b-ferrari-f40', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'B Maserati MC20', slug: 'b-maserati-mc20', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' }
 ];
 
 function json(data, status) {

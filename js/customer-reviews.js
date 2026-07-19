@@ -43,26 +43,91 @@
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
+  /** Same social-proof slides as homepage "Customers are saying". */
+  var HOME_FALLBACK_REVIEWS = [
+    {
+      name: "SK Moon",
+      comment:
+        "As a car enthusiast, this is easily one of my favorite wall pieces. The craftsmanship is excellent, and the working headlights make it feel alive.",
+      rating: 5,
+      imageUrl: "/Image/bmw-classic-3-0-1-on.webp",
+      productName: "BMW Classic 3.0"
+    },
+    {
+      name: "Olivia",
+      comment:
+        "This piece completely upgraded the look of my room. The car design is stunning, and the light-up effect adds such a cool atmosphere at night.",
+      rating: 5,
+      imageUrl: "/Image/audi-r8-white-1-on.webp",
+      productName: "Audi R8 – White"
+    },
+    {
+      name: "Nick B",
+      comment:
+        "Got this for my boyfriend and he couldn’t stop smiling when he turned the lights on. The whole car just pops on the wall.",
+      rating: 5,
+      imageUrl: "/Image/b-ferrari-f40-1.webp",
+      productName: "B Ferrari F40"
+    },
+    {
+      name: "R3negade",
+      comment:
+        "I absolutely loved how this car light wall art turned out. It looks amazing and feels very premium in person.",
+      rating: 5,
+      imageUrl: "/Image/bmw-m4-1-on.webp",
+      productName: "BMW M4"
+    }
+  ];
+
   var defaultReviewsBySlug = {};
 
   function sanitizeReview(item, defaultProductName) {
+    var name = escapeText(item.name).slice(0, 40);
+    if (/^(sex|test|asdf|xxx)/i.test(name)) return null;
+    var comment = escapeText(item.comment).slice(0, 560);
     return {
-      name: escapeText(item.name).slice(0, 40),
+      name: name,
       productName: escapeText(item.productName || defaultProductName).slice(0, 80),
-      comment: escapeText(item.comment).slice(0, 560),
+      comment: comment,
       rating: Math.max(1, Math.min(5, Number(item.rating) || 5)),
       date: item.date,
-      imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : ""
+      imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : "",
+      source: item.source || "review"
     };
+  }
+
+  function reviewKey(review) {
+    return [
+      String(review.name || "").toLowerCase(),
+      String(review.imageUrl || "").slice(0, 120),
+      String(review.comment || "").slice(0, 80).toLowerCase()
+    ].join("|");
+  }
+
+  function mergeUniqueReviews(lists) {
+    var seen = {};
+    var out = [];
+    (lists || []).forEach(function (list) {
+      (list || []).forEach(function (item) {
+        if (!item || !item.name) return;
+        var key = reviewKey(item);
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push(item);
+      });
+    });
+    return out;
   }
 
   function loadLocalReviews(slug, productTitle) {
     var raw = window.localStorage.getItem(getStorageKey(slug));
     var parsed = safeParse(raw || "[]", []);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(function (item) {
-      return sanitizeReview(item || {}, productTitle);
-    });
+    return parsed
+      .map(function (item) {
+        return sanitizeReview(item || {}, productTitle);
+      })
+      .filter(Boolean);
   }
 
   function saveLocalReview(slug, review) {
@@ -79,26 +144,88 @@
       comment: item && (item.comment || item.review_text),
       rating: item && item.rating,
       imageUrl: item && (item.imageUrl || item.image_data_url),
-      date: item && (item.date || item.created_at)
+      date: item && (item.date || item.created_at),
+      source: "review"
     }, productTitle);
   }
 
   async function fetchRemoteReviews(slug, productTitle) {
-    // Fetch lighter payload first (no image_data_url) for faster render.
-    var response = await fetch(
-      "/api/reviews?productSlug=" + encodeURIComponent(slug) + "&limit=24&includeImages=0",
-      {
-      headers: { accept: "application/json" }
-      }
-    );
-    if (!response.ok) {
+    // Store-wide feed (same source as homepage "Customers are saying"),
+    // then pin this product's reviews to the top.
+    var [allRes, productRes] = await Promise.all([
+      fetch("/api/reviews?limit=120&includeImages=1", {
+        headers: { accept: "application/json" }
+      }),
+      fetch(
+        "/api/reviews?productSlug=" + encodeURIComponent(slug) + "&limit=40&includeImages=1",
+        { headers: { accept: "application/json" } }
+      )
+    ]);
+
+    if (!allRes.ok && !productRes.ok) {
       throw new Error("Could not load reviews from Supabase.");
     }
-    var payload = await response.json();
-    var rows = payload && Array.isArray(payload.data) ? payload.data : [];
-    return rows.map(function (row) {
-      return normalizeApiReview(row, productTitle);
-    });
+
+    var allPayload = allRes.ok ? await allRes.json() : { data: [] };
+    var productPayload = productRes.ok ? await productRes.json() : { data: [] };
+    var allRows = allPayload && Array.isArray(allPayload.data) ? allPayload.data : [];
+    var productRows =
+      productPayload && Array.isArray(productPayload.data) ? productPayload.data : [];
+
+    var productReviews = productRows
+      .map(function (row) {
+        return normalizeApiReview(row, productTitle);
+      })
+      .filter(Boolean);
+    var storeReviews = allRows
+      .map(function (row) {
+        return normalizeApiReview(row, row.product_name || productTitle);
+      })
+      .filter(Boolean);
+
+    return mergeUniqueReviews([productReviews, storeReviews]);
+  }
+
+  function flattenLifestyleItems(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload.items)) return payload.items.slice();
+    var sections = payload.sections || {};
+    var styled = (sections.styledSpaces && sections.styledSpaces.items) || [];
+    var wild = (sections.inTheWild && sections.inTheWild.items) || [];
+    return styled.concat(wild);
+  }
+
+  async function fetchLifestyleReviews() {
+    try {
+      var response = await fetch("/data/lifestyle-gallery.json", { cache: "no-cache" });
+      if (!response.ok) return [];
+      var payload = await response.json();
+      var items = flattenLifestyleItems(payload)
+        .slice()
+        .sort(function (a, b) {
+          return (Number(b.priority) || 0) - (Number(a.priority) || 0);
+        });
+      return items
+        .map(function (item, index) {
+          if (!item || !item.src) return null;
+          var alt = escapeText(item.alt || "ZYBAR LED artwork in a customer space");
+          return sanitizeReview(
+            {
+              name: "In the wild",
+              productName: alt.slice(0, 80),
+              comment: alt,
+              rating: 5,
+              imageUrl: item.src,
+              date: payload.updatedAt || null,
+              source: "lifestyle"
+            },
+            "ZYBAR LED Wall Art"
+          );
+        })
+        .filter(Boolean);
+    } catch (_) {
+      return [];
+    }
   }
 
   async function postRemoteReview(payload) {
@@ -177,7 +304,7 @@
 
     if (!listWrap) return;
     listWrap.innerHTML = "";
-    list.slice(0, 8).forEach(function (review) {
+    list.slice(0, 24).forEach(function (review) {
       var card = document.createElement("article");
       card.className = "review-card is-clickable";
       card.tabIndex = 0;
@@ -304,15 +431,31 @@
     var state = {
       remoteEnabled: false,
       remoteReviews: [],
+      lifestyleReviews: [],
       localReviews: []
     };
 
     function getCurrentList() {
+      var homeFallback = HOME_FALLBACK_REVIEWS.map(function (r) {
+        return sanitizeReview(r, productTitle);
+      }).filter(Boolean);
       if (state.remoteEnabled) {
-        return state.remoteReviews;
+        return mergeUniqueReviews([
+          state.remoteReviews,
+          state.lifestyleReviews,
+          homeFallback,
+          state.localReviews
+        ]);
       }
-      var fallback = state.localReviews.concat(defaultReviewsBySlug[slug] || []);
-      return fallback.map(function (r) { return sanitizeReview(r, productTitle); });
+      var fallback = state.localReviews
+        .concat(defaultReviewsBySlug[slug] || [])
+        .concat(HOME_FALLBACK_REVIEWS)
+        .concat(state.lifestyleReviews || []);
+      return mergeUniqueReviews([
+        fallback.map(function (r) {
+          return sanitizeReview(r, productTitle);
+        }).filter(Boolean)
+      ]);
     }
 
     var form = section.querySelector("#reviewForm");
@@ -415,16 +558,24 @@
       refresh();
     }
 
-    fetchRemoteReviews(slug, productTitle)
-      .then(function (reviews) {
+    Promise.all([
+      fetchRemoteReviews(slug, productTitle).catch(function () {
+        return null;
+      }),
+      fetchLifestyleReviews()
+    ]).then(function (results) {
+      var reviews = results[0];
+      var lifestyle = results[1] || [];
+      state.lifestyleReviews = lifestyle;
+      if (reviews && reviews.length) {
         state.remoteEnabled = true;
         state.remoteReviews = reviews;
         writeSessionCachedReviews(reviews);
-        refresh();
-      })
-      .catch(function () {
+      } else if (!cached.length) {
         state.remoteEnabled = false;
-      });
+      }
+      refresh();
+    });
 
     imageInput.addEventListener("change", function () {
       var file = imageInput.files && imageInput.files[0];

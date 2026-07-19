@@ -20,10 +20,10 @@ var DEFAULT_SHIPPING = [
 ];
 
 var DEFAULT_PRODUCTS = [
-  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' },
-  { name: 'Audi RS6', slug: 'audi-rs6', price: 'US$76', sizes: '30 x 45 cm, 40 x 60 cm' }
+  { name: 'Audi R8 - White', slug: 'audi-r8-white', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi R8 - Yellow', slug: 'audi-r8-yellow', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi R8 GT3', slug: 'audi-r8-gt3', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' },
+  { name: 'Audi RS6', slug: 'audi-rs6', price: 'US$98', sizes: '30 x 45 cm, 40 x 60 cm' }
 ];
 
 function moneyUsd(n) {
