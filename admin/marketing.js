@@ -1,6 +1,7 @@
 /**
- * Admin Customer Journey — Journeys, Leads, Templates, Queue, Campaigns, History, Settings.
- * Journeys = multi-step nurturing. Campaigns = one-time broadcasts. Execution is always manual.
+ * Admin Marketing — Customer Journey platform.
+ * Sidebar sections: Customer Journey, Email Templates, Email Leads, Campaigns, Queue, History.
+ * No Test Email page. Campaigns are independent one-shot broadcasts.
  */
 window.renderAdminmarketing = function (container) {
   if (!container) return;
@@ -9,8 +10,26 @@ window.renderAdminmarketing = function (container) {
   var hash = hashRaw.slice(1).split('?')[0];
   var parts = hash.split('/');
   var section = parts[1] || 'journeys';
-  if (section === 'email' || section === 'workflows') section = 'journeys';
+
+  // Legacy aliases — never show Test Email
+  if (section === 'email' || section === 'workflows' || section === 'settings') section = 'journeys';
+  if (section === 'leads') section = 'email-leads';
   if (section === 'campaign') section = 'campaigns';
+
+  var editJourneyId =
+    section === 'journeys' && (parts[2] === 'edit' || parts[2] === 'open') && parts[3]
+      ? parts[3]
+      : section === 'journeys' && parts[2] && parts[2] !== 'edit' && parts[2] !== 'new'
+        ? parts[2]
+        : '';
+  if (section === 'journeys' && parts[2] === 'new') editJourneyId = 'new';
+
+  var editTemplateId =
+    section === 'templates' && parts[2] === 'edit' && parts[3]
+      ? parts[3]
+      : section === 'templates' && parts[2] === 'new'
+        ? 'new'
+        : '';
 
   var prefillAudience = '';
   if (section === 'campaigns' && parts[2]) {
@@ -20,9 +39,8 @@ window.renderAdminmarketing = function (container) {
     var query = hashRaw.indexOf('?') >= 0 ? hashRaw.split('?')[1] : '';
     var params = new URLSearchParams(query);
     if (params.get('audience')) prefillAudience = String(params.get('audience')).toLowerCase();
+    if (params.get('status')) prefillAudience = String(params.get('status')).toLowerCase();
   } catch (e) {}
-
-  var editJourneyId = section === 'journeys' && parts[2] === 'edit' && parts[3] ? parts[3] : '';
 
   function esc(v) {
     return String(v == null ? '' : v)
@@ -39,42 +57,13 @@ window.renderAdminmarketing = function (container) {
     return d.toLocaleString();
   }
 
-  function shellTabs(active) {
-    var tabs = [
-      { id: 'journeys', href: '#marketing/journeys', label: 'Journeys' },
-      { id: 'leads', href: '#marketing/leads', label: 'Leads' },
-      { id: 'templates', href: '#marketing/templates', label: 'Templates' },
-      { id: 'queue', href: '#marketing/queue', label: 'Queue' },
-      { id: 'campaigns', href: '#marketing/campaigns', label: 'Campaigns' },
-      { id: 'history', href: '#marketing/history', label: 'History' },
-      { id: 'settings', href: '#marketing/settings', label: 'Settings' }
-    ];
-    return (
-      '<nav class="admin-analytics-tabs" aria-label="Customer Journey">' +
-      tabs
-        .map(function (tab) {
-          return (
-            '<a class="admin-analytics-tab' +
-            (tab.id === active ? ' is-active' : '') +
-            '" href="' +
-            tab.href +
-            '">' +
-            tab.label +
-            '</a>'
-          );
-        })
-        .join('') +
-      '</nav>'
-    );
-  }
-
   function statusPill(status) {
     var s = String(status || '');
     var cls = 'admin-workflow-pill admin-workflow-pill-status';
     if (s === 'pending' || s === 'waiting') cls += ' admin-journey-pill-wait';
-    if (s === 'ready' || s === 'executing') cls += ' admin-journey-pill-ready';
-    if (s === 'completed') cls += ' admin-journey-pill-ok';
-    if (s === 'failed' || s === 'cancelled') cls += ' admin-journey-pill-off';
+    if (s === 'ready' || s === 'executing' || s === 'active') cls += ' admin-journey-pill-ready';
+    if (s === 'completed' || s === 'partial') cls += ' admin-journey-pill-ok';
+    if (s === 'failed' || s === 'cancelled' || s === 'archived' || s === 'off') cls += ' admin-journey-pill-off';
     return '<span class="' + cls + '">' + esc(s) + '</span>';
   }
 
@@ -86,139 +75,190 @@ window.renderAdminmarketing = function (container) {
     });
   }
 
-  /* ---------- Journeys ---------- */
-  function renderJourneysSection() {
-    if (editJourneyId) {
-      renderJourneyBuilder(editJourneyId);
-      return;
-    }
-
-    container.innerHTML =
+  function pageHeader(title, subtitle, actionsHtml) {
+    return (
       '<div class="admin-page-header">' +
       '<div class="admin-page-header-row">' +
-      '<div><h2 class="admin-page-title">Journeys</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Multi-step customer nurturing. Email is one action type.</p></div>' +
-      '<a class="admin-btn-primary" href="#marketing/journeys/edit/new">New Journey</a>' +
-      '</div></div>' +
-      shellTabs('journeys') +
-      '<div id="adminJourneyHost"><div class="admin-loading">Loading journeys…</div></div>';
+      '<div><h2 class="admin-page-title">' +
+      esc(title) +
+      '</h2>' +
+      (subtitle
+        ? '<p class="admin-muted" style="margin:0.35rem 0 0">' + subtitle + '</p>'
+        : '') +
+      '</div>' +
+      (actionsHtml || '') +
+      '</div></div>'
+    );
+  }
+
+  /* ========== Customer Journey cards ========== */
+  function renderJourneysHome() {
+    container.innerHTML =
+      pageHeader(
+        'Customer Journey',
+        'Multi-step nurturing. Email is one action type among many.',
+        '<a class="admin-btn-primary" href="#marketing/journeys/new">New Journey</a>'
+      ) +
+      '<div id="adminJourneyCards"><div class="admin-loading">Loading journeys…</div></div>';
 
     fetchJson('/api/admin/journeys').then(function (result) {
-      var host = document.getElementById('adminJourneyHost');
+      var host = document.getElementById('adminJourneyCards');
       if (!host) return;
       if (!result.ok) {
         host.innerHTML =
-          '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed to load') + '</p>';
+          '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
         return;
       }
       var journeys = (result.body && result.body.journeys) || [];
       if (!journeys.length) {
-        host.innerHTML = '<div class="admin-card"><p class="admin-cell-empty">No journeys yet.</p></div>';
+        host.innerHTML =
+          '<div class="admin-card"><p class="admin-cell-empty">No journeys yet. Create your first journey.</p></div>';
         return;
       }
 
       host.innerHTML =
-        '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-        '<thead><tr><th>Journey</th><th>Trigger</th><th>Steps</th><th>Enrolled</th><th>Queue</th><th>Active</th><th></th></tr></thead><tbody>' +
+        '<div class="admin-journey-card-grid">' +
         journeys
           .map(function (j) {
-            var steps = j.steps || [];
-            var stepSummary = steps
-              .map(function (s) {
-                return (
-                  s.step_order +
-                  '. ' +
-                  s.step_name +
-                  ' (' +
-                  s.delay_value +
-                  ' ' +
-                  s.delay_unit +
-                  ' · ' +
-                  s.action_type +
-                  ')'
-                );
-              })
-              .join('<br/>');
             var es = j.enroll_stats || {};
-            var qs = j.queue_stats || {};
+            var activeLeads = (es.waiting || 0) + (es.ready || 0);
+            var steps = (j.steps || []).length;
             return (
-              '<tr>' +
-              '<td><strong>' +
-              esc(j.name) +
-              '</strong><div class="admin-muted">' +
-              esc(j.description || j.journey_key) +
-              '</div></td>' +
-              '<td>' +
-              esc(j.trigger_type) +
-              '</td>' +
-              '<td class="admin-journey-steps-cell">' +
-              (stepSummary || '—') +
-              '</td>' +
-              '<td>W ' +
-              (es.waiting || 0) +
-              ' · R ' +
-              (es.ready || 0) +
-              ' · C ' +
-              (es.completed || 0) +
-              '</td>' +
-              '<td>P ' +
-              (qs.pending || 0) +
-              ' · Done ' +
-              (qs.completed || 0) +
-              '</td>' +
-              '<td>' +
-              (j.is_active
-                ? '<span class="admin-workflow-pill admin-workflow-pill-on">Active</span>'
-                : '<span class="admin-workflow-pill admin-workflow-pill-off">Off</span>') +
-              '</td>' +
-              '<td><a class="admin-btn-secondary" href="#marketing/journeys/edit/' +
+              '<article class="admin-card admin-journey-card" data-id="' +
               esc(j.id) +
-              '">Edit</a></td>' +
-              '</tr>'
+              '">' +
+              '<div class="admin-journey-card-top">' +
+              '<h3>' +
+              esc(j.name) +
+              '</h3>' +
+              statusPill(j.is_active ? 'active' : 'off') +
+              '</div>' +
+              '<dl class="admin-dl admin-journey-card-meta">' +
+              '<div><dt>Trigger</dt><dd>' +
+              esc(j.trigger_type) +
+              '</dd></div>' +
+              '<div><dt>Steps</dt><dd>' +
+              esc(steps) +
+              '</dd></div>' +
+              '<div><dt>Active Leads</dt><dd>' +
+              esc(activeLeads) +
+              '</dd></div>' +
+              '</dl>' +
+              '<p class="admin-muted admin-journey-card-desc">' +
+              esc(j.description || '') +
+              '</p>' +
+              '<div class="admin-journey-card-actions">' +
+              '<a class="admin-btn-primary" href="#marketing/journeys/edit/' +
+              esc(j.id) +
+              '">Open</a>' +
+              '<button type="button" class="admin-btn-secondary jc-dup">Duplicate</button>' +
+              '<button type="button" class="admin-btn-secondary jc-toggle" data-active="' +
+              (j.is_active ? '1' : '0') +
+              '">' +
+              (j.is_active ? 'Disable' : 'Enable') +
+              '</button>' +
+              '<button type="button" class="admin-btn-danger jc-del">Delete</button>' +
+              '</div></article>'
             );
           })
           .join('') +
-        '</tbody></table></div></div>';
-    }).catch(function () {
-      var host = document.getElementById('adminJourneyHost');
-      if (host) host.innerHTML = '<p class="admin-error">Failed to load journeys.</p>';
+        '</div>';
+
+      host.querySelectorAll('.jc-dup').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.closest('[data-id]').getAttribute('data-id');
+          btn.disabled = true;
+          fetchJson('/api/admin/journeys/' + encodeURIComponent(id) + '/duplicate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+          }).then(function (r) {
+            if (r.ok && r.body.journey) {
+              window.location.hash = '#marketing/journeys/edit/' + r.body.journey.id;
+            } else {
+              alert((r.body && r.body.error) || 'Duplicate failed');
+              btn.disabled = false;
+            }
+          });
+        });
+      });
+
+      host.querySelectorAll('.jc-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.closest('[data-id]').getAttribute('data-id');
+          var next = btn.getAttribute('data-active') !== '1';
+          btn.disabled = true;
+          fetchJson('/api/admin/journeys/' + encodeURIComponent(id), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: next })
+          }).then(function () {
+            renderJourneysHome();
+          });
+        });
+      });
+
+      host.querySelectorAll('.jc-del').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (!window.confirm('Delete this journey? Active enrollments will be cancelled.')) return;
+          var id = btn.closest('[data-id]').getAttribute('data-id');
+          btn.disabled = true;
+          fetchJson('/api/admin/journeys/' + encodeURIComponent(id), { method: 'DELETE' }).then(
+            function (r) {
+              if (!r.ok) alert((r.body && r.body.error) || 'Delete failed');
+              renderJourneysHome();
+            }
+          );
+        });
+      });
     });
   }
 
-  function renderJourneyBuilder(journeyId) {
+  /* ========== Journey Editor ========== */
+  function renderJourneyEditor(journeyId) {
     var isNew = journeyId === 'new';
     container.innerHTML =
-      '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">' +
-      (isNew ? 'New Journey' : 'Edit Journey') +
-      '</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0"><a href="#marketing/journeys">← Back to Journeys</a></p>' +
-      '</div>' +
-      shellTabs('journeys') +
-      '<div id="adminJourneyBuilder"><div class="admin-loading">Loading…</div></div>';
+      pageHeader(
+        isNew ? 'New Journey' : 'Journey Editor',
+        '<a href="#marketing/journeys">← Customer Journey</a>'
+      ) +
+      '<div id="adminJourneyEditor"><div class="admin-loading">Loading…</div></div>';
 
-    var metaPromise = fetchJson('/api/admin/journeys');
-    var detailPromise = isNew
-      ? Promise.resolve({ ok: true, body: { journey: null } })
-      : fetchJson('/api/admin/journeys/' + encodeURIComponent(journeyId));
+    var metaP = fetchJson('/api/admin/journeys');
+    var workP = isNew
+      ? Promise.resolve({ ok: true, body: null })
+      : fetchJson('/api/admin/journeys/' + encodeURIComponent(journeyId) + '/workspace');
 
-    Promise.all([metaPromise, detailPromise]).then(function (results) {
-      var host = document.getElementById('adminJourneyBuilder');
+    Promise.all([metaP, workP]).then(function (results) {
+      var host = document.getElementById('adminJourneyEditor');
       if (!host) return;
       if (!results[0].ok) {
-        host.innerHTML = '<p class="admin-error">Failed to load builder data.</p>';
+        host.innerHTML = '<p class="admin-error">Failed to load.</p>';
         return;
       }
       var meta = results[0].body || {};
-      var templates = meta.templates || [];
-      var actionTypes = meta.action_types || ['email'];
-      var delayUnits = meta.delay_units || ['minutes', 'hours', 'days', 'weeks'];
-      var triggerTypes = meta.trigger_types || ['signup', 'add_to_cart', 'purchase', 'manual'];
-      var journey = (results[1].body && results[1].body.journey) || null;
-      if (!isNew && !journey) {
+      var workspace = results[1].body;
+      if (!isNew && (!results[1].ok || !workspace)) {
         host.innerHTML = '<p class="admin-error">Journey not found.</p>';
         return;
       }
+
+      var journey = workspace && workspace.journey ? workspace.journey : null;
+      var templates = (workspace && workspace.templates) || meta.templates || [];
+      var actionTypes = (workspace && workspace.action_types) || meta.action_types || ['email'];
+      var delayUnits = (workspace && workspace.delay_units) || meta.delay_units || ['minutes', 'hours', 'days', 'weeks'];
+      var triggerTypes =
+        (workspace && workspace.trigger_types) ||
+        meta.trigger_types || ['signup', 'add_to_cart', 'purchase', 'no_purchase', 'manual'];
+      var activeLeads = (workspace && workspace.active_leads) || [];
+
+      // Normalize templates list (DB vs code catalog)
+      templates = templates.map(function (t) {
+        return {
+          key: t.template_key || t.key,
+          name: t.name
+        };
+      });
 
       var state = {
         id: journey ? journey.id : null,
@@ -226,25 +266,27 @@ window.renderAdminmarketing = function (container) {
         description: journey ? journey.description || '' : '',
         trigger_type: journey ? journey.trigger_type : 'signup',
         is_active: journey ? !!journey.is_active : true,
-        steps: (journey && journey.steps ? journey.steps : []).map(function (s, i) {
+        steps: ((journey && journey.steps) || []).map(function (s, i) {
           return {
             step_order: s.step_order || i + 1,
             step_name: s.step_name || '',
             delay_value: s.delay_value || 0,
             delay_unit: s.delay_unit || 'minutes',
             action_type: s.action_type || 'email',
-            template_id: s.template_id || ''
+            template_id: s.template_id || '',
+            status: 'configured'
           };
         })
       };
       if (!state.steps.length) {
         state.steps.push({
           step_order: 1,
-          step_name: 'Welcome',
-          delay_value: 5,
+          step_name: 'Step 1',
+          delay_value: 0,
           delay_unit: 'minutes',
           action_type: 'email',
-          template_id: 'welcome_email'
+          template_id: templates[0] ? templates[0].key : '',
+          status: 'configured'
         });
       }
 
@@ -254,42 +296,34 @@ window.renderAdminmarketing = function (container) {
         });
       }
 
-      function moveStep(index, dir) {
-        var next = index + dir;
-        if (next < 0 || next >= state.steps.length) return;
-        var tmp = state.steps[index];
-        state.steps[index] = state.steps[next];
-        state.steps[next] = tmp;
-        renumber();
-        paint();
-      }
-
       function templateOptions(selected) {
-        return templates
-          .map(function (t) {
-            return (
-              '<option value="' +
-              esc(t.key) +
-              '"' +
-              (t.key === selected ? ' selected' : '') +
-              '>' +
-              esc(t.name) +
-              '</option>'
-            );
-          })
-          .join('');
+        return (
+          '<option value="">—</option>' +
+          templates
+            .map(function (t) {
+              return (
+                '<option value="' +
+                esc(t.key) +
+                '"' +
+                (t.key === selected ? ' selected' : '') +
+                '>' +
+                esc(t.name) +
+                '</option>'
+              );
+            })
+            .join('')
+        );
       }
 
       function paint() {
         host.innerHTML =
           '<div class="admin-card admin-journey-builder">' +
+          '<h3 class="admin-journey-steps-title" style="margin-top:0">Journey Information</h3>' +
           '<div class="admin-form-row">' +
-          '<div class="admin-form-group"><label>Name</label>' +
-          '<input type="text" id="jbName" value="' +
+          '<div class="admin-form-group"><label>Name</label><input id="jbName" type="text" value="' +
           esc(state.name) +
           '" /></div>' +
-          '<div class="admin-form-group"><label>Trigger</label>' +
-          '<select id="jbTrigger">' +
+          '<div class="admin-form-group"><label>Trigger</label><select id="jbTrigger">' +
           triggerTypes
             .map(function (t) {
               return (
@@ -307,13 +341,11 @@ window.renderAdminmarketing = function (container) {
           '<div class="admin-form-group"><label>Active</label>' +
           '<label class="admin-inline-check"><input type="checkbox" id="jbActive"' +
           (state.is_active ? ' checked' : '') +
-          ' /> Active</label></div>' +
-          '</div>' +
-          '<div class="admin-form-group"><label>Description</label>' +
-          '<textarea id="jbDesc" rows="2">' +
+          ' /> Enabled</label></div></div>' +
+          '<div class="admin-form-group"><label>Description</label><textarea id="jbDesc" rows="2">' +
           esc(state.description) +
           '</textarea></div>' +
-          '<h3 class="admin-journey-steps-title">Steps</h3>' +
+          '<h3 class="admin-journey-steps-title">Ordered Steps</h3>' +
           '<div id="jbSteps" class="admin-journey-steps-list">' +
           state.steps
             .map(function (s, index) {
@@ -322,15 +354,15 @@ window.renderAdminmarketing = function (container) {
                 index +
                 '" draggable="true">' +
                 '<div class="admin-journey-step-handle" title="Drag to reorder">⠿</div>' +
-                '<div class="admin-form-group"><label>Order</label><input type="number" class="jb-order" value="' +
+                '<div class="admin-form-group"><label>Order</label><input class="jb-order" type="number" value="' +
                 esc(s.step_order) +
-                '" min="1" readonly /></div>' +
-                '<div class="admin-form-group"><label>Step name</label><input type="text" class="jb-name" value="' +
+                '" readonly /></div>' +
+                '<div class="admin-form-group"><label>Step name</label><input class="jb-name" type="text" value="' +
                 esc(s.step_name) +
                 '" /></div>' +
-                '<div class="admin-form-group"><label>Delay</label><input type="number" class="jb-delay" value="' +
+                '<div class="admin-form-group"><label>Delay</label><input class="jb-delay" type="number" min="0" value="' +
                 esc(s.delay_value) +
-                '" min="0" /></div>' +
+                '" /></div>' +
                 '<div class="admin-form-group"><label>Unit</label><select class="jb-unit">' +
                 delayUnits
                   .map(function (u) {
@@ -362,13 +394,16 @@ window.renderAdminmarketing = function (container) {
                   .join('') +
                 '</select></div>' +
                 '<div class="admin-form-group"><label>Template</label><select class="jb-template">' +
-                '<option value="">—</option>' +
                 templateOptions(s.template_id) +
                 '</select></div>' +
+                '<div class="admin-form-group"><label>Status</label><div style="padding-top:8px">' +
+                statusPill(s.status || 'configured') +
+                '</div></div>' +
                 '<div class="admin-journey-step-actions">' +
-                '<button type="button" class="admin-btn-secondary jb-up" title="Move up">↑</button>' +
-                '<button type="button" class="admin-btn-secondary jb-down" title="Move down">↓</button>' +
-                '<button type="button" class="admin-btn-danger jb-remove" title="Remove">✕</button>' +
+                '<button type="button" class="admin-btn-secondary jb-dup-step" title="Duplicate">⧉</button>' +
+                '<button type="button" class="admin-btn-secondary jb-up">↑</button>' +
+                '<button type="button" class="admin-btn-secondary jb-down">↓</button>' +
+                '<button type="button" class="admin-btn-danger jb-remove">✕</button>' +
                 '</div></div>'
               );
             })
@@ -378,10 +413,41 @@ window.renderAdminmarketing = function (container) {
           '<button type="button" class="admin-btn-secondary" id="jbAddStep">Add Step</button>' +
           '<button type="button" class="admin-btn-primary" id="jbSave">Save Journey</button>' +
           '</div>' +
-          '<p id="jbStatus" class="admin-email-status" role="status"></p>' +
-          '</div>';
+          '<p id="jbStatus" class="admin-email-status" role="status"></p></div>' +
+          '<div class="admin-page-header" style="margin-top:1.5rem"><h3 class="admin-page-title" style="font-size:1.1rem">Active Leads</h3>' +
+          '<p class="admin-muted">Leads currently inside this journey.</p></div>' +
+          '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
+          '<thead><tr><th>Email</th><th>Current Step</th><th>Status</th><th>Waiting</th><th>Ready Time</th><th>Next Action</th><th></th></tr></thead><tbody>' +
+          (activeLeads
+            .map(function (r) {
+              return (
+                '<tr data-lj="' +
+                esc(r.id) +
+                '"><td>' +
+                esc(r.lead_email || '—') +
+                '</td><td>' +
+                esc(r.current_step) +
+                '. ' +
+                esc(r.current_step_name || '') +
+                '</td><td>' +
+                statusPill(r.status) +
+                '</td><td>' +
+                esc(r.remaining_label) +
+                '</td><td>' +
+                esc(when(r.next_ready_at)) +
+                '</td><td>' +
+                esc(
+                  (r.current_action_type || '') +
+                    (r.current_template_id ? ' · ' + r.current_template_id : '')
+                ) +
+                '</td><td><button type="button" class="admin-btn-secondary jl-cancel">Cancel</button></td></tr>'
+              );
+            })
+            .join('') ||
+            '<tr><td colspan="7" class="admin-cell-empty">No active leads in this journey.</td></tr>') +
+          '</tbody></table></div></div>';
 
-        function readFormIntoState() {
+        function readForm() {
           state.name = document.getElementById('jbName').value.trim();
           state.description = document.getElementById('jbDesc').value.trim();
           state.trigger_type = document.getElementById('jbTrigger').value;
@@ -398,35 +464,61 @@ window.renderAdminmarketing = function (container) {
         }
 
         document.getElementById('jbAddStep').addEventListener('click', function () {
-          readFormIntoState();
+          readForm();
           state.steps.push({
             step_order: state.steps.length + 1,
             step_name: 'Step ' + (state.steps.length + 1),
             delay_value: 1,
             delay_unit: 'days',
             action_type: 'email',
-            template_id: ''
+            template_id: templates[0] ? templates[0].key : '',
+            status: 'configured'
           });
           paint();
         });
 
+        host.querySelectorAll('.jb-dup-step').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            readForm();
+            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
+            var copy = Object.assign({}, state.steps[i], {
+              step_name: state.steps[i].step_name + ' (Copy)'
+            });
+            state.steps.splice(i + 1, 0, copy);
+            renumber();
+            paint();
+          });
+        });
+
         host.querySelectorAll('.jb-up').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            readFormIntoState();
-            moveStep(Number(btn.closest('.admin-journey-step-row').getAttribute('data-index')), -1);
+            readForm();
+            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
+            if (i <= 0) return;
+            var t = state.steps[i];
+            state.steps[i] = state.steps[i - 1];
+            state.steps[i - 1] = t;
+            renumber();
+            paint();
           });
         });
         host.querySelectorAll('.jb-down').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            readFormIntoState();
-            moveStep(Number(btn.closest('.admin-journey-step-row').getAttribute('data-index')), 1);
+            readForm();
+            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
+            if (i >= state.steps.length - 1) return;
+            var t = state.steps[i];
+            state.steps[i] = state.steps[i + 1];
+            state.steps[i + 1] = t;
+            renumber();
+            paint();
           });
         });
         host.querySelectorAll('.jb-remove').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            readFormIntoState();
-            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
+            readForm();
             if (state.steps.length <= 1) return;
+            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
             state.steps.splice(i, 1);
             renumber();
             paint();
@@ -450,7 +542,7 @@ window.renderAdminmarketing = function (container) {
             e.preventDefault();
             var dropIndex = Number(row.getAttribute('data-index'));
             if (dragIndex == null || dropIndex === dragIndex) return;
-            readFormIntoState();
+            readForm();
             var moved = state.steps.splice(dragIndex, 1)[0];
             state.steps.splice(dropIndex, 0, moved);
             renumber();
@@ -458,8 +550,22 @@ window.renderAdminmarketing = function (container) {
           });
         });
 
+        host.querySelectorAll('.jl-cancel').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.closest('[data-lj]').getAttribute('data-lj');
+            if (!window.confirm('Cancel this lead journey?')) return;
+            fetchJson('/api/admin/journey-leads/' + encodeURIComponent(id) + '/cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: '{}'
+            }).then(function () {
+              renderJourneyEditor(state.id || journeyId);
+            });
+          });
+        });
+
         document.getElementById('jbSave').addEventListener('click', function () {
-          readFormIntoState();
+          readForm();
           renumber();
           var statusEl = document.getElementById('jbStatus');
           var btn = document.getElementById('jbSave');
@@ -488,7 +594,6 @@ window.renderAdminmarketing = function (container) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
               });
-
           req
             .then(function (result) {
               if (!result.ok) {
@@ -496,18 +601,11 @@ window.renderAdminmarketing = function (container) {
                 statusEl.className = 'admin-email-status admin-email-status-err';
                 return;
               }
-              statusEl.textContent = 'Saved.';
-              statusEl.className = 'admin-email-status admin-email-status-ok';
-              var saved = result.body && result.body.journey;
-              if (saved && saved.id && !state.id) {
+              var saved = result.body.journey;
+              if (saved && saved.id) {
                 window.location.hash = '#marketing/journeys/edit/' + saved.id;
-                return;
+                if (state.id === saved.id) renderJourneyEditor(saved.id);
               }
-              window.location.hash = '#marketing/journeys';
-            })
-            .catch(function () {
-              statusEl.textContent = 'Save failed';
-              statusEl.className = 'admin-email-status admin-email-status-err';
             })
             .finally(function () {
               btn.disabled = false;
@@ -520,167 +618,351 @@ window.renderAdminmarketing = function (container) {
     });
   }
 
-  /* ---------- Leads on journeys ---------- */
-  function renderLeadsSection() {
+  /* ========== Email Templates ========== */
+  function renderTemplatesHome() {
     container.innerHTML =
-      '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">Journey Leads</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Leads enrolled in journeys with progress and remaining time.</p>' +
-      '</div>' +
-      shellTabs('leads') +
-      '<div class="admin-card admin-journey-toolbar">' +
-      '<label>Status <select id="jlStatus"><option value="">All</option>' +
-      '<option value="waiting">Waiting</option><option value="ready">Ready</option>' +
-      '<option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>' +
-      '<button type="button" class="admin-btn-secondary" id="jlRefresh">Refresh</button>' +
-      '</div>' +
-      '<div id="adminJourneyLeadsHost"><div class="admin-loading">Loading…</div></div>';
+      pageHeader(
+        'Email Templates',
+        'Reusable templates for journey steps and campaigns.',
+        '<a class="admin-btn-primary" href="#marketing/templates/edit/new">Create Template</a>'
+      ) +
+      '<div class="admin-journey-toolbar admin-card"><label><input type="checkbox" id="tplArchived" /> Show archived</label>' +
+      '<button type="button" class="admin-btn-secondary" id="tplRefresh">Refresh</button></div>' +
+      '<div id="adminTplHost"><div class="admin-loading">Loading…</div></div>';
 
     function load() {
-      var status = document.getElementById('jlStatus').value;
-      var url = '/api/admin/journey-leads';
-      if (status) url += '?status=' + encodeURIComponent(status);
-      fetchJson(url).then(function (result) {
-        var host = document.getElementById('adminJourneyLeadsHost');
+      var include = document.getElementById('tplArchived').checked ? '1' : '0';
+      fetchJson('/api/admin/journey-templates?include_archived=' + include).then(function (result) {
+        var host = document.getElementById('adminTplHost');
         if (!host) return;
         if (!result.ok) {
-          host.innerHTML =
-            '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
+          host.innerHTML = '<p class="admin-error">Failed to load templates.</p>';
           return;
         }
-        var rows = (result.body && result.body.lead_journeys) || [];
+        var rows = result.body.templates || [];
         host.innerHTML =
           '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-          '<thead><tr><th>Lead</th><th>Journey</th><th>Step</th><th>Progress</th><th>Ready at</th><th>Remaining</th><th>Status</th><th></th></tr></thead><tbody>' +
+          '<thead><tr><th>Name</th><th>Key</th><th>Subject</th><th>Status</th><th></th></tr></thead><tbody>' +
           (rows
-            .map(function (r) {
+            .map(function (t) {
               return (
-                '<tr data-lj="' +
-                esc(r.id) +
-                '">' +
-                '<td>' +
-                esc(r.lead_email || r.lead_id) +
-                '</td>' +
-                '<td>' +
-                esc(r.journey_name || '—') +
-                '</td>' +
-                '<td>' +
-                esc(r.current_step) +
-                '. ' +
-                esc(r.current_step_name || '') +
-                '<div class="admin-muted">' +
-                esc(r.current_action_type || '') +
-                (r.current_template_id ? ' · ' + esc(r.current_template_id) : '') +
-                '</div></td>' +
-                '<td>' +
-                esc(r.progress) +
-                '%</td>' +
-                '<td>' +
-                esc(when(r.next_ready_at)) +
-                '</td>' +
-                '<td>' +
-                esc(r.remaining_label) +
-                '</td>' +
-                '<td>' +
-                statusPill(r.status) +
-                '</td>' +
-                '<td>' +
-                (r.status === 'waiting' || r.status === 'ready'
-                  ? '<button type="button" class="admin-btn-secondary jl-cancel">Cancel</button>'
-                  : '') +
+                '<tr data-id="' +
+                esc(t.id || '') +
+                '"><td><strong>' +
+                esc(t.name) +
+                '</strong><div class="admin-muted">' +
+                esc(t.description || '') +
+                '</div></td><td><code>' +
+                esc(t.template_key) +
+                '</code></td><td>' +
+                esc(t.subject || '—') +
+                '</td><td>' +
+                statusPill(t.status || 'active') +
+                '</td><td class="admin-journey-card-actions">' +
+                (t.id
+                  ? '<a class="admin-btn-secondary" href="#marketing/templates/edit/' +
+                    esc(t.id) +
+                    '">Edit</a>' +
+                    '<button type="button" class="admin-btn-secondary tpl-preview">Preview</button>' +
+                    '<button type="button" class="admin-btn-secondary tpl-dup">Duplicate</button>' +
+                    (t.status !== 'archived'
+                      ? '<button type="button" class="admin-btn-danger tpl-arch">Archive</button>'
+                      : '')
+                  : '<span class="admin-muted">Code catalog</span>') +
                 '</td></tr>'
               );
             })
             .join('') ||
-            '<tr><td colspan="8" class="admin-cell-empty">No journey enrollments.</td></tr>') +
+            '<tr><td colspan="5" class="admin-cell-empty">No templates.</td></tr>') +
           '</tbody></table></div></div>';
 
-        host.querySelectorAll('.jl-cancel').forEach(function (btn) {
+        host.querySelectorAll('.tpl-dup').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            var id = btn.closest('[data-lj]').getAttribute('data-lj');
-            if (!window.confirm('Cancel this lead journey?')) return;
-            btn.disabled = true;
-            fetchJson('/api/admin/journey-leads/' + encodeURIComponent(id) + '/cancel', {
+            var id = btn.closest('[data-id]').getAttribute('data-id');
+            fetchJson('/api/admin/journey-templates/' + encodeURIComponent(id) + '/duplicate', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: '{}'
-            }).then(function () {
-              load();
+              body: '{}',
+              headers: { 'Content-Type': 'application/json' }
+            }).then(function (r) {
+              if (r.ok && r.body.template) {
+                window.location.hash = '#marketing/templates/edit/' + r.body.template.id;
+              } else alert((r.body && r.body.error) || 'Duplicate failed');
+            });
+          });
+        });
+        host.querySelectorAll('.tpl-arch').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.closest('[data-id]').getAttribute('data-id');
+            fetchJson('/api/admin/journey-templates/' + encodeURIComponent(id) + '/archive', {
+              method: 'POST',
+              body: '{}',
+              headers: { 'Content-Type': 'application/json' }
+            }).then(load);
+          });
+        });
+        host.querySelectorAll('.tpl-preview').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.closest('[data-id]').getAttribute('data-id');
+            fetchJson('/api/admin/journey-templates/' + encodeURIComponent(id) + '/preview', {
+              method: 'POST',
+              body: '{}',
+              headers: { 'Content-Type': 'application/json' }
+            }).then(function (r) {
+              if (!r.ok) return alert((r.body && r.body.error) || 'Preview failed');
+              var w = window.open('', '_blank');
+              if (w) {
+                w.document.write(
+                  '<title>' +
+                    esc(r.body.preview.subject) +
+                    '</title>' +
+                    r.body.preview.html
+                );
+              }
             });
           });
         });
       });
     }
 
-    document.getElementById('jlRefresh').addEventListener('click', load);
-    document.getElementById('jlStatus').addEventListener('change', load);
+    document.getElementById('tplRefresh').addEventListener('click', load);
+    document.getElementById('tplArchived').addEventListener('change', load);
     load();
   }
 
-  /* ---------- Templates ---------- */
-  function renderTemplatesSection() {
+  function renderTemplateEditor(id) {
+    var isNew = id === 'new';
     container.innerHTML =
-      '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">Templates</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Reusable templates referenced by journey steps (Phase 1: email).</p>' +
-      '</div>' +
-      shellTabs('templates') +
-      '<div id="adminTemplatesHost"><div class="admin-loading">Loading…</div></div>';
+      pageHeader(
+        isNew ? 'Create Template' : 'Edit Template',
+        '<a href="#marketing/templates">← Email Templates</a>'
+      ) +
+      '<div id="adminTplEditor"><div class="admin-loading">Loading…</div></div>';
 
-    fetchJson('/api/admin/journey-templates').then(function (result) {
-      var host = document.getElementById('adminTemplatesHost');
+    var loadP = isNew
+      ? Promise.resolve({
+          ok: true,
+          body: {
+            template: {
+              name: '',
+              template_key: '',
+              description: '',
+              subject: '',
+              html_body: '<p>Hello from ZYBAR</p>',
+              status: 'active'
+            }
+          }
+        })
+      : fetchJson('/api/admin/journey-templates/' + encodeURIComponent(id));
+
+    loadP.then(function (result) {
+      var host = document.getElementById('adminTplEditor');
       if (!host) return;
-      if (!result.ok) {
-        host.innerHTML = '<p class="admin-error">Failed to load templates.</p>';
+      if (!result.ok || !result.body.template) {
+        host.innerHTML = '<p class="admin-error">Template not found.</p>';
         return;
       }
-      var templates = (result.body && result.body.templates) || [];
+      var t = result.body.template;
       host.innerHTML =
-        '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-        '<thead><tr><th>Key</th><th>Name</th><th>Description</th><th>Journeys</th></tr></thead><tbody>' +
-        templates
-          .map(function (t) {
-            return (
-              '<tr><td><code>' +
-              esc(t.key) +
-              '</code></td><td>' +
-              esc(t.name) +
-              '</td><td>' +
-              esc(t.description || '') +
-              '</td><td>' +
-              esc((t.journeys || []).join(', ') || '—') +
-              '</td></tr>'
-            );
-          })
-          .join('') +
-        '</tbody></table></div></div>';
+        '<div class="admin-card">' +
+        '<div class="admin-form-row">' +
+        '<div class="admin-form-group"><label>Name</label><input id="teName" value="' +
+        esc(t.name) +
+        '" /></div>' +
+        '<div class="admin-form-group"><label>Key</label><input id="teKey" value="' +
+        esc(t.template_key || '') +
+        '"' +
+        (isNew ? '' : ' readonly') +
+        ' /></div></div>' +
+        '<div class="admin-form-group"><label>Description</label><input id="teDesc" value="' +
+        esc(t.description || '') +
+        '" /></div>' +
+        '<div class="admin-form-group"><label>Subject</label><input id="teSubject" value="' +
+        esc(t.subject || '') +
+        '" /></div>' +
+        '<div class="admin-form-group"><label>HTML Body</label><textarea id="teHtml" rows="14">' +
+        esc(t.html_body || '') +
+        '</textarea>' +
+        '<p class="admin-muted">Variables: {{discount_code}}, {{store_name}}, {{store_url}}, {{customer_name}}</p></div>' +
+        '<div class="admin-journey-builder-actions">' +
+        '<button type="button" class="admin-btn-primary" id="teSave">Save</button>' +
+        (!isNew
+          ? '<button type="button" class="admin-btn-secondary" id="tePreview">Preview</button>'
+          : '') +
+        '</div><p id="teStatus" class="admin-email-status"></p></div>';
+
+      document.getElementById('teSave').addEventListener('click', function () {
+        var payload = {
+          name: document.getElementById('teName').value.trim(),
+          template_key: document.getElementById('teKey').value.trim(),
+          description: document.getElementById('teDesc').value.trim(),
+          subject: document.getElementById('teSubject').value.trim(),
+          html_body: document.getElementById('teHtml').value
+        };
+        var req = isNew
+          ? fetchJson('/api/admin/journey-templates', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            })
+          : fetchJson('/api/admin/journey-templates/' + encodeURIComponent(id), {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+        req.then(function (r) {
+          var el = document.getElementById('teStatus');
+          if (!r.ok) {
+            el.textContent = (r.body && r.body.error) || 'Save failed';
+            el.className = 'admin-email-status admin-email-status-err';
+            return;
+          }
+          el.textContent = 'Saved.';
+          el.className = 'admin-email-status admin-email-status-ok';
+          if (r.body.template && r.body.template.id) {
+            window.location.hash = '#marketing/templates/edit/' + r.body.template.id;
+          }
+        });
+      });
+
+      var prevBtn = document.getElementById('tePreview');
+      if (prevBtn) {
+        prevBtn.addEventListener('click', function () {
+          fetchJson('/api/admin/journey-templates/' + encodeURIComponent(id) + '/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+          }).then(function (r) {
+            if (!r.ok) return alert('Preview failed');
+            var w = window.open('', '_blank');
+            if (w) w.document.write(r.body.preview.html);
+          });
+        });
+      }
     });
   }
 
-  /* ---------- Queue ---------- */
-  function renderQueueSection() {
+  /* ========== Email Leads CRM ========== */
+  function renderEmailLeads() {
+    var leadStatus = '';
+    try {
+      var q = hashRaw.indexOf('?') >= 0 ? hashRaw.split('?')[1] : '';
+      leadStatus = String(new URLSearchParams(q).get('status') || '').toLowerCase();
+    } catch (e) {}
+
     container.innerHTML =
-      '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">Journey Queue</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Promote ready steps into the queue, then manually execute pending actions.</p>' +
-      '</div>' +
-      shellTabs('queue') +
+      pageHeader(
+        'Email Leads',
+        'CRM view of leads with journey progress. Filter by funnel status.'
+      ) +
+      '<div id="adminEmailLeadsBar" class="admin-leads-status-bar"><div class="admin-loading">Loading…</div></div>' +
+      '<div id="adminEmailLeadsHost"><div class="admin-loading">Loading leads…</div></div>';
+
+    var url = '/api/admin/email-leads';
+    if (leadStatus) url += '?status=' + encodeURIComponent(leadStatus);
+
+    fetchJson(url).then(function (result) {
+      var bar = document.getElementById('adminEmailLeadsBar');
+      var host = document.getElementById('adminEmailLeadsHost');
+      if (!result.ok) {
+        if (host) host.innerHTML = '<p class="admin-error">Failed to load leads.</p>';
+        return;
+      }
+      var audiences = result.body.audiences || [];
+      var tabs = [{ key: '', label: 'All', count: result.body.total || 0 }].concat(
+        audiences.map(function (a) {
+          return { key: a.key, label: a.label || a.key, count: a.count };
+        })
+      );
+      if (bar) {
+        bar.innerHTML =
+          '<div class="admin-leads-status-tabs">' +
+          tabs
+            .map(function (t) {
+              var href = t.key
+                ? '#marketing/email-leads?status=' + encodeURIComponent(t.key)
+                : '#marketing/email-leads';
+              return (
+                '<a class="admin-leads-status-tab' +
+                ((leadStatus || '') === (t.key || '') ? ' is-active' : '') +
+                '" href="' +
+                href +
+                '">' +
+                esc(t.label) +
+                ' <span>' +
+                esc(t.count) +
+                '</span></a>'
+              );
+            })
+            .join('') +
+          '</div>' +
+          (leadStatus
+            ? '<a class="admin-btn-primary" href="#marketing/campaigns/' +
+              encodeURIComponent(leadStatus) +
+              '">Send Campaign</a>'
+            : '');
+      }
+
+      var leads = result.body.leads || [];
+      if (host) {
+        host.innerHTML =
+          '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
+          '<thead><tr><th>Email</th><th>Status</th><th>Journey</th><th>Current Step</th><th>Next Ready</th><th>Last Activity</th></tr></thead><tbody>' +
+          (leads
+            .map(function (l) {
+              return (
+                '<tr><td>' +
+                esc(l.email) +
+                '</td><td>' +
+                statusPill(l.status) +
+                '</td><td>' +
+                esc(l.journey_name || '—') +
+                (l.journey_status
+                  ? '<div class="admin-muted">' + esc(l.journey_status) + '</div>'
+                  : '') +
+                '</td><td>' +
+                (l.current_step
+                  ? esc(l.current_step) + '. ' + esc(l.current_step_name || '')
+                  : '—') +
+                (l.next_action
+                  ? '<div class="admin-muted">' + esc(l.next_action) + '</div>'
+                  : '') +
+                '</td><td>' +
+                esc(l.next_ready_at ? when(l.next_ready_at) : '—') +
+                (l.remaining_label
+                  ? '<div class="admin-muted">' + esc(l.remaining_label) + '</div>'
+                  : '') +
+                '</td><td>' +
+                esc(when(l.last_activity_at)) +
+                '</td></tr>'
+              );
+            })
+            .join('') ||
+            '<tr><td colspan="6" class="admin-cell-empty">No leads.</td></tr>') +
+          '</tbody></table></div></div>';
+      }
+    });
+  }
+
+  /* ========== Queue ========== */
+  function renderQueue() {
+    container.innerHTML =
+      pageHeader(
+        'Queue',
+        'Ready actions awaiting manual execution. Uses sendEmail() for email actions.',
+        '<button type="button" class="admin-btn-primary" id="jqExecute">Execute Ready Actions</button>'
+      ) +
       '<div class="admin-card admin-journey-toolbar">' +
-      '<button type="button" class="admin-btn-secondary" id="jqPromote">Promote Ready Steps</button>' +
-      '<button type="button" class="admin-btn-primary" id="jqExecute">Execute Pending Actions</button>' +
       '<select id="jqStatus"><option value="pending">Pending</option><option value="">All</option>' +
-      '<option value="executing">Executing</option><option value="completed">Completed</option>' +
-      '<option value="failed">Failed</option><option value="cancelled">Cancelled</option></select>' +
-      '<button type="button" class="admin-btn-secondary" id="jqRefresh">Refresh</button>' +
-      '</div>' +
-      '<p id="jqStatusMsg" class="admin-email-status" role="status"></p>' +
+      '<option value="completed">Completed</option><option value="failed">Failed</option>' +
+      '<option value="cancelled">Cancelled</option></select>' +
+      '<button type="button" class="admin-btn-secondary" id="jqRefresh">Refresh</button></div>' +
+      '<p id="jqMsg" class="admin-email-status" role="status"></p>' +
       '<div id="adminQueueHost"><div class="admin-loading">Loading…</div></div>';
 
-    var statusMsg = document.getElementById('jqStatusMsg');
-
     function setMsg(text, ok) {
-      statusMsg.textContent = text || '';
-      statusMsg.className =
+      var el = document.getElementById('jqMsg');
+      el.textContent = text || '';
+      el.className =
         'admin-email-status ' + (ok ? 'admin-email-status-ok' : text ? 'admin-email-status-err' : '');
     }
 
@@ -692,116 +974,43 @@ window.renderAdminmarketing = function (container) {
         var host = document.getElementById('adminQueueHost');
         if (!host) return;
         if (!result.ok) {
-          host.innerHTML =
-            '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
+          host.innerHTML = '<p class="admin-error">Failed to load queue.</p>';
           return;
         }
-        var rows = (result.body && result.body.queue) || [];
+        var rows = result.body.queue || [];
         host.innerHTML =
           '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-          '<thead><tr><th>Lead</th><th>Journey</th><th>Step</th><th>Action</th><th>Template</th><th>Scheduled</th><th>Status</th><th></th></tr></thead><tbody>' +
+          '<thead><tr><th>Lead</th><th>Journey</th><th>Step</th><th>Action</th><th>Scheduled</th><th>Status</th></tr></thead><tbody>' +
           (rows
             .map(function (r) {
               return (
-                '<tr data-action="' +
-                esc(r.id) +
-                '">' +
-                '<td>' +
+                '<tr><td>' +
                 esc(r.lead_email || r.recipient || '—') +
-                '</td>' +
-                '<td>' +
+                '</td><td>' +
                 esc(r.journey_name || '—') +
-                '</td>' +
-                '<td>' +
-                esc(r.step_order ? r.step_order + '. ' : '') +
-                esc(r.step_name || '—') +
-                '</td>' +
-                '<td>' +
+                '</td><td>' +
+                esc((r.step_order ? r.step_order + '. ' : '') + (r.step_name || '—')) +
+                '</td><td>' +
                 esc(r.action_type) +
-                '</td>' +
-                '<td>' +
-                esc(r.template_id || '—') +
-                '</td>' +
-                '<td>' +
+                (r.template_id ? ' · ' + esc(r.template_id) : '') +
+                '</td><td>' +
                 esc(when(r.scheduled_at)) +
-                '</td>' +
-                '<td>' +
+                '</td><td>' +
                 statusPill(r.status) +
                 (r.error_message
                   ? '<div class="admin-muted">' + esc(r.error_message) + '</div>'
-                  : '') +
-                '</td>' +
-                '<td>' +
-                (r.status === 'pending'
-                  ? '<button type="button" class="admin-btn-secondary jq-one">Execute</button>'
                   : '') +
                 '</td></tr>'
               );
             })
             .join('') ||
-            '<tr><td colspan="8" class="admin-cell-empty">Queue is empty. Promote ready steps first.</td></tr>') +
+            '<tr><td colspan="6" class="admin-cell-empty">Queue empty. Due steps are promoted when you Execute Ready Actions.</td></tr>') +
           '</tbody></table></div></div>';
-
-        host.querySelectorAll('.jq-one').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = btn.closest('[data-action]').getAttribute('data-action');
-            btn.disabled = true;
-            fetchJson('/api/admin/journey-queue/execute', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action_id: id })
-            }).then(function (result) {
-              if (result.ok) {
-                setMsg(
-                  'Executed. Completed ' +
-                    result.body.completed +
-                    ', failed ' +
-                    result.body.failed,
-                  true
-                );
-              } else {
-                setMsg((result.body && result.body.error) || 'Execute failed', false);
-              }
-              load();
-            });
-          });
-        });
       });
     }
 
-    document.getElementById('jqPromote').addEventListener('click', function () {
-      var btn = document.getElementById('jqPromote');
-      btn.disabled = true;
-      btn.textContent = 'Scanning…';
-      fetchJson('/api/admin/journey-queue/promote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: 50 })
-      })
-        .then(function (result) {
-          if (!result.ok) {
-            setMsg((result.body && result.body.error) || 'Promote failed', false);
-            return;
-          }
-          setMsg(
-            'Promoted ' +
-              result.body.promoted +
-              ' of ' +
-              result.body.scanned +
-              ' due steps into the queue.',
-            true
-          );
-          document.getElementById('jqStatus').value = 'pending';
-          load();
-        })
-        .finally(function () {
-          btn.disabled = false;
-          btn.textContent = 'Promote Ready Steps';
-        });
-    });
-
     document.getElementById('jqExecute').addEventListener('click', function () {
-      if (!window.confirm('Execute all pending actions now? Emails will be sent via Resend.')) return;
+      if (!window.confirm('Promote due steps and execute pending email actions via Resend?')) return;
       var btn = document.getElementById('jqExecute');
       btn.disabled = true;
       btn.textContent = 'Executing…';
@@ -810,25 +1019,25 @@ window.renderAdminmarketing = function (container) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ limit: 25 })
       })
-        .then(function (result) {
-          if (!result.ok) {
-            setMsg((result.body && result.body.error) || 'Execute failed', false);
+        .then(function (r) {
+          if (!r.ok) {
+            setMsg((r.body && r.body.error) || 'Failed', false);
             return;
           }
           setMsg(
-            'Processed ' +
-              result.body.processed +
-              ' — completed ' +
-              result.body.completed +
-              ', failed ' +
-              result.body.failed,
+            'Promoted ' +
+              (r.body.promoted || 0) +
+              ' · Completed ' +
+              (r.body.completed || 0) +
+              ' · Failed ' +
+              (r.body.failed || 0),
             true
           );
           load();
         })
         .finally(function () {
           btn.disabled = false;
-          btn.textContent = 'Execute Pending Actions';
+          btn.textContent = 'Execute Ready Actions';
         });
     });
 
@@ -837,16 +1046,15 @@ window.renderAdminmarketing = function (container) {
     load();
   }
 
-  /* ---------- Campaigns (unchanged concept — one-shot broadcasts) ---------- */
-  function renderCampaignsSection() {
+  /* ========== Campaigns ========== */
+  function renderCampaigns() {
     var state = {
       step: 1,
       audience: prefillAudience || '',
       template_key: '',
       audiences: [],
       templates: [],
-      preview: null,
-      sendResult: null
+      preview: null
     };
 
     function audienceLabel(key) {
@@ -856,36 +1064,13 @@ window.renderAdminmarketing = function (container) {
       return key;
     }
 
-    function audienceCount(key) {
-      for (var i = 0; i < state.audiences.length; i++) {
-        if (state.audiences[i].key === key) return state.audiences[i].count;
-      }
-      return 0;
-    }
-
-    function renderHost() {
+    function paint() {
       var host = document.getElementById('adminCampaignHost');
       if (!host) return;
-      var stepsHtml =
-        '<ol class="admin-campaign-steps">' +
-        [1, 2, 3, 4]
-          .map(function (n) {
-            return (
-              '<li class="' +
-              (state.step === n ? 'is-active' : state.step > n ? 'is-done' : '') +
-              '">Step ' +
-              n +
-              '</li>'
-            );
-          })
-          .join('') +
-        '</ol>';
-
       var body = '';
       if (state.step === 1) {
         body =
-          '<div class="admin-form-group"><label>Audience (Lead Status)</label><select id="campaignAudience">' +
-          '<option value="">Select…</option>' +
+          '<div class="admin-form-group"><label>1. Audience</label><select id="cAud"><option value="">Select…</option>' +
           state.audiences
             .map(function (a) {
               return (
@@ -896,7 +1081,7 @@ window.renderAdminmarketing = function (container) {
                 '>' +
                 esc(a.label) +
                 ' (' +
-                esc(a.count) +
+                a.count +
                 ')</option>'
               );
             })
@@ -904,8 +1089,7 @@ window.renderAdminmarketing = function (container) {
           '</select></div>';
       } else if (state.step === 2) {
         body =
-          '<div class="admin-form-group"><label>Template</label><select id="campaignTemplate">' +
-          '<option value="">Select…</option>' +
+          '<div class="admin-form-group"><label>2. Template</label><select id="cTpl"><option value="">Select…</option>' +
           state.templates
             .map(function (t) {
               return (
@@ -922,264 +1106,181 @@ window.renderAdminmarketing = function (container) {
           '</select></div>';
       } else if (state.step === 3) {
         body =
-          '<p class="admin-muted">Audience: <strong>' +
+          '<p class="admin-muted">3. Preview — ' +
           esc(audienceLabel(state.audience)) +
-          '</strong> · Template: <strong>' +
+          ' · ' +
           esc(state.template_key) +
-          '</strong></p>' +
+          '</p>' +
           (state.preview
-            ? '<div class="admin-campaign-preview"><strong>' +
+            ? '<strong>' +
               esc(state.preview.subject) +
               '</strong><iframe class="admin-campaign-iframe" srcdoc="' +
               esc(state.preview.html) +
-              '"></iframe></div>'
-            : '<p class="admin-muted">Click Next to load preview.</p>');
+              '"></iframe>'
+            : '');
       } else {
         body =
-          '<p>Ready to send <strong>' +
-          esc(state.template_key) +
-          '</strong> to <strong>' +
-          esc(audienceLabel(state.audience)) +
-          '</strong> (' +
-          audienceCount(state.audience) +
-          ' leads).</p>' +
-          '<p class="admin-muted">Campaigns are one-time broadcasts — separate from multi-step Journeys.</p>' +
-          '<button type="button" class="admin-btn-primary" id="campaignSendNow">Send Now</button>';
+          '<p>4. Send Now — one-time broadcast. Does not change journey progress.</p>' +
+          '<button type="button" class="admin-btn-primary" id="cSend">Send Now</button>';
       }
-
       host.innerHTML =
         '<div class="admin-card">' +
-        stepsHtml +
         body +
         '<div class="admin-journey-builder-actions" style="margin-top:16px">' +
         (state.step > 1
-          ? '<button type="button" class="admin-btn-secondary" id="campaignBack">Back</button>'
+          ? '<button type="button" class="admin-btn-secondary" id="cBack">Back</button>'
           : '') +
         (state.step < 4
-          ? '<button type="button" class="admin-btn-primary" id="campaignNext">Next</button>'
+          ? '<button type="button" class="admin-btn-primary" id="cNext">Next</button>'
           : '') +
-        '</div><p id="adminCampaignStatus" class="admin-email-status"></p></div>';
+        '</div><p id="cStatus" class="admin-email-status"></p></div>';
 
-      var back = document.getElementById('campaignBack');
-      if (back) {
+      var back = document.getElementById('cBack');
+      if (back)
         back.addEventListener('click', function () {
           state.step -= 1;
-          renderHost();
+          paint();
         });
-      }
-      var next = document.getElementById('campaignNext');
+      var next = document.getElementById('cNext');
       if (next) {
         next.addEventListener('click', function () {
           if (state.step === 1) {
-            state.audience = document.getElementById('campaignAudience').value;
-            if (!state.audience) return alert('Select an audience');
+            state.audience = document.getElementById('cAud').value;
+            if (!state.audience) return alert('Select audience');
             state.step = 2;
-            renderHost();
+            paint();
             return;
           }
           if (state.step === 2) {
-            state.template_key = document.getElementById('campaignTemplate').value;
-            if (!state.template_key) return alert('Select a template');
+            state.template_key = document.getElementById('cTpl').value;
+            if (!state.template_key) return alert('Select template');
             next.disabled = true;
             fetchJson('/api/admin/campaigns/preview', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audience: state.audience, template_key: state.template_key })
-            }).then(function (result) {
+              body: JSON.stringify({
+                audience: state.audience,
+                template_key: state.template_key
+              })
+            }).then(function (r) {
               next.disabled = false;
-              if (!result.ok || !result.body || !result.body.success) {
-                alert((result.body && result.body.error) || 'Preview failed');
-                return;
-              }
-              state.preview = result.body;
+              if (!r.ok || !r.body.success) return alert((r.body && r.body.error) || 'Preview failed');
+              state.preview = r.body.preview || { subject: r.body.subject, html: r.body.html };
               state.step = 3;
-              renderHost();
+              paint();
             });
             return;
           }
-          if (state.step === 3) {
-            state.step = 4;
-            renderHost();
-          }
+          state.step = 4;
+          paint();
         });
       }
-      var sendBtn = document.getElementById('campaignSendNow');
-      if (sendBtn) {
-        sendBtn.addEventListener('click', function () {
-          if (
-            !window.confirm(
-              'Send "' + state.template_key + '" to ' + audienceLabel(state.audience) + '?'
-            )
-          ) {
-            return;
-          }
-          sendBtn.disabled = true;
-          sendBtn.textContent = 'Sending…';
+      var send = document.getElementById('cSend');
+      if (send) {
+        send.addEventListener('click', function () {
+          if (!window.confirm('Send campaign now?')) return;
+          send.disabled = true;
           fetchJson('/api/admin/campaigns/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ audience: state.audience, template_key: state.template_key })
-          }).then(function (result) {
-            var statusEl = document.getElementById('adminCampaignStatus');
-            if (!result.ok || !result.body || !result.body.success) {
-              if (statusEl) {
-                statusEl.textContent = (result.body && result.body.error) || 'Send failed';
-                statusEl.className = 'admin-email-status admin-email-status-err';
-              }
-              sendBtn.disabled = false;
-              sendBtn.textContent = 'Send Now';
+            body: JSON.stringify({
+              audience: state.audience,
+              template_key: state.template_key
+            })
+          }).then(function (r) {
+            var el = document.getElementById('cStatus');
+            if (!r.ok || !r.body.success) {
+              el.textContent = (r.body && r.body.error) || 'Send failed';
+              el.className = 'admin-email-status admin-email-status-err';
+              send.disabled = false;
               return;
             }
-            if (statusEl) {
-              statusEl.textContent =
-                'Sent ' +
-                result.body.sent +
-                ' (' +
-                result.body.skipped +
-                ' skipped, ' +
-                result.body.failed +
-                ' failed)';
-              statusEl.className = 'admin-email-status admin-email-status-ok';
-            }
-            sendBtn.textContent = 'Sent';
+            el.textContent =
+              'Sent ' + r.body.sent + ' (skipped ' + r.body.skipped + ', failed ' + r.body.failed + ')';
+            el.className = 'admin-email-status admin-email-status-ok';
           });
         });
       }
     }
 
     container.innerHTML =
-      '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">Campaigns</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">One-time manual broadcasts. Separate from Journeys.</p>' +
-      '</div>' +
-      shellTabs('campaigns') +
-      '<div id="adminCampaignHost"><div class="admin-loading">Loading…</div></div>';
+      pageHeader(
+        'Campaigns',
+        'One-time manual broadcasts. Completely independent from Journeys.'
+      ) + '<div id="adminCampaignHost"><div class="admin-loading">Loading…</div></div>';
 
-    var bootstrapUrl = '/api/admin/campaigns';
-    if (prefillAudience) bootstrapUrl += '?audience=' + encodeURIComponent(prefillAudience);
-    fetchJson(bootstrapUrl).then(function (result) {
-      var host = document.getElementById('adminCampaignHost');
-      if (!host) return;
-      if (!result.ok) {
-        host.innerHTML =
-          '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
+    var bootstrap = '/api/admin/campaigns';
+    if (prefillAudience) bootstrap += '?audience=' + encodeURIComponent(prefillAudience);
+    fetchJson(bootstrap).then(function (r) {
+      if (!r.ok) {
+        document.getElementById('adminCampaignHost').innerHTML =
+          '<p class="admin-error">Failed to load campaigns.</p>';
         return;
       }
-      state.audiences = result.body.audiences || [];
-      state.templates = result.body.templates || [];
-      if (result.body.preferred_audience) state.audience = result.body.preferred_audience;
-      renderHost();
+      state.audiences = r.body.audiences || [];
+      state.templates = r.body.templates || [];
+      if (r.body.preferred_audience) state.audience = r.body.preferred_audience;
+      paint();
     });
   }
 
-  /* ---------- History ---------- */
-  function renderHistorySection() {
+  /* ========== History ========== */
+  function renderHistory() {
     container.innerHTML =
-      '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">History</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Executed and failed actions from the Journey Queue.</p>' +
-      '</div>' +
-      shellTabs('history') +
-      '<div id="adminHistoryHost"><div class="admin-loading">Loading…</div></div>';
+      pageHeader(
+        'History',
+        'Unified log of journey queue executions, campaigns, and errors.'
+      ) + '<div id="adminHistHost"><div class="admin-loading">Loading…</div></div>';
 
-    fetchJson('/api/admin/journey-history?limit=100').then(function (result) {
-      var host = document.getElementById('adminHistoryHost');
+    fetchJson('/api/admin/journey-history?limit=150').then(function (r) {
+      var host = document.getElementById('adminHistHost');
       if (!host) return;
-      if (!result.ok) {
+      if (!r.ok) {
         host.innerHTML = '<p class="admin-error">Failed to load history.</p>';
         return;
       }
-      var rows = ((result.body && result.body.history) || []).filter(function (r) {
-        return r.status === 'completed' || r.status === 'failed' || r.status === 'cancelled';
-      });
+      var rows = r.body.history || [];
       host.innerHTML =
         '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-        '<thead><tr><th>When</th><th>Lead</th><th>Journey</th><th>Step</th><th>Action</th><th>Status</th><th>Error</th></tr></thead><tbody>' +
+        '<thead><tr><th>When</th><th>Source</th><th>Lead</th><th>Journey</th><th>Message</th><th>Status</th></tr></thead><tbody>' +
         (rows
-          .map(function (r) {
+          .map(function (row) {
             return (
               '<tr><td>' +
-              esc(when(r.executed_at || r.created_at)) +
+              esc(when(row.at)) +
               '</td><td>' +
-              esc(r.lead_email || '—') +
+              esc(row.source) +
               '</td><td>' +
-              esc(r.journey_name || '—') +
+              esc(row.lead_email || '—') +
               '</td><td>' +
-              esc(r.step_name || '—') +
+              esc(row.journey_name || '—') +
               '</td><td>' +
-              esc(r.action_type) +
+              esc(row.message) +
               '</td><td>' +
-              statusPill(r.status) +
-              '</td><td>' +
-              esc(r.error_message || '—') +
+              statusPill(row.status) +
               '</td></tr>'
             );
           })
           .join('') ||
-          '<tr><td colspan="7" class="admin-cell-empty">No executed actions yet.</td></tr>') +
+          '<tr><td colspan="6" class="admin-cell-empty">No history yet.</td></tr>') +
         '</tbody></table></div></div>';
     });
   }
 
-  /* ---------- Settings ---------- */
-  function renderSettingsSection() {
-    container.innerHTML =
-      '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">Journey Settings</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Engine configuration for Phase 1 (manual execution).</p>' +
-      '</div>' +
-      shellTabs('settings') +
-      '<div id="adminJourneySettingsHost"><div class="admin-loading">Loading…</div></div>';
-
-    fetchJson('/api/admin/journey-settings').then(function (result) {
-      var host = document.getElementById('adminJourneySettingsHost');
-      if (!host) return;
-      if (!result.ok) {
-        host.innerHTML = '<p class="admin-error">Failed to load settings.</p>';
-        return;
-      }
-      var s = result.body || {};
-      host.innerHTML =
-        '<div class="admin-card">' +
-        '<dl class="admin-dl">' +
-        '<div><dt>Execution mode</dt><dd><strong>' +
-        esc(s.execution_mode) +
-        '</strong></dd></div>' +
-        '<div><dt>Email provider</dt><dd>' +
-        (s.email_configured ? 'Resend configured' : 'RESEND_API_KEY missing') +
-        '</dd></div>' +
-        '<div><dt>From</dt><dd>' +
-        esc(s.from) +
-        '</dd></div>' +
-        '<div><dt>Reply-To</dt><dd>' +
-        esc(s.reply_to) +
-        '</dd></div>' +
-        '<div><dt>Action types</dt><dd>' +
-        esc((s.action_types || []).join(', ')) +
-        '</dd></div>' +
-        '<div><dt>Triggers</dt><dd>' +
-        esc((s.trigger_types || []).join(', ')) +
-        '</dd></div>' +
-        '<div><dt>Delay units</dt><dd>' +
-        esc((s.delay_units || []).join(', ')) +
-        '</dd></div>' +
-        '</dl>' +
-        '<p class="admin-muted" style="margin-top:16px">' +
-        esc(s.note || '') +
-        '</p>' +
-        '<p class="admin-muted">Test email: <a href="#settings">use Admin Settings</a> or Campaigns preview.</p>' +
-        '</div>';
-    });
+  /* ========== Route ========== */
+  if (section === 'journeys') {
+    if (editJourneyId) return renderJourneyEditor(editJourneyId);
+    return renderJourneysHome();
   }
-
-  if (section === 'journeys') return renderJourneysSection();
-  if (section === 'leads') return renderLeadsSection();
-  if (section === 'templates') return renderTemplatesSection();
-  if (section === 'queue') return renderQueueSection();
-  if (section === 'campaigns') return renderCampaignsSection();
-  if (section === 'history') return renderHistorySection();
-  if (section === 'settings') return renderSettingsSection();
+  if (section === 'templates') {
+    if (editTemplateId) return renderTemplateEditor(editTemplateId);
+    return renderTemplatesHome();
+  }
+  if (section === 'email-leads') return renderEmailLeads();
+  if (section === 'queue') return renderQueue();
+  if (section === 'campaigns') return renderCampaigns();
+  if (section === 'history') return renderHistory();
 
   container.innerHTML =
-    '<p class="admin-error">Unknown section.</p><p><a href="#marketing/journeys">← Journeys</a></p>';
+    '<p class="admin-error">Unknown section.</p><p><a href="#marketing/journeys">← Customer Journey</a></p>';
 };

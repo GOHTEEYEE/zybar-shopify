@@ -1108,14 +1108,23 @@ app.get('/api/admin/journeys', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
   try {
     const JourneyEngine = require('./lib/journey-engine.js');
+    const TemplateStore = require('./lib/email-template-store.js');
     const journeys = await JourneyEngine.listJourneysAdmin(supabase);
-    const EmailTemplates = require('./lib/email-templates.js');
+    let templates = [];
+    try {
+      templates = await TemplateStore.listTemplates(supabase, { status: 'active' });
+    } catch (e) {
+      const EmailTemplates = require('./lib/email-templates.js');
+      templates = EmailTemplates.listTemplates().map(function (t) {
+        return { template_key: t.key, name: t.name, description: t.description };
+      });
+    }
     return res.json({
       journeys: journeys,
       action_types: JourneyEngine.ACTION_TYPES,
       delay_units: JourneyEngine.DELAY_UNITS,
       trigger_types: JourneyEngine.TRIGGER_TYPES,
-      templates: EmailTemplates.listTemplates()
+      templates: templates
     });
   } catch (err) {
     console.error('GET /api/admin/journeys error:', err);
@@ -1174,6 +1183,44 @@ app.patch('/api/admin/journeys/:id', async (req, res) => {
   }
 });
 
+app.post('/api/admin/journeys/:id/duplicate', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const journey = await JourneyEngine.duplicateJourney(supabase, req.params.id);
+    return res.status(201).json({ ok: true, journey: journey });
+  } catch (err) {
+    console.error('POST /api/admin/journeys/:id/duplicate error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to duplicate journey.' });
+  }
+});
+
+app.delete('/api/admin/journeys/:id', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const ok = await JourneyEngine.deleteJourney(supabase, req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Journey not found.' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /api/admin/journeys/:id error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to delete journey.' });
+  }
+});
+
+app.get('/api/admin/journeys/:id/workspace', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const data = await JourneyEngine.getJourneyWorkspace(supabase, req.params.id);
+    if (!data) return res.status(404).json({ error: 'Journey not found.' });
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/journeys/:id/workspace error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load journey workspace.' });
+  }
+});
+
 app.get('/api/admin/journey-leads', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
   try {
@@ -1187,6 +1234,21 @@ app.get('/api/admin/journey-leads', async (req, res) => {
   } catch (err) {
     console.error('GET /api/admin/journey-leads error:', err);
     return res.status(500).json({ error: (err && err.message) || 'Failed to load journey leads.' });
+  }
+});
+
+app.get('/api/admin/email-leads', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const data = await JourneyEngine.listEmailLeadsCrm(supabase, {
+      status: req.query && req.query.status,
+      limit: req.query && req.query.limit
+    });
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/email-leads error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load email leads.' });
   }
 });
 
@@ -1237,14 +1299,17 @@ app.post('/api/admin/journey-queue/execute', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
   try {
     const JourneyEngine = require('./lib/journey-engine.js');
-    const result = await JourneyEngine.executePendingActions(supabase, process.env, {
-      limit: (req.body && req.body.limit) || 25,
-      action_id: (req.body && req.body.action_id) || null
+    const body = req.body || {};
+    // Single-button flow: promote due steps then execute pending
+    const result = await JourneyEngine.executeReadyActions(supabase, process.env, {
+      limit: body.limit || 25,
+      promote_limit: body.promote_limit || 50,
+      action_id: body.action_id || null
     });
     return res.json(Object.assign({ ok: true }, result));
   } catch (err) {
     console.error('POST /api/admin/journey-queue/execute error:', err);
-    return res.status(500).json({ error: (err && err.message) || 'Failed to execute pending actions.' });
+    return res.status(500).json({ error: (err && err.message) || 'Failed to execute ready actions.' });
   }
 });
 
@@ -1261,12 +1326,93 @@ app.get('/api/admin/journey-history', async (req, res) => {
 });
 
 app.get('/api/admin/journey-templates', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Templates unavailable.' });
   try {
-    const EmailTemplates = require('./lib/email-templates.js');
-    return res.json({ templates: EmailTemplates.listTemplates() });
+    const TemplateStore = require('./lib/email-template-store.js');
+    const templates = await TemplateStore.listTemplates(supabase, {
+      include_archived: String(req.query && req.query.include_archived) === '1'
+    });
+    return res.json({ templates: templates });
   } catch (err) {
     console.error('GET /api/admin/journey-templates error:', err);
     return res.status(500).json({ error: 'Failed to load templates.' });
+  }
+});
+
+app.post('/api/admin/journey-templates', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Templates unavailable.' });
+  try {
+    const TemplateStore = require('./lib/email-template-store.js');
+    const template = await TemplateStore.createTemplate(supabase, req.body || {});
+    return res.status(201).json({ ok: true, template: template });
+  } catch (err) {
+    console.error('POST /api/admin/journey-templates error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to create template.' });
+  }
+});
+
+app.get('/api/admin/journey-templates/:id', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Templates unavailable.' });
+  try {
+    const TemplateStore = require('./lib/email-template-store.js');
+    const template = await TemplateStore.getTemplateById(supabase, req.params.id);
+    if (!template) return res.status(404).json({ error: 'Template not found.' });
+    return res.json({ template: template });
+  } catch (err) {
+    console.error('GET /api/admin/journey-templates/:id error:', err);
+    return res.status(500).json({ error: 'Failed to load template.' });
+  }
+});
+
+app.patch('/api/admin/journey-templates/:id', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Templates unavailable.' });
+  try {
+    const TemplateStore = require('./lib/email-template-store.js');
+    const template = await TemplateStore.updateTemplate(supabase, req.params.id, req.body || {});
+    if (!template) return res.status(404).json({ error: 'Template not found.' });
+    return res.json({ ok: true, template: template });
+  } catch (err) {
+    console.error('PATCH /api/admin/journey-templates/:id error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to update template.' });
+  }
+});
+
+app.post('/api/admin/journey-templates/:id/duplicate', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Templates unavailable.' });
+  try {
+    const TemplateStore = require('./lib/email-template-store.js');
+    const template = await TemplateStore.duplicateTemplate(supabase, req.params.id);
+    return res.status(201).json({ ok: true, template: template });
+  } catch (err) {
+    console.error('POST /api/admin/journey-templates/:id/duplicate error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to duplicate template.' });
+  }
+});
+
+app.post('/api/admin/journey-templates/:id/archive', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Templates unavailable.' });
+  try {
+    const TemplateStore = require('./lib/email-template-store.js');
+    const template = await TemplateStore.archiveTemplate(supabase, req.params.id);
+    if (!template) return res.status(404).json({ error: 'Template not found.' });
+    return res.json({ ok: true, template: template });
+  } catch (err) {
+    console.error('POST /api/admin/journey-templates/:id/archive error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to archive template.' });
+  }
+});
+
+app.post('/api/admin/journey-templates/:id/preview', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Templates unavailable.' });
+  try {
+    const TemplateStore = require('./lib/email-template-store.js');
+    const tpl = await TemplateStore.getTemplateById(supabase, req.params.id);
+    if (!tpl) return res.status(404).json({ error: 'Template not found.' });
+    const rendered = await TemplateStore.previewTemplate(supabase, tpl.template_key, process.env);
+    return res.json({ ok: true, preview: rendered });
+  } catch (err) {
+    console.error('POST /api/admin/journey-templates/:id/preview error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to preview template.' });
   }
 });
 
