@@ -249,7 +249,13 @@
     }
     var links = document.querySelectorAll('.admin-nav a[data-page]');
     links.forEach(function (a) {
-      a.classList.toggle('active', a.getAttribute('data-page') === name);
+      var href = a.getAttribute('href') || '';
+      var isMarketing = name === 'marketing' && href.indexOf('#marketing/') === 0;
+      var matchesMarketingSection = isMarketing && href === (window.location.hash || '#marketing/email');
+      a.classList.toggle(
+        'active',
+        (a.getAttribute('data-page') === name && !isMarketing) || matchesMarketingSection
+      );
     });
     if (contentEl) contentEl.style.display = '';
     if (loadingEl) loadingEl.style.display = 'none';

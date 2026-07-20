@@ -161,6 +161,79 @@ body {
   color: var(--admin-error);
 }
 
+.admin-workflow-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.admin-workflow-pill-on {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.admin-workflow-pill-off {
+  background: rgba(107, 114, 128, 0.12);
+  color: #4b5563;
+}
+
+.admin-workflow-pill-status {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+}
+
+.admin-workflow-history {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.admin-workflow-history-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.admin-workflow-history-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.admin-workflow-dl {
+  margin: 0;
+}
+
+.admin-workflow-log-list {
+  border-top: 1px solid var(--admin-border);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-workflow-log-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.admin-workflow-log-time {
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-workflow-log-message {
+  font-size: 0.9rem;
+}
+
 /* Main content */
 .admin-main {
   flex: 1;

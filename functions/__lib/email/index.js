@@ -1,7 +1,5 @@
 /**
- * ZYBAR Email Service
- *
- * Entry point for campaigns, automations, templates, analytics, and webhooks.
+ * ZYBAR Email Service (Cloudflare Pages Functions).
  * Business logic lives here — API routes only validate and call these helpers.
  */
 import { sendEmail } from './resend.js';
@@ -14,18 +12,15 @@ import { getTestTemplate } from './templates.js';
  */
 export async function sendTestEmail(context, to) {
   const env = (context && context.env) || {};
-  const apiKey = env.RESEND_API_KEY;
-  const from = env.RESEND_FROM_EMAIL || 'ZYBAR <onboarding@resend.dev>';
   const template = getTestTemplate();
 
   return sendEmail({
-    from: from,
+    env: env,
     to: to,
     subject: template.subject,
-    html: template.html,
-    apiKey: apiKey
+    html: template.html
   });
 }
 
-export { sendEmail } from './resend.js';
+export { sendEmail, getEmailConfig, DEFAULT_FROM, DEFAULT_REPLY_TO } from './resend.js';
 export { getTestTemplate } from './templates.js';

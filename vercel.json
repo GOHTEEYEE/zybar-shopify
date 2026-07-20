@@ -12,6 +12,9 @@
       ]
     }
   ],
+  "crons": [
+    { "path": "/api/workflows/run", "schedule": "* * * * *" }
+  ],
   "builds": [
     { "src": "api/[...all].js", "use": "@vercel/node" },
     { "src": "**/*", "use": "@vercel/static" }

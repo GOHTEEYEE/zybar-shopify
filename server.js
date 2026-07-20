@@ -1012,6 +1012,60 @@ app.post('/api/admin/email/send', async (req, res) => {
   }
 });
 
+// ----- Workflow automation admin -----
+app.get('/api/admin/workflows', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Workflow engine is unavailable.' });
+  try {
+    const WorkflowEngine = require('./lib/workflow-engine.js');
+    const data = await WorkflowEngine.listWorkflowAdminData(supabase);
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/workflows error:', err);
+    return res.status(500).json({ error: 'Failed to load workflows.' });
+  }
+});
+
+app.patch('/api/admin/workflows', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Workflow engine is unavailable.' });
+  try {
+    const workflowKey = String((req.body && req.body.workflow_key) || '').trim();
+    if (!workflowKey) {
+      return res.status(400).json({ error: 'workflow_key is required.' });
+    }
+    const WorkflowEngine = require('./lib/workflow-engine.js');
+    const workflow = await WorkflowEngine.updateWorkflowEnabled(
+      supabase,
+      workflowKey,
+      !!(req.body && req.body.enabled)
+    );
+    return res.json({ ok: true, workflow: workflow });
+  } catch (err) {
+    console.error('PATCH /api/admin/workflows error:', err);
+    return res.status(500).json({ error: 'Failed to update workflow.' });
+  }
+});
+
+// ----- Persistent workflow runner (Vercel Cron) -----
+app.get('/api/workflows/run', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Workflow engine is unavailable.' });
+  const authHeader = req.headers.authorization || '';
+  const cronSecret = process.env.CRON_SECRET || '';
+  if (!cronSecret || authHeader !== 'Bearer ' + cronSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const WorkflowEngine = require('./lib/workflow-engine.js');
+    const result = await WorkflowEngine.runDueWorkflowExecutions(supabase, process.env, 10);
+    return res.json(Object.assign({ ok: true }, result));
+  } catch (err) {
+    console.error('GET /api/workflows/run error:', err);
+    return res.status(500).json({
+      ok: false,
+      error: (err && err.message) || 'Workflow runner failed'
+    });
+  }
+});
+
 // ----- Premium garage newsletter / email capture -----
 app.post('/api/newsletter/subscribe', async (req, res) => {
   try {

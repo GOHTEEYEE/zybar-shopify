@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendEmail } from '../../__lib/email/resend.js';
 
 function json(data, status) {
   return new Response(JSON.stringify(data), {
@@ -62,10 +63,8 @@ async function ensureDiscountCode(supabase) {
 }
 
 async function sendWelcomeEmail(env, email) {
-  var apiKey = env.RESEND_API_KEY || '';
-  if (!apiKey) return { sent: false };
-  var from = env.RESEND_FROM_EMAIL || 'ZYBAR Garage <onboarding@resend.dev>';
-  var storeUrl = env.STORE_URL || 'https://zybar-ledcar.pages.dev';
+  if (!env.RESEND_API_KEY) return { sent: false };
+  var storeUrl = env.STORE_URL || 'https://www.zybar.shop';
   var html =
     '<div style="background:#0b0b0b;padding:32px;font-family:Georgia,serif;color:#fff;text-align:center;">' +
     '<div style="letter-spacing:.28em;font-size:12px;opacity:.55;">WELCOME TO</div>' +
@@ -82,20 +81,17 @@ async function sendWelcomeEmail(env, email) {
     '<p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;opacity:.55;margin-top:28px;">Shipping: Standard 14–18 days · Priority 7–14 days</p>' +
     '</div>';
 
-  var response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + apiKey,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: from,
-      to: [email],
+  try {
+    await sendEmail({
+      env: env,
+      to: email,
       subject: 'Welcome to ZYBAR Garage',
       html: html
-    })
-  });
-  return { sent: response.ok };
+    });
+    return { sent: true };
+  } catch (_) {
+    return { sent: false };
+  }
 }
 
 export async function onRequestPost(context) {
