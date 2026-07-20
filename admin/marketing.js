@@ -1,13 +1,17 @@
 /**
- * Admin Marketing — test email, campaigns, workflow automation.
+ * Admin Customer Journey — Journeys, Leads, Templates, Queue, Campaigns, History, Settings.
+ * Journeys = multi-step nurturing. Campaigns = one-time broadcasts. Execution is always manual.
  */
 window.renderAdminmarketing = function (container) {
   if (!container) return;
 
-  var hashRaw = window.location.hash || '#marketing/email';
+  var hashRaw = window.location.hash || '#marketing/journeys';
   var hash = hashRaw.slice(1).split('?')[0];
   var parts = hash.split('/');
-  var section = parts[1] || 'email';
+  var section = parts[1] || 'journeys';
+  if (section === 'email' || section === 'workflows') section = 'journeys';
+  if (section === 'campaign') section = 'campaigns';
+
   var prefillAudience = '';
   if (section === 'campaigns' && parts[2]) {
     prefillAudience = decodeURIComponent(parts[2]).toLowerCase();
@@ -17,6 +21,8 @@ window.renderAdminmarketing = function (container) {
     var params = new URLSearchParams(query);
     if (params.get('audience')) prefillAudience = String(params.get('audience')).toLowerCase();
   } catch (e) {}
+
+  var editJourneyId = section === 'journeys' && parts[2] === 'edit' && parts[3] ? parts[3] : '';
 
   function esc(v) {
     return String(v == null ? '' : v)
@@ -35,12 +41,16 @@ window.renderAdminmarketing = function (container) {
 
   function shellTabs(active) {
     var tabs = [
-      { id: 'email', href: '#marketing/email', label: 'Email' },
+      { id: 'journeys', href: '#marketing/journeys', label: 'Journeys' },
+      { id: 'leads', href: '#marketing/leads', label: 'Leads' },
+      { id: 'templates', href: '#marketing/templates', label: 'Templates' },
+      { id: 'queue', href: '#marketing/queue', label: 'Queue' },
       { id: 'campaigns', href: '#marketing/campaigns', label: 'Campaigns' },
-      { id: 'workflows', href: '#marketing/workflows', label: 'Workflows' }
+      { id: 'history', href: '#marketing/history', label: 'History' },
+      { id: 'settings', href: '#marketing/settings', label: 'Settings' }
     ];
     return (
-      '<nav class="admin-analytics-tabs" aria-label="Marketing">' +
+      '<nav class="admin-analytics-tabs" aria-label="Customer Journey">' +
       tabs
         .map(function (tab) {
           return (
@@ -58,90 +68,776 @@ window.renderAdminmarketing = function (container) {
     );
   }
 
-  function bindEmailForm() {
-    var form = document.getElementById('adminEmailTestForm');
-    var statusEl = document.getElementById('adminEmailStatus');
-    var sendBtn = document.getElementById('adminEmailSendBtn');
+  function statusPill(status) {
+    var s = String(status || '');
+    var cls = 'admin-workflow-pill admin-workflow-pill-status';
+    if (s === 'pending' || s === 'waiting') cls += ' admin-journey-pill-wait';
+    if (s === 'ready' || s === 'executing') cls += ' admin-journey-pill-ready';
+    if (s === 'completed') cls += ' admin-journey-pill-ok';
+    if (s === 'failed' || s === 'cancelled') cls += ' admin-journey-pill-off';
+    return '<span class="' + cls + '">' + esc(s) + '</span>';
+  }
 
-    function setStatus(message, isSuccess) {
-      if (!statusEl) return;
-      statusEl.textContent = message;
-      statusEl.className =
-        'admin-email-status ' + (isSuccess ? 'admin-email-status-ok' : 'admin-email-status-err');
-    }
-
-    if (!form) return;
-
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var to = document.getElementById('adminEmailTo').value.trim();
-      var subject = document.getElementById('adminEmailSubject').value.trim();
-      var html = document.getElementById('adminEmailHtml').value.trim();
-
-      if (sendBtn) {
-        sendBtn.disabled = true;
-        sendBtn.textContent = 'Sending…';
-      }
-      setStatus('', false);
-
-      fetch('/api/admin/email/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: to, subject: subject, html: html })
-      })
-        .then(function (res) {
-          return res.json().then(function (body) {
-            return { ok: res.ok, body: body };
-          });
-        })
-        .then(function (result) {
-          if (result.ok && result.body && result.body.success) {
-            setStatus('✅ Email sent successfully', true);
-          } else {
-            var err = (result.body && result.body.error) || 'Failed to send email';
-            setStatus('❌ Failed to send email — ' + err, false);
-          }
-        })
-        .catch(function () {
-          setStatus('❌ Failed to send email', false);
-        })
-        .finally(function () {
-          if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.textContent = 'Send Test Email';
-          }
-        });
+  function fetchJson(url, options) {
+    return fetch(url, options || {}).then(function (res) {
+      return res.json().then(function (body) {
+        return { ok: res.ok, body: body };
+      });
     });
   }
 
-  function renderEmailSection() {
+  /* ---------- Journeys ---------- */
+  function renderJourneysSection() {
+    if (editJourneyId) {
+      renderJourneyBuilder(editJourneyId);
+      return;
+    }
+
     container.innerHTML =
       '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">Email</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Send a one-off test email via Resend.</p>' +
-      '</div>' +
-      shellTabs('email') +
-      '<div class="admin-card admin-email-card">' +
-      '<form id="adminEmailTestForm" class="admin-email-form">' +
-      '<div class="admin-form-group">' +
-      '<label for="adminEmailTo">Recipient Email</label>' +
-      '<input type="email" id="adminEmailTo" name="to" placeholder="you@example.com" required autocomplete="email" />' +
-      '</div>' +
-      '<div class="admin-form-group">' +
-      '<label for="adminEmailSubject">Subject</label>' +
-      '<input type="text" id="adminEmailSubject" name="subject" placeholder="ZYBAR Test Email" required />' +
-      '</div>' +
-      '<div class="admin-form-group">' +
-      '<label for="adminEmailHtml">HTML Message</label>' +
-      '<textarea id="adminEmailHtml" name="html" rows="12" placeholder="<p>Hello from ZYBAR</p>" required></textarea>' +
-      '</div>' +
-      '<button type="submit" class="admin-btn-primary" id="adminEmailSendBtn">Send Test Email</button>' +
-      '<p id="adminEmailStatus" class="admin-email-status" role="status" aria-live="polite"></p>' +
-      '</form>' +
-      '</div>';
-    bindEmailForm();
+      '<div class="admin-page-header-row">' +
+      '<div><h2 class="admin-page-title">Journeys</h2>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0">Multi-step customer nurturing. Email is one action type.</p></div>' +
+      '<a class="admin-btn-primary" href="#marketing/journeys/edit/new">New Journey</a>' +
+      '</div></div>' +
+      shellTabs('journeys') +
+      '<div id="adminJourneyHost"><div class="admin-loading">Loading journeys…</div></div>';
+
+    fetchJson('/api/admin/journeys').then(function (result) {
+      var host = document.getElementById('adminJourneyHost');
+      if (!host) return;
+      if (!result.ok) {
+        host.innerHTML =
+          '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed to load') + '</p>';
+        return;
+      }
+      var journeys = (result.body && result.body.journeys) || [];
+      if (!journeys.length) {
+        host.innerHTML = '<div class="admin-card"><p class="admin-cell-empty">No journeys yet.</p></div>';
+        return;
+      }
+
+      host.innerHTML =
+        '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
+        '<thead><tr><th>Journey</th><th>Trigger</th><th>Steps</th><th>Enrolled</th><th>Queue</th><th>Active</th><th></th></tr></thead><tbody>' +
+        journeys
+          .map(function (j) {
+            var steps = j.steps || [];
+            var stepSummary = steps
+              .map(function (s) {
+                return (
+                  s.step_order +
+                  '. ' +
+                  s.step_name +
+                  ' (' +
+                  s.delay_value +
+                  ' ' +
+                  s.delay_unit +
+                  ' · ' +
+                  s.action_type +
+                  ')'
+                );
+              })
+              .join('<br/>');
+            var es = j.enroll_stats || {};
+            var qs = j.queue_stats || {};
+            return (
+              '<tr>' +
+              '<td><strong>' +
+              esc(j.name) +
+              '</strong><div class="admin-muted">' +
+              esc(j.description || j.journey_key) +
+              '</div></td>' +
+              '<td>' +
+              esc(j.trigger_type) +
+              '</td>' +
+              '<td class="admin-journey-steps-cell">' +
+              (stepSummary || '—') +
+              '</td>' +
+              '<td>W ' +
+              (es.waiting || 0) +
+              ' · R ' +
+              (es.ready || 0) +
+              ' · C ' +
+              (es.completed || 0) +
+              '</td>' +
+              '<td>P ' +
+              (qs.pending || 0) +
+              ' · Done ' +
+              (qs.completed || 0) +
+              '</td>' +
+              '<td>' +
+              (j.is_active
+                ? '<span class="admin-workflow-pill admin-workflow-pill-on">Active</span>'
+                : '<span class="admin-workflow-pill admin-workflow-pill-off">Off</span>') +
+              '</td>' +
+              '<td><a class="admin-btn-secondary" href="#marketing/journeys/edit/' +
+              esc(j.id) +
+              '">Edit</a></td>' +
+              '</tr>'
+            );
+          })
+          .join('') +
+        '</tbody></table></div></div>';
+    }).catch(function () {
+      var host = document.getElementById('adminJourneyHost');
+      if (host) host.innerHTML = '<p class="admin-error">Failed to load journeys.</p>';
+    });
   }
 
+  function renderJourneyBuilder(journeyId) {
+    var isNew = journeyId === 'new';
+    container.innerHTML =
+      '<div class="admin-page-header">' +
+      '<h2 class="admin-page-title">' +
+      (isNew ? 'New Journey' : 'Edit Journey') +
+      '</h2>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0"><a href="#marketing/journeys">← Back to Journeys</a></p>' +
+      '</div>' +
+      shellTabs('journeys') +
+      '<div id="adminJourneyBuilder"><div class="admin-loading">Loading…</div></div>';
+
+    var metaPromise = fetchJson('/api/admin/journeys');
+    var detailPromise = isNew
+      ? Promise.resolve({ ok: true, body: { journey: null } })
+      : fetchJson('/api/admin/journeys/' + encodeURIComponent(journeyId));
+
+    Promise.all([metaPromise, detailPromise]).then(function (results) {
+      var host = document.getElementById('adminJourneyBuilder');
+      if (!host) return;
+      if (!results[0].ok) {
+        host.innerHTML = '<p class="admin-error">Failed to load builder data.</p>';
+        return;
+      }
+      var meta = results[0].body || {};
+      var templates = meta.templates || [];
+      var actionTypes = meta.action_types || ['email'];
+      var delayUnits = meta.delay_units || ['minutes', 'hours', 'days', 'weeks'];
+      var triggerTypes = meta.trigger_types || ['signup', 'add_to_cart', 'purchase', 'manual'];
+      var journey = (results[1].body && results[1].body.journey) || null;
+      if (!isNew && !journey) {
+        host.innerHTML = '<p class="admin-error">Journey not found.</p>';
+        return;
+      }
+
+      var state = {
+        id: journey ? journey.id : null,
+        name: journey ? journey.name : '',
+        description: journey ? journey.description || '' : '',
+        trigger_type: journey ? journey.trigger_type : 'signup',
+        is_active: journey ? !!journey.is_active : true,
+        steps: (journey && journey.steps ? journey.steps : []).map(function (s, i) {
+          return {
+            step_order: s.step_order || i + 1,
+            step_name: s.step_name || '',
+            delay_value: s.delay_value || 0,
+            delay_unit: s.delay_unit || 'minutes',
+            action_type: s.action_type || 'email',
+            template_id: s.template_id || ''
+          };
+        })
+      };
+      if (!state.steps.length) {
+        state.steps.push({
+          step_order: 1,
+          step_name: 'Welcome',
+          delay_value: 5,
+          delay_unit: 'minutes',
+          action_type: 'email',
+          template_id: 'welcome_email'
+        });
+      }
+
+      function renumber() {
+        state.steps.forEach(function (s, i) {
+          s.step_order = i + 1;
+        });
+      }
+
+      function moveStep(index, dir) {
+        var next = index + dir;
+        if (next < 0 || next >= state.steps.length) return;
+        var tmp = state.steps[index];
+        state.steps[index] = state.steps[next];
+        state.steps[next] = tmp;
+        renumber();
+        paint();
+      }
+
+      function templateOptions(selected) {
+        return templates
+          .map(function (t) {
+            return (
+              '<option value="' +
+              esc(t.key) +
+              '"' +
+              (t.key === selected ? ' selected' : '') +
+              '>' +
+              esc(t.name) +
+              '</option>'
+            );
+          })
+          .join('');
+      }
+
+      function paint() {
+        host.innerHTML =
+          '<div class="admin-card admin-journey-builder">' +
+          '<div class="admin-form-row">' +
+          '<div class="admin-form-group"><label>Name</label>' +
+          '<input type="text" id="jbName" value="' +
+          esc(state.name) +
+          '" /></div>' +
+          '<div class="admin-form-group"><label>Trigger</label>' +
+          '<select id="jbTrigger">' +
+          triggerTypes
+            .map(function (t) {
+              return (
+                '<option value="' +
+                esc(t) +
+                '"' +
+                (t === state.trigger_type ? ' selected' : '') +
+                '>' +
+                esc(t) +
+                '</option>'
+              );
+            })
+            .join('') +
+          '</select></div>' +
+          '<div class="admin-form-group"><label>Active</label>' +
+          '<label class="admin-inline-check"><input type="checkbox" id="jbActive"' +
+          (state.is_active ? ' checked' : '') +
+          ' /> Active</label></div>' +
+          '</div>' +
+          '<div class="admin-form-group"><label>Description</label>' +
+          '<textarea id="jbDesc" rows="2">' +
+          esc(state.description) +
+          '</textarea></div>' +
+          '<h3 class="admin-journey-steps-title">Steps</h3>' +
+          '<div id="jbSteps" class="admin-journey-steps-list">' +
+          state.steps
+            .map(function (s, index) {
+              return (
+                '<div class="admin-journey-step-row" data-index="' +
+                index +
+                '" draggable="true">' +
+                '<div class="admin-journey-step-handle" title="Drag to reorder">⠿</div>' +
+                '<div class="admin-form-group"><label>Order</label><input type="number" class="jb-order" value="' +
+                esc(s.step_order) +
+                '" min="1" readonly /></div>' +
+                '<div class="admin-form-group"><label>Step name</label><input type="text" class="jb-name" value="' +
+                esc(s.step_name) +
+                '" /></div>' +
+                '<div class="admin-form-group"><label>Delay</label><input type="number" class="jb-delay" value="' +
+                esc(s.delay_value) +
+                '" min="0" /></div>' +
+                '<div class="admin-form-group"><label>Unit</label><select class="jb-unit">' +
+                delayUnits
+                  .map(function (u) {
+                    return (
+                      '<option value="' +
+                      esc(u) +
+                      '"' +
+                      (u === s.delay_unit ? ' selected' : '') +
+                      '>' +
+                      esc(u) +
+                      '</option>'
+                    );
+                  })
+                  .join('') +
+                '</select></div>' +
+                '<div class="admin-form-group"><label>Action</label><select class="jb-action">' +
+                actionTypes
+                  .map(function (a) {
+                    return (
+                      '<option value="' +
+                      esc(a) +
+                      '"' +
+                      (a === s.action_type ? ' selected' : '') +
+                      '>' +
+                      esc(a) +
+                      '</option>'
+                    );
+                  })
+                  .join('') +
+                '</select></div>' +
+                '<div class="admin-form-group"><label>Template</label><select class="jb-template">' +
+                '<option value="">—</option>' +
+                templateOptions(s.template_id) +
+                '</select></div>' +
+                '<div class="admin-journey-step-actions">' +
+                '<button type="button" class="admin-btn-secondary jb-up" title="Move up">↑</button>' +
+                '<button type="button" class="admin-btn-secondary jb-down" title="Move down">↓</button>' +
+                '<button type="button" class="admin-btn-danger jb-remove" title="Remove">✕</button>' +
+                '</div></div>'
+              );
+            })
+            .join('') +
+          '</div>' +
+          '<div class="admin-journey-builder-actions">' +
+          '<button type="button" class="admin-btn-secondary" id="jbAddStep">Add Step</button>' +
+          '<button type="button" class="admin-btn-primary" id="jbSave">Save Journey</button>' +
+          '</div>' +
+          '<p id="jbStatus" class="admin-email-status" role="status"></p>' +
+          '</div>';
+
+        function readFormIntoState() {
+          state.name = document.getElementById('jbName').value.trim();
+          state.description = document.getElementById('jbDesc').value.trim();
+          state.trigger_type = document.getElementById('jbTrigger').value;
+          state.is_active = document.getElementById('jbActive').checked;
+          host.querySelectorAll('.admin-journey-step-row').forEach(function (row) {
+            var i = Number(row.getAttribute('data-index'));
+            if (!state.steps[i]) return;
+            state.steps[i].step_name = row.querySelector('.jb-name').value.trim();
+            state.steps[i].delay_value = Number(row.querySelector('.jb-delay').value) || 0;
+            state.steps[i].delay_unit = row.querySelector('.jb-unit').value;
+            state.steps[i].action_type = row.querySelector('.jb-action').value;
+            state.steps[i].template_id = row.querySelector('.jb-template').value || null;
+          });
+        }
+
+        document.getElementById('jbAddStep').addEventListener('click', function () {
+          readFormIntoState();
+          state.steps.push({
+            step_order: state.steps.length + 1,
+            step_name: 'Step ' + (state.steps.length + 1),
+            delay_value: 1,
+            delay_unit: 'days',
+            action_type: 'email',
+            template_id: ''
+          });
+          paint();
+        });
+
+        host.querySelectorAll('.jb-up').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            readFormIntoState();
+            moveStep(Number(btn.closest('.admin-journey-step-row').getAttribute('data-index')), -1);
+          });
+        });
+        host.querySelectorAll('.jb-down').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            readFormIntoState();
+            moveStep(Number(btn.closest('.admin-journey-step-row').getAttribute('data-index')), 1);
+          });
+        });
+        host.querySelectorAll('.jb-remove').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            readFormIntoState();
+            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
+            if (state.steps.length <= 1) return;
+            state.steps.splice(i, 1);
+            renumber();
+            paint();
+          });
+        });
+
+        var dragIndex = null;
+        host.querySelectorAll('.admin-journey-step-row').forEach(function (row) {
+          row.addEventListener('dragstart', function () {
+            dragIndex = Number(row.getAttribute('data-index'));
+            row.classList.add('is-dragging');
+          });
+          row.addEventListener('dragend', function () {
+            row.classList.remove('is-dragging');
+            dragIndex = null;
+          });
+          row.addEventListener('dragover', function (e) {
+            e.preventDefault();
+          });
+          row.addEventListener('drop', function (e) {
+            e.preventDefault();
+            var dropIndex = Number(row.getAttribute('data-index'));
+            if (dragIndex == null || dropIndex === dragIndex) return;
+            readFormIntoState();
+            var moved = state.steps.splice(dragIndex, 1)[0];
+            state.steps.splice(dropIndex, 0, moved);
+            renumber();
+            paint();
+          });
+        });
+
+        document.getElementById('jbSave').addEventListener('click', function () {
+          readFormIntoState();
+          renumber();
+          var statusEl = document.getElementById('jbStatus');
+          var btn = document.getElementById('jbSave');
+          if (!state.name) {
+            statusEl.textContent = 'Name is required.';
+            statusEl.className = 'admin-email-status admin-email-status-err';
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = 'Saving…';
+          var payload = {
+            name: state.name,
+            description: state.description,
+            trigger_type: state.trigger_type,
+            is_active: state.is_active,
+            steps: state.steps
+          };
+          var req = state.id
+            ? fetchJson('/api/admin/journeys/' + encodeURIComponent(state.id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              })
+            : fetchJson('/api/admin/journeys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+          req
+            .then(function (result) {
+              if (!result.ok) {
+                statusEl.textContent = (result.body && result.body.error) || 'Save failed';
+                statusEl.className = 'admin-email-status admin-email-status-err';
+                return;
+              }
+              statusEl.textContent = 'Saved.';
+              statusEl.className = 'admin-email-status admin-email-status-ok';
+              var saved = result.body && result.body.journey;
+              if (saved && saved.id && !state.id) {
+                window.location.hash = '#marketing/journeys/edit/' + saved.id;
+                return;
+              }
+              window.location.hash = '#marketing/journeys';
+            })
+            .catch(function () {
+              statusEl.textContent = 'Save failed';
+              statusEl.className = 'admin-email-status admin-email-status-err';
+            })
+            .finally(function () {
+              btn.disabled = false;
+              btn.textContent = 'Save Journey';
+            });
+        });
+      }
+
+      paint();
+    });
+  }
+
+  /* ---------- Leads on journeys ---------- */
+  function renderLeadsSection() {
+    container.innerHTML =
+      '<div class="admin-page-header">' +
+      '<h2 class="admin-page-title">Journey Leads</h2>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0">Leads enrolled in journeys with progress and remaining time.</p>' +
+      '</div>' +
+      shellTabs('leads') +
+      '<div class="admin-card admin-journey-toolbar">' +
+      '<label>Status <select id="jlStatus"><option value="">All</option>' +
+      '<option value="waiting">Waiting</option><option value="ready">Ready</option>' +
+      '<option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>' +
+      '<button type="button" class="admin-btn-secondary" id="jlRefresh">Refresh</button>' +
+      '</div>' +
+      '<div id="adminJourneyLeadsHost"><div class="admin-loading">Loading…</div></div>';
+
+    function load() {
+      var status = document.getElementById('jlStatus').value;
+      var url = '/api/admin/journey-leads';
+      if (status) url += '?status=' + encodeURIComponent(status);
+      fetchJson(url).then(function (result) {
+        var host = document.getElementById('adminJourneyLeadsHost');
+        if (!host) return;
+        if (!result.ok) {
+          host.innerHTML =
+            '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
+          return;
+        }
+        var rows = (result.body && result.body.lead_journeys) || [];
+        host.innerHTML =
+          '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
+          '<thead><tr><th>Lead</th><th>Journey</th><th>Step</th><th>Progress</th><th>Ready at</th><th>Remaining</th><th>Status</th><th></th></tr></thead><tbody>' +
+          (rows
+            .map(function (r) {
+              return (
+                '<tr data-lj="' +
+                esc(r.id) +
+                '">' +
+                '<td>' +
+                esc(r.lead_email || r.lead_id) +
+                '</td>' +
+                '<td>' +
+                esc(r.journey_name || '—') +
+                '</td>' +
+                '<td>' +
+                esc(r.current_step) +
+                '. ' +
+                esc(r.current_step_name || '') +
+                '<div class="admin-muted">' +
+                esc(r.current_action_type || '') +
+                (r.current_template_id ? ' · ' + esc(r.current_template_id) : '') +
+                '</div></td>' +
+                '<td>' +
+                esc(r.progress) +
+                '%</td>' +
+                '<td>' +
+                esc(when(r.next_ready_at)) +
+                '</td>' +
+                '<td>' +
+                esc(r.remaining_label) +
+                '</td>' +
+                '<td>' +
+                statusPill(r.status) +
+                '</td>' +
+                '<td>' +
+                (r.status === 'waiting' || r.status === 'ready'
+                  ? '<button type="button" class="admin-btn-secondary jl-cancel">Cancel</button>'
+                  : '') +
+                '</td></tr>'
+              );
+            })
+            .join('') ||
+            '<tr><td colspan="8" class="admin-cell-empty">No journey enrollments.</td></tr>') +
+          '</tbody></table></div></div>';
+
+        host.querySelectorAll('.jl-cancel').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.closest('[data-lj]').getAttribute('data-lj');
+            if (!window.confirm('Cancel this lead journey?')) return;
+            btn.disabled = true;
+            fetchJson('/api/admin/journey-leads/' + encodeURIComponent(id) + '/cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: '{}'
+            }).then(function () {
+              load();
+            });
+          });
+        });
+      });
+    }
+
+    document.getElementById('jlRefresh').addEventListener('click', load);
+    document.getElementById('jlStatus').addEventListener('change', load);
+    load();
+  }
+
+  /* ---------- Templates ---------- */
+  function renderTemplatesSection() {
+    container.innerHTML =
+      '<div class="admin-page-header">' +
+      '<h2 class="admin-page-title">Templates</h2>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0">Reusable templates referenced by journey steps (Phase 1: email).</p>' +
+      '</div>' +
+      shellTabs('templates') +
+      '<div id="adminTemplatesHost"><div class="admin-loading">Loading…</div></div>';
+
+    fetchJson('/api/admin/journey-templates').then(function (result) {
+      var host = document.getElementById('adminTemplatesHost');
+      if (!host) return;
+      if (!result.ok) {
+        host.innerHTML = '<p class="admin-error">Failed to load templates.</p>';
+        return;
+      }
+      var templates = (result.body && result.body.templates) || [];
+      host.innerHTML =
+        '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
+        '<thead><tr><th>Key</th><th>Name</th><th>Description</th><th>Journeys</th></tr></thead><tbody>' +
+        templates
+          .map(function (t) {
+            return (
+              '<tr><td><code>' +
+              esc(t.key) +
+              '</code></td><td>' +
+              esc(t.name) +
+              '</td><td>' +
+              esc(t.description || '') +
+              '</td><td>' +
+              esc((t.journeys || []).join(', ') || '—') +
+              '</td></tr>'
+            );
+          })
+          .join('') +
+        '</tbody></table></div></div>';
+    });
+  }
+
+  /* ---------- Queue ---------- */
+  function renderQueueSection() {
+    container.innerHTML =
+      '<div class="admin-page-header">' +
+      '<h2 class="admin-page-title">Journey Queue</h2>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0">Promote ready steps into the queue, then manually execute pending actions.</p>' +
+      '</div>' +
+      shellTabs('queue') +
+      '<div class="admin-card admin-journey-toolbar">' +
+      '<button type="button" class="admin-btn-secondary" id="jqPromote">Promote Ready Steps</button>' +
+      '<button type="button" class="admin-btn-primary" id="jqExecute">Execute Pending Actions</button>' +
+      '<select id="jqStatus"><option value="pending">Pending</option><option value="">All</option>' +
+      '<option value="executing">Executing</option><option value="completed">Completed</option>' +
+      '<option value="failed">Failed</option><option value="cancelled">Cancelled</option></select>' +
+      '<button type="button" class="admin-btn-secondary" id="jqRefresh">Refresh</button>' +
+      '</div>' +
+      '<p id="jqStatusMsg" class="admin-email-status" role="status"></p>' +
+      '<div id="adminQueueHost"><div class="admin-loading">Loading…</div></div>';
+
+    var statusMsg = document.getElementById('jqStatusMsg');
+
+    function setMsg(text, ok) {
+      statusMsg.textContent = text || '';
+      statusMsg.className =
+        'admin-email-status ' + (ok ? 'admin-email-status-ok' : text ? 'admin-email-status-err' : '');
+    }
+
+    function load() {
+      var status = document.getElementById('jqStatus').value;
+      var url = '/api/admin/journey-queue';
+      if (status) url += '?status=' + encodeURIComponent(status);
+      fetchJson(url).then(function (result) {
+        var host = document.getElementById('adminQueueHost');
+        if (!host) return;
+        if (!result.ok) {
+          host.innerHTML =
+            '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
+          return;
+        }
+        var rows = (result.body && result.body.queue) || [];
+        host.innerHTML =
+          '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
+          '<thead><tr><th>Lead</th><th>Journey</th><th>Step</th><th>Action</th><th>Template</th><th>Scheduled</th><th>Status</th><th></th></tr></thead><tbody>' +
+          (rows
+            .map(function (r) {
+              return (
+                '<tr data-action="' +
+                esc(r.id) +
+                '">' +
+                '<td>' +
+                esc(r.lead_email || r.recipient || '—') +
+                '</td>' +
+                '<td>' +
+                esc(r.journey_name || '—') +
+                '</td>' +
+                '<td>' +
+                esc(r.step_order ? r.step_order + '. ' : '') +
+                esc(r.step_name || '—') +
+                '</td>' +
+                '<td>' +
+                esc(r.action_type) +
+                '</td>' +
+                '<td>' +
+                esc(r.template_id || '—') +
+                '</td>' +
+                '<td>' +
+                esc(when(r.scheduled_at)) +
+                '</td>' +
+                '<td>' +
+                statusPill(r.status) +
+                (r.error_message
+                  ? '<div class="admin-muted">' + esc(r.error_message) + '</div>'
+                  : '') +
+                '</td>' +
+                '<td>' +
+                (r.status === 'pending'
+                  ? '<button type="button" class="admin-btn-secondary jq-one">Execute</button>'
+                  : '') +
+                '</td></tr>'
+              );
+            })
+            .join('') ||
+            '<tr><td colspan="8" class="admin-cell-empty">Queue is empty. Promote ready steps first.</td></tr>') +
+          '</tbody></table></div></div>';
+
+        host.querySelectorAll('.jq-one').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.closest('[data-action]').getAttribute('data-action');
+            btn.disabled = true;
+            fetchJson('/api/admin/journey-queue/execute', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action_id: id })
+            }).then(function (result) {
+              if (result.ok) {
+                setMsg(
+                  'Executed. Completed ' +
+                    result.body.completed +
+                    ', failed ' +
+                    result.body.failed,
+                  true
+                );
+              } else {
+                setMsg((result.body && result.body.error) || 'Execute failed', false);
+              }
+              load();
+            });
+          });
+        });
+      });
+    }
+
+    document.getElementById('jqPromote').addEventListener('click', function () {
+      var btn = document.getElementById('jqPromote');
+      btn.disabled = true;
+      btn.textContent = 'Scanning…';
+      fetchJson('/api/admin/journey-queue/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 50 })
+      })
+        .then(function (result) {
+          if (!result.ok) {
+            setMsg((result.body && result.body.error) || 'Promote failed', false);
+            return;
+          }
+          setMsg(
+            'Promoted ' +
+              result.body.promoted +
+              ' of ' +
+              result.body.scanned +
+              ' due steps into the queue.',
+            true
+          );
+          document.getElementById('jqStatus').value = 'pending';
+          load();
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = 'Promote Ready Steps';
+        });
+    });
+
+    document.getElementById('jqExecute').addEventListener('click', function () {
+      if (!window.confirm('Execute all pending actions now? Emails will be sent via Resend.')) return;
+      var btn = document.getElementById('jqExecute');
+      btn.disabled = true;
+      btn.textContent = 'Executing…';
+      fetchJson('/api/admin/journey-queue/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 25 })
+      })
+        .then(function (result) {
+          if (!result.ok) {
+            setMsg((result.body && result.body.error) || 'Execute failed', false);
+            return;
+          }
+          setMsg(
+            'Processed ' +
+              result.body.processed +
+              ' — completed ' +
+              result.body.completed +
+              ', failed ' +
+              result.body.failed,
+            true
+          );
+          load();
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = 'Execute Pending Actions';
+        });
+    });
+
+    document.getElementById('jqRefresh').addEventListener('click', load);
+    document.getElementById('jqStatus').addEventListener('change', load);
+    load();
+  }
+
+  /* ---------- Campaigns (unchanged concept — one-shot broadcasts) ---------- */
   function renderCampaignsSection() {
     var state = {
       step: 1,
@@ -154,251 +850,151 @@ window.renderAdminmarketing = function (container) {
     };
 
     function audienceLabel(key) {
-      var found = state.audiences.find(function (a) {
-        return a.key === key;
-      });
-      return found ? found.label : key;
+      for (var i = 0; i < state.audiences.length; i++) {
+        if (state.audiences[i].key === key) return state.audiences[i].label;
+      }
+      return key;
     }
 
     function audienceCount(key) {
-      var found = state.audiences.find(function (a) {
-        return a.key === key;
-      });
-      return found ? found.count : 0;
-    }
-
-    function stepsHtml() {
-      var steps = [
-        { n: 1, label: 'Audience' },
-        { n: 2, label: 'Template' },
-        { n: 3, label: 'Preview' },
-        { n: 4, label: 'Send' }
-      ];
-      return (
-        '<ol class="admin-campaign-steps">' +
-        steps
-          .map(function (s) {
-            return (
-              '<li class="admin-campaign-step' +
-              (state.step === s.n ? ' is-active' : '') +
-              (state.step > s.n ? ' is-done' : '') +
-              '"><span>' +
-              s.n +
-              '</span>' +
-              esc(s.label) +
-              '</li>'
-            );
-          })
-          .join('') +
-        '</ol>'
-      );
+      for (var i = 0; i < state.audiences.length; i++) {
+        if (state.audiences[i].key === key) return state.audiences[i].count;
+      }
+      return 0;
     }
 
     function renderHost() {
       var host = document.getElementById('adminCampaignHost');
       if (!host) return;
+      var stepsHtml =
+        '<ol class="admin-campaign-steps">' +
+        [1, 2, 3, 4]
+          .map(function (n) {
+            return (
+              '<li class="' +
+              (state.step === n ? 'is-active' : state.step > n ? 'is-done' : '') +
+              '">Step ' +
+              n +
+              '</li>'
+            );
+          })
+          .join('') +
+        '</ol>';
 
       var body = '';
       if (state.step === 1) {
         body =
-          '<p class="admin-muted">Select a Lead Status audience. Recipient counts are computed from the latest journey status.</p>' +
-          '<div class="admin-campaign-audiences">' +
+          '<div class="admin-form-group"><label>Audience (Lead Status)</label><select id="campaignAudience">' +
+          '<option value="">Select…</option>' +
           state.audiences
             .map(function (a) {
               return (
-                '<button type="button" class="admin-campaign-audience' +
-                (state.audience === a.key ? ' is-selected' : '') +
-                '" data-audience="' +
+                '<option value="' +
                 esc(a.key) +
-                '">' +
-                '<strong>' +
+                '"' +
+                (a.key === state.audience ? ' selected' : '') +
+                '>' +
                 esc(a.label) +
-                '</strong>' +
-                '<span>(' +
+                ' (' +
                 esc(a.count) +
-                ')</span>' +
-                '</button>'
+                ')</option>'
               );
             })
             .join('') +
-          '</div>' +
-          '<div class="admin-campaign-actions">' +
-          '<button type="button" class="admin-btn-primary" id="campaignNext" ' +
-          (state.audience ? '' : 'disabled') +
-          '>Continue</button>' +
-          '</div>';
+          '</select></div>';
       } else if (state.step === 2) {
         body =
-          '<p class="admin-muted">Audience: <strong>' +
-          esc(audienceLabel(state.audience)) +
-          ' (' +
-          esc(audienceCount(state.audience)) +
-          ')</strong></p>' +
-          '<div class="admin-campaign-templates">' +
+          '<div class="admin-form-group"><label>Template</label><select id="campaignTemplate">' +
+          '<option value="">Select…</option>' +
           state.templates
             .map(function (t) {
               return (
-                '<button type="button" class="admin-campaign-template' +
-                (state.template_key === t.key ? ' is-selected' : '') +
-                '" data-template="' +
+                '<option value="' +
                 esc(t.key) +
-                '">' +
-                '<strong>' +
+                '"' +
+                (t.key === state.template_key ? ' selected' : '') +
+                '>' +
                 esc(t.name) +
-                '</strong>' +
-                '<span>' +
-                esc(t.description || '') +
-                '</span>' +
-                '</button>'
+                '</option>'
               );
             })
             .join('') +
-          '</div>' +
-          '<div class="admin-campaign-actions">' +
-          '<button type="button" class="admin-btn-secondary" id="campaignBack">Back</button>' +
-          '<button type="button" class="admin-btn-primary" id="campaignNext" ' +
-          (state.template_key ? '' : 'disabled') +
-          '>Continue to Preview</button>' +
-          '</div>';
+          '</select></div>';
       } else if (state.step === 3) {
-        var preview = state.preview || {};
         body =
-          '<div class="admin-campaign-summary">' +
-          '<div><span class="admin-muted">Audience</span><strong>' +
-          esc(preview.audience_label || audienceLabel(state.audience)) +
-          ' (' +
-          esc(preview.recipient_count != null ? preview.recipient_count : audienceCount(state.audience)) +
-          ')</strong></div>' +
-          '<div><span class="admin-muted">Template</span><strong>' +
-          esc((preview.template && preview.template.name) || state.template_key) +
-          '</strong></div>' +
-          '<div><span class="admin-muted">Sample recipient</span><strong>' +
-          esc((preview.preview && preview.preview.sample_email) || '—') +
-          '</strong></div>' +
-          '</div>' +
-          '<div class="admin-card admin-campaign-preview-card">' +
-          '<div class="admin-muted" style="margin-bottom:0.5rem">Subject</div>' +
-          '<div class="admin-campaign-preview-subject">' +
-          esc((preview.preview && preview.preview.subject) || '—') +
-          '</div>' +
-          '<div class="admin-muted" style="margin:1rem 0 0.5rem">HTML preview</div>' +
-          '<iframe class="admin-campaign-preview-frame" title="Email preview" sandbox="" srcdoc="' +
-          esc((preview.preview && preview.preview.html) || '<p>No preview</p>') +
-          '"></iframe>' +
-          '</div>' +
-          '<div class="admin-campaign-actions">' +
-          '<button type="button" class="admin-btn-secondary" id="campaignBack">Back</button>' +
-          '<button type="button" class="admin-btn-primary" id="campaignNext">Continue to Send</button>' +
-          '</div>';
-      } else {
-        var result = state.sendResult;
-        body =
-          '<div class="admin-campaign-summary">' +
-          '<div><span class="admin-muted">Audience</span><strong>' +
+          '<p class="admin-muted">Audience: <strong>' +
           esc(audienceLabel(state.audience)) +
-          ' (' +
-          esc(audienceCount(state.audience)) +
-          ')</strong></div>' +
-          '<div><span class="admin-muted">Template</span><strong>' +
+          '</strong> · Template: <strong>' +
           esc(state.template_key) +
-          '</strong></div>' +
-          '</div>' +
-          '<p class="admin-muted">Status is re-checked for every lead immediately before send. Leads that no longer match this audience are skipped.</p>' +
-          (result
-            ? '<div class="admin-card"><p class="admin-email-status admin-email-status-ok">Sent ' +
-              esc(result.sent) +
-              ' · Skipped ' +
-              esc(result.skipped) +
-              ' · Failed ' +
-              esc(result.failed) +
-              '</p></div>'
-            : '') +
-          '<div class="admin-campaign-actions">' +
-          '<button type="button" class="admin-btn-secondary" id="campaignBack">Back</button>' +
-          '<button type="button" class="admin-btn-primary" id="campaignSendNow">' +
-          (result ? 'Send Again' : 'Send Now') +
-          '</button>' +
-          '</div>' +
-          '<p id="adminCampaignStatus" class="admin-email-status" role="status" aria-live="polite"></p>';
+          '</strong></p>' +
+          (state.preview
+            ? '<div class="admin-campaign-preview"><strong>' +
+              esc(state.preview.subject) +
+              '</strong><iframe class="admin-campaign-iframe" srcdoc="' +
+              esc(state.preview.html) +
+              '"></iframe></div>'
+            : '<p class="admin-muted">Click Next to load preview.</p>');
+      } else {
+        body =
+          '<p>Ready to send <strong>' +
+          esc(state.template_key) +
+          '</strong> to <strong>' +
+          esc(audienceLabel(state.audience)) +
+          '</strong> (' +
+          audienceCount(state.audience) +
+          ' leads).</p>' +
+          '<p class="admin-muted">Campaigns are one-time broadcasts — separate from multi-step Journeys.</p>' +
+          '<button type="button" class="admin-btn-primary" id="campaignSendNow">Send Now</button>';
       }
 
-      host.innerHTML = stepsHtml() + '<div class="admin-card admin-campaign-card">' + body + '</div>';
-      bindHost();
-    }
-
-    function bindHost() {
-      var host = document.getElementById('adminCampaignHost');
-      if (!host) return;
-
-      host.querySelectorAll('[data-audience]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          state.audience = btn.getAttribute('data-audience') || '';
-          state.preview = null;
-          state.sendResult = null;
-          renderHost();
-        });
-      });
-
-      host.querySelectorAll('[data-template]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          state.template_key = btn.getAttribute('data-template') || '';
-          state.preview = null;
-          state.sendResult = null;
-          renderHost();
-        });
-      });
+      host.innerHTML =
+        '<div class="admin-card">' +
+        stepsHtml +
+        body +
+        '<div class="admin-journey-builder-actions" style="margin-top:16px">' +
+        (state.step > 1
+          ? '<button type="button" class="admin-btn-secondary" id="campaignBack">Back</button>'
+          : '') +
+        (state.step < 4
+          ? '<button type="button" class="admin-btn-primary" id="campaignNext">Next</button>'
+          : '') +
+        '</div><p id="adminCampaignStatus" class="admin-email-status"></p></div>';
 
       var back = document.getElementById('campaignBack');
       if (back) {
         back.addEventListener('click', function () {
-          state.step = Math.max(1, state.step - 1);
+          state.step -= 1;
           renderHost();
         });
       }
-
       var next = document.getElementById('campaignNext');
       if (next) {
         next.addEventListener('click', function () {
-          if (state.step === 1 && state.audience) {
+          if (state.step === 1) {
+            state.audience = document.getElementById('campaignAudience').value;
+            if (!state.audience) return alert('Select an audience');
             state.step = 2;
             renderHost();
             return;
           }
-          if (state.step === 2 && state.template_key) {
+          if (state.step === 2) {
+            state.template_key = document.getElementById('campaignTemplate').value;
+            if (!state.template_key) return alert('Select a template');
             next.disabled = true;
-            next.textContent = 'Loading preview…';
-            fetch('/api/admin/campaigns/preview', {
+            fetchJson('/api/admin/campaigns/preview', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ audience: state.audience, template_key: state.template_key })
-            })
-              .then(function (res) {
-                return res.json().then(function (body) {
-                  return { ok: res.ok, body: body };
-                });
-              })
-              .then(function (result) {
-                if (!result.ok || !result.body || !result.body.success) {
-                  alert((result.body && result.body.error) || 'Failed to preview campaign');
-                  renderHost();
-                  return;
-                }
-                state.preview = result.body;
-                if (result.body.recipient_count != null) {
-                  state.audiences = state.audiences.map(function (a) {
-                    if (a.key === state.audience) {
-                      return Object.assign({}, a, { count: result.body.recipient_count });
-                    }
-                    return a;
-                  });
-                }
-                state.step = 3;
-                renderHost();
-              })
-              .catch(function () {
-                alert('Failed to preview campaign');
-                renderHost();
-              });
+            }).then(function (result) {
+              next.disabled = false;
+              if (!result.ok || !result.body || !result.body.success) {
+                alert((result.body && result.body.error) || 'Preview failed');
+                return;
+              }
+              state.preview = result.body;
+              state.step = 3;
+              renderHost();
+            });
             return;
           }
           if (state.step === 3) {
@@ -407,75 +1003,46 @@ window.renderAdminmarketing = function (container) {
           }
         });
       }
-
       var sendBtn = document.getElementById('campaignSendNow');
       if (sendBtn) {
         sendBtn.addEventListener('click', function () {
-          var statusEl = document.getElementById('adminCampaignStatus');
-          var count = audienceCount(state.audience);
           if (
             !window.confirm(
-              'Send "' +
-                state.template_key +
-                '" to ' +
-                audienceLabel(state.audience) +
-                ' (' +
-                count +
-                ' leads)? Status will be re-checked before each send.'
+              'Send "' + state.template_key + '" to ' + audienceLabel(state.audience) + '?'
             )
           ) {
             return;
           }
           sendBtn.disabled = true;
           sendBtn.textContent = 'Sending…';
-          if (statusEl) {
-            statusEl.textContent = '';
-            statusEl.className = 'admin-email-status';
-          }
-          fetch('/api/admin/campaigns/send', {
+          fetchJson('/api/admin/campaigns/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ audience: state.audience, template_key: state.template_key })
-          })
-            .then(function (res) {
-              return res.json().then(function (body) {
-                return { ok: res.ok, body: body };
-              });
-            })
-            .then(function (result) {
-              if (!result.ok || !result.body || !result.body.success) {
-                if (statusEl) {
-                  statusEl.textContent =
-                    '❌ ' + ((result.body && result.body.error) || 'Campaign send failed');
-                  statusEl.className = 'admin-email-status admin-email-status-err';
-                }
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send Now';
-                return;
-              }
-              state.sendResult = result.body;
-              renderHost();
-              var after = document.getElementById('adminCampaignStatus');
-              if (after) {
-                after.textContent =
-                  '✅ Sent ' +
-                  result.body.sent +
-                  ' emails (' +
-                  result.body.skipped +
-                  ' skipped, ' +
-                  result.body.failed +
-                  ' failed)';
-                after.className = 'admin-email-status admin-email-status-ok';
-              }
-            })
-            .catch(function () {
+          }).then(function (result) {
+            var statusEl = document.getElementById('adminCampaignStatus');
+            if (!result.ok || !result.body || !result.body.success) {
               if (statusEl) {
-                statusEl.textContent = '❌ Campaign send failed';
+                statusEl.textContent = (result.body && result.body.error) || 'Send failed';
                 statusEl.className = 'admin-email-status admin-email-status-err';
               }
               sendBtn.disabled = false;
               sendBtn.textContent = 'Send Now';
-            });
+              return;
+            }
+            if (statusEl) {
+              statusEl.textContent =
+                'Sent ' +
+                result.body.sent +
+                ' (' +
+                result.body.skipped +
+                ' skipped, ' +
+                result.body.failed +
+                ' failed)';
+              statusEl.className = 'admin-email-status admin-email-status-ok';
+            }
+            sendBtn.textContent = 'Sent';
+          });
         });
       }
     }
@@ -483,241 +1050,136 @@ window.renderAdminmarketing = function (container) {
     container.innerHTML =
       '<div class="admin-page-header">' +
       '<h2 class="admin-page-title">Campaigns</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Send a template to a Lead Status audience.</p>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0">One-time manual broadcasts. Separate from Journeys.</p>' +
       '</div>' +
       shellTabs('campaigns') +
-      '<div id="adminCampaignHost"><div class="admin-loading">Loading audiences…</div></div>';
+      '<div id="adminCampaignHost"><div class="admin-loading">Loading…</div></div>';
 
     var bootstrapUrl = '/api/admin/campaigns';
     if (prefillAudience) bootstrapUrl += '?audience=' + encodeURIComponent(prefillAudience);
-
-    fetch(bootstrapUrl)
-      .then(function (res) {
-        return res.json().then(function (body) {
-          return { ok: res.ok, body: body };
-        });
-      })
-      .then(function (result) {
-        var host = document.getElementById('adminCampaignHost');
-        if (!host) return;
-        if (!result.ok) {
-          host.innerHTML =
-            '<p class="admin-error">' +
-            esc((result.body && result.body.error) || 'Failed to load campaigns') +
-            '</p>';
-          return;
-        }
-        state.audiences = (result.body && result.body.audiences) || [];
-        state.templates = (result.body && result.body.templates) || [];
-        if (result.body && result.body.preferred_audience) {
-          state.audience = result.body.preferred_audience;
-        }
-        renderHost();
-      })
-      .catch(function () {
-        var host = document.getElementById('adminCampaignHost');
-        if (host) host.innerHTML = '<p class="admin-error">Failed to load campaigns.</p>';
-      });
+    fetchJson(bootstrapUrl).then(function (result) {
+      var host = document.getElementById('adminCampaignHost');
+      if (!host) return;
+      if (!result.ok) {
+        host.innerHTML =
+          '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
+        return;
+      }
+      state.audiences = result.body.audiences || [];
+      state.templates = result.body.templates || [];
+      if (result.body.preferred_audience) state.audience = result.body.preferred_audience;
+      renderHost();
+    });
   }
 
-  function renderWorkflowsSection() {
+  /* ---------- History ---------- */
+  function renderHistorySection() {
     container.innerHTML =
       '<div class="admin-page-header">' +
-      '<h2 class="admin-page-title">Workflows</h2>' +
-      '<p class="admin-muted" style="margin:0.35rem 0 0">Persistent workflow automation with durable execution history.</p>' +
+      '<h2 class="admin-page-title">History</h2>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0">Executed and failed actions from the Journey Queue.</p>' +
       '</div>' +
-      shellTabs('workflows') +
-      '<div id="adminWorkflowHost"><div class="admin-loading">Loading workflows…</div></div>';
+      shellTabs('history') +
+      '<div id="adminHistoryHost"><div class="admin-loading">Loading…</div></div>';
 
-    fetch('/api/admin/workflows')
-      .then(function (res) {
-        return res.json().then(function (body) {
-          return { ok: res.ok, body: body };
-        });
-      })
-      .then(function (result) {
-        var host = document.getElementById('adminWorkflowHost');
-        if (!host) return;
-        if (!result.ok) {
-          host.innerHTML =
-            '<p class="admin-error">' +
-            esc((result.body && result.body.error) || 'Failed to load workflows') +
-            '</p>';
-          return;
-        }
-
-        var workflows = (result.body && result.body.workflows) || [];
-        var executions = (result.body && result.body.executions) || [];
-
-        var workflowRows =
-          workflows
-            .map(function (wf) {
-              return (
-                '<tr data-workflow-key="' +
-                esc(wf.workflow_key) +
-                '">' +
-                '<td><strong>' +
-                esc(wf.name) +
-                '</strong></td>' +
-                '<td>' +
-                esc(wf.trigger_type) +
-                '</td>' +
-                '<td>' +
-                esc(String(wf.delay_minutes || 0) + ' minutes') +
-                '</td>' +
-                '<td>' +
-                esc((wf.condition_config && wf.condition_config.status) || wf.condition_type) +
-                '</td>' +
-                '<td>' +
-                esc((wf.action_config && wf.action_config.template_key) || wf.action_type) +
-                '</td>' +
-                '<td>' +
-                esc(
-                  'Pending ' +
-                    ((wf.stats && wf.stats.pending) || 0) +
-                    ' · Running ' +
-                    ((wf.stats && wf.stats.running) || 0) +
-                    ' · Completed ' +
-                    ((wf.stats && wf.stats.completed) || 0)
-                ) +
-                '</td>' +
-                '<td>' +
-                (wf.enabled
-                  ? '<span class="admin-workflow-pill admin-workflow-pill-on">Enabled</span>'
-                  : '<span class="admin-workflow-pill admin-workflow-pill-off">Disabled</span>') +
-                '</td>' +
-                '<td><button type="button" class="admin-btn-secondary admin-workflow-toggle" data-enabled="' +
-                (wf.enabled ? '1' : '0') +
-                '">' +
-                (wf.enabled ? 'Disable' : 'Enable') +
-                '</button></td>' +
-                '</tr>'
-              );
-            })
-            .join('') ||
-          '<tr><td colspan="8" class="admin-cell-empty">No workflows configured.</td></tr>';
-
-        var executionRows =
-          executions
-            .map(function (execution) {
-              var logs = execution.logs || [];
-              var history =
-                logs
-                  .map(function (log) {
-                    return (
-                      '<div class="admin-workflow-log-entry">' +
-                      '<span class="admin-workflow-log-time">' +
-                      esc(when(log.created_at)) +
-                      '</span>' +
-                      '<span class="admin-workflow-log-message">' +
-                      esc(log.message) +
-                      '</span>' +
-                      '</div>'
-                    );
-                  })
-                  .join('') || '<div class="admin-cell-empty">No log history</div>';
-              return (
-                '<div class="admin-card admin-workflow-history-card">' +
-                '<div class="admin-workflow-history-head">' +
-                '<div><strong>' +
-                esc((execution.workflow_definitions && execution.workflow_definitions.name) || 'Workflow') +
-                '</strong><div class="admin-muted">Lead: ' +
-                esc(execution.lead_email || '—') +
-                '</div></div>' +
-                '<div class="admin-workflow-pill admin-workflow-pill-status">' +
-                esc(execution.status) +
-                '</div>' +
-                '</div>' +
-                '<dl class="admin-dl admin-workflow-dl">' +
-                '<div><dt>Scheduled</dt><dd>' +
-                esc(when(execution.scheduled_at)) +
-                '</dd></div>' +
-                '<div><dt>Started</dt><dd>' +
-                esc(when(execution.started_at)) +
-                '</dd></div>' +
-                '<div><dt>Completed</dt><dd>' +
-                esc(when(execution.completed_at)) +
-                '</dd></div>' +
-                '<div><dt>Cancelled</dt><dd>' +
-                esc(when(execution.cancelled_at)) +
-                '</dd></div>' +
-                '<div><dt>Error</dt><dd>' +
-                esc(execution.error || '—') +
-                '</dd></div>' +
-                '</dl>' +
-                '<div class="admin-workflow-log-list">' +
-                history +
-                '</div>' +
-                '</div>'
-              );
-            })
-            .join('') ||
-          '<div class="admin-card"><p class="admin-cell-empty">No workflow executions yet.</p></div>';
-
-        host.innerHTML =
-          '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-          '<thead><tr><th>Workflow Name</th><th>Trigger</th><th>Delay</th><th>Condition</th><th>Action</th><th>Status</th><th>Enabled</th><th></th></tr></thead>' +
-          '<tbody>' +
-          workflowRows +
-          '</tbody></table></div></div>' +
-          '<div class="admin-page-header" style="margin-top:20px;"><h3 class="admin-page-title" style="font-size:1.1rem;">Execution History</h3></div>' +
-          '<div class="admin-workflow-history">' +
-          executionRows +
-          '</div>';
-
-        host.querySelectorAll('.admin-workflow-toggle').forEach(function (button) {
-          button.addEventListener('click', function () {
-            var row = button.closest('[data-workflow-key]');
-            if (!row) return;
-            var workflowKey = row.getAttribute('data-workflow-key');
-            var nextEnabled = button.getAttribute('data-enabled') !== '1';
-            button.disabled = true;
-            fetch('/api/admin/workflows', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ workflow_key: workflowKey, enabled: nextEnabled })
-            })
-              .then(function (res) {
-                return res.json().then(function (body) {
-                  return { ok: res.ok, body: body };
-                });
-              })
-              .then(function (patchResult) {
-                if (!patchResult.ok) {
-                  alert((patchResult.body && patchResult.body.error) || 'Failed to update workflow');
-                  return;
-                }
-                renderWorkflowsSection();
-              })
-              .catch(function () {
-                alert('Failed to update workflow');
-              })
-              .finally(function () {
-                button.disabled = false;
-              });
-          });
-        });
-      })
-      .catch(function () {
-        var host = document.getElementById('adminWorkflowHost');
-        if (host) host.innerHTML = '<p class="admin-error">Failed to load workflows.</p>';
+    fetchJson('/api/admin/journey-history?limit=100').then(function (result) {
+      var host = document.getElementById('adminHistoryHost');
+      if (!host) return;
+      if (!result.ok) {
+        host.innerHTML = '<p class="admin-error">Failed to load history.</p>';
+        return;
+      }
+      var rows = ((result.body && result.body.history) || []).filter(function (r) {
+        return r.status === 'completed' || r.status === 'failed' || r.status === 'cancelled';
       });
+      host.innerHTML =
+        '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
+        '<thead><tr><th>When</th><th>Lead</th><th>Journey</th><th>Step</th><th>Action</th><th>Status</th><th>Error</th></tr></thead><tbody>' +
+        (rows
+          .map(function (r) {
+            return (
+              '<tr><td>' +
+              esc(when(r.executed_at || r.created_at)) +
+              '</td><td>' +
+              esc(r.lead_email || '—') +
+              '</td><td>' +
+              esc(r.journey_name || '—') +
+              '</td><td>' +
+              esc(r.step_name || '—') +
+              '</td><td>' +
+              esc(r.action_type) +
+              '</td><td>' +
+              statusPill(r.status) +
+              '</td><td>' +
+              esc(r.error_message || '—') +
+              '</td></tr>'
+            );
+          })
+          .join('') ||
+          '<tr><td colspan="7" class="admin-cell-empty">No executed actions yet.</td></tr>') +
+        '</tbody></table></div></div>';
+    });
   }
 
-  if (section === 'email') {
-    renderEmailSection();
-    return;
+  /* ---------- Settings ---------- */
+  function renderSettingsSection() {
+    container.innerHTML =
+      '<div class="admin-page-header">' +
+      '<h2 class="admin-page-title">Journey Settings</h2>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0">Engine configuration for Phase 1 (manual execution).</p>' +
+      '</div>' +
+      shellTabs('settings') +
+      '<div id="adminJourneySettingsHost"><div class="admin-loading">Loading…</div></div>';
+
+    fetchJson('/api/admin/journey-settings').then(function (result) {
+      var host = document.getElementById('adminJourneySettingsHost');
+      if (!host) return;
+      if (!result.ok) {
+        host.innerHTML = '<p class="admin-error">Failed to load settings.</p>';
+        return;
+      }
+      var s = result.body || {};
+      host.innerHTML =
+        '<div class="admin-card">' +
+        '<dl class="admin-dl">' +
+        '<div><dt>Execution mode</dt><dd><strong>' +
+        esc(s.execution_mode) +
+        '</strong></dd></div>' +
+        '<div><dt>Email provider</dt><dd>' +
+        (s.email_configured ? 'Resend configured' : 'RESEND_API_KEY missing') +
+        '</dd></div>' +
+        '<div><dt>From</dt><dd>' +
+        esc(s.from) +
+        '</dd></div>' +
+        '<div><dt>Reply-To</dt><dd>' +
+        esc(s.reply_to) +
+        '</dd></div>' +
+        '<div><dt>Action types</dt><dd>' +
+        esc((s.action_types || []).join(', ')) +
+        '</dd></div>' +
+        '<div><dt>Triggers</dt><dd>' +
+        esc((s.trigger_types || []).join(', ')) +
+        '</dd></div>' +
+        '<div><dt>Delay units</dt><dd>' +
+        esc((s.delay_units || []).join(', ')) +
+        '</dd></div>' +
+        '</dl>' +
+        '<p class="admin-muted" style="margin-top:16px">' +
+        esc(s.note || '') +
+        '</p>' +
+        '<p class="admin-muted">Test email: <a href="#settings">use Admin Settings</a> or Campaigns preview.</p>' +
+        '</div>';
+    });
   }
-  if (section === 'campaigns' || section === 'campaign') {
-    renderCampaignsSection();
-    return;
-  }
-  if (section === 'workflows') {
-    renderWorkflowsSection();
-    return;
-  }
+
+  if (section === 'journeys') return renderJourneysSection();
+  if (section === 'leads') return renderLeadsSection();
+  if (section === 'templates') return renderTemplatesSection();
+  if (section === 'queue') return renderQueueSection();
+  if (section === 'campaigns') return renderCampaignsSection();
+  if (section === 'history') return renderHistorySection();
+  if (section === 'settings') return renderSettingsSection();
 
   container.innerHTML =
-    '<p class="admin-error">Unknown marketing section.</p>' +
-    '<p><a href="#marketing/email">← Email</a></p>';
+    '<p class="admin-error">Unknown section.</p><p><a href="#marketing/journeys">← Journeys</a></p>';
 };

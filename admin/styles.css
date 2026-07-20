@@ -185,6 +185,131 @@ body {
   color: #1d4ed8;
 }
 
+.admin-journey-pill-wait {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.admin-journey-pill-ready {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.admin-journey-pill-ok {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.admin-journey-pill-off {
+  background: rgba(107, 114, 128, 0.12);
+  color: #4b5563;
+}
+
+.admin-page-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-journey-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.admin-journey-toolbar select {
+  min-width: 140px;
+}
+
+.admin-journey-steps-cell {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  max-width: 280px;
+}
+
+.admin-journey-builder .admin-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.admin-journey-steps-title {
+  margin: 1.25rem 0 0.75rem;
+  font-size: 1rem;
+}
+
+.admin-journey-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-journey-step-row {
+  display: grid;
+  grid-template-columns: 28px 64px minmax(120px, 1.4fr) 80px 110px 120px minmax(140px, 1.2fr) auto;
+  gap: 0.5rem;
+  align-items: end;
+  padding: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.admin-journey-step-row.is-dragging {
+  opacity: 0.55;
+}
+
+.admin-journey-step-handle {
+  cursor: grab;
+  user-select: none;
+  color: #94a3b8;
+  padding-bottom: 0.55rem;
+  text-align: center;
+}
+
+.admin-journey-step-actions {
+  display: flex;
+  gap: 0.35rem;
+  padding-bottom: 0.15rem;
+}
+
+.admin-journey-builder-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+  margin-top: 0.45rem;
+}
+
+.admin-campaign-iframe {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+  margin-top: 0.75rem;
+  background: #fff;
+}
+
+@media (max-width: 1100px) {
+  .admin-journey-step-row {
+    grid-template-columns: 28px 1fr 1fr;
+  }
+  .admin-journey-step-actions {
+    grid-column: 1 / -1;
+  }
+}
+
 .admin-workflow-history {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

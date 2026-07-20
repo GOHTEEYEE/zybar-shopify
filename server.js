@@ -1082,7 +1082,7 @@ app.post('/api/admin/campaigns/send', async (req, res) => {
   }
 });
 
-// ----- Persistent workflow runner (Vercel Cron) -----
+// ----- Persistent workflow runner (Vercel Cron) — legacy; Journey Engine is manual -----
 app.get('/api/workflows/run', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Workflow engine is unavailable.' });
   const authHeader = req.headers.authorization || '';
@@ -1100,6 +1100,194 @@ app.get('/api/workflows/run', async (req, res) => {
       ok: false,
       error: (err && err.message) || 'Workflow runner failed'
     });
+  }
+});
+
+// ----- Customer Journey Engine (manual execution) -----
+app.get('/api/admin/journeys', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const journeys = await JourneyEngine.listJourneysAdmin(supabase);
+    const EmailTemplates = require('./lib/email-templates.js');
+    return res.json({
+      journeys: journeys,
+      action_types: JourneyEngine.ACTION_TYPES,
+      delay_units: JourneyEngine.DELAY_UNITS,
+      trigger_types: JourneyEngine.TRIGGER_TYPES,
+      templates: EmailTemplates.listTemplates()
+    });
+  } catch (err) {
+    console.error('GET /api/admin/journeys error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load journeys.' });
+  }
+});
+
+app.get('/api/admin/journeys/:id', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const journey = await JourneyEngine.getJourneyDetail(supabase, req.params.id);
+    if (!journey) return res.status(404).json({ error: 'Journey not found.' });
+    return res.json({ journey: journey });
+  } catch (err) {
+    console.error('GET /api/admin/journeys/:id error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load journey.' });
+  }
+});
+
+app.post('/api/admin/journeys', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const body = req.body || {};
+    const journey = await JourneyEngine.createJourney(supabase, body);
+    if (Array.isArray(body.steps) && body.steps.length) {
+      const steps = await JourneyEngine.replaceJourneySteps(supabase, journey.id, body.steps);
+      return res.status(201).json({ ok: true, journey: Object.assign({}, journey, { steps: steps }) });
+    }
+    return res.status(201).json({ ok: true, journey: journey });
+  } catch (err) {
+    console.error('POST /api/admin/journeys error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to create journey.' });
+  }
+});
+
+app.patch('/api/admin/journeys/:id', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const body = req.body || {};
+    const journey = await JourneyEngine.updateJourney(supabase, req.params.id, body);
+    if (!journey) return res.status(404).json({ error: 'Journey not found.' });
+    let steps = null;
+    if (Array.isArray(body.steps)) {
+      steps = await JourneyEngine.replaceJourneySteps(supabase, journey.id, body.steps);
+    }
+    return res.json({
+      ok: true,
+      journey: steps ? Object.assign({}, journey, { steps: steps }) : journey
+    });
+  } catch (err) {
+    console.error('PATCH /api/admin/journeys/:id error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to update journey.' });
+  }
+});
+
+app.get('/api/admin/journey-leads', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const leads = await JourneyEngine.listLeadJourneysAdmin(supabase, {
+      status: req.query && req.query.status,
+      journey_id: req.query && req.query.journey_id,
+      limit: req.query && req.query.limit
+    });
+    return res.json({ lead_journeys: leads });
+  } catch (err) {
+    console.error('GET /api/admin/journey-leads error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load journey leads.' });
+  }
+});
+
+app.post('/api/admin/journey-leads/:id/cancel', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const row = await JourneyEngine.cancelLeadJourney(supabase, req.params.id);
+    if (!row) return res.status(404).json({ error: 'Active lead journey not found.' });
+    return res.json({ ok: true, lead_journey: row });
+  } catch (err) {
+    console.error('POST /api/admin/journey-leads/:id/cancel error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to cancel lead journey.' });
+  }
+});
+
+app.get('/api/admin/journey-queue', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const queue = await JourneyEngine.listActionQueueAdmin(supabase, {
+      status: req.query && req.query.status,
+      limit: req.query && req.query.limit
+    });
+    return res.json({ queue: queue });
+  } catch (err) {
+    console.error('GET /api/admin/journey-queue error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load action queue.' });
+  }
+});
+
+app.post('/api/admin/journey-queue/promote', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const result = await JourneyEngine.promoteReadySteps(
+      supabase,
+      (req.body && req.body.limit) || 50
+    );
+    return res.json(Object.assign({ ok: true }, result));
+  } catch (err) {
+    console.error('POST /api/admin/journey-queue/promote error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to promote ready steps.' });
+  }
+});
+
+app.post('/api/admin/journey-queue/execute', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const result = await JourneyEngine.executePendingActions(supabase, process.env, {
+      limit: (req.body && req.body.limit) || 25,
+      action_id: (req.body && req.body.action_id) || null
+    });
+    return res.json(Object.assign({ ok: true }, result));
+  } catch (err) {
+    console.error('POST /api/admin/journey-queue/execute error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to execute pending actions.' });
+  }
+});
+
+app.get('/api/admin/journey-history', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const history = await JourneyEngine.listHistoryAdmin(supabase, req.query && req.query.limit);
+    return res.json({ history: history });
+  } catch (err) {
+    console.error('GET /api/admin/journey-history error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load journey history.' });
+  }
+});
+
+app.get('/api/admin/journey-templates', async (req, res) => {
+  try {
+    const EmailTemplates = require('./lib/email-templates.js');
+    return res.json({ templates: EmailTemplates.listTemplates() });
+  } catch (err) {
+    console.error('GET /api/admin/journey-templates error:', err);
+    return res.status(500).json({ error: 'Failed to load templates.' });
+  }
+});
+
+app.get('/api/admin/journey-settings', async (req, res) => {
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const Email = require('./lib/email.js');
+    const config = Email.getEmailConfig(process.env);
+    return res.json({
+      action_types: JourneyEngine.ACTION_TYPES,
+      delay_units: JourneyEngine.DELAY_UNITS,
+      trigger_types: JourneyEngine.TRIGGER_TYPES,
+      email_configured: !!config.apiKey,
+      from: config.from,
+      reply_to: config.replyTo,
+      execution_mode: 'manual',
+      note: 'Phase 1: promote ready steps and execute actions manually from Queue. No automatic cron execution.'
+    });
+  } catch (err) {
+    console.error('GET /api/admin/journey-settings error:', err);
+    return res.status(500).json({ error: 'Failed to load journey settings.' });
   }
 });
 
@@ -1352,6 +1540,30 @@ async function persistPaidCheckoutSession(session) {
   try {
     await CustomerActivity.upsertProfileFromOrder(supabase, session, customer);
   } catch (_) {}
+
+  try {
+    const email =
+      (customer && customer.email) ||
+      (session.customer_details && session.customer_details.email) ||
+      (session.customer_email) ||
+      null;
+    if (email) {
+      const leadRes = await supabase
+        .from('newsletter_subscribers')
+        .select('*')
+        .ilike('email', String(email).trim().toLowerCase())
+        .maybeSingle();
+      if (!leadRes.error && leadRes.data) {
+        const JourneyEngine = require('./lib/journey-engine.js');
+        await JourneyEngine.enrollLeadOnPurchase(supabase, leadRes.data);
+      }
+    }
+  } catch (journeyErr) {
+    console.warn(
+      'purchase journey enroll:',
+      journeyErr && journeyErr.message ? journeyErr.message : journeyErr
+    );
+  }
 
   return { ok: true, customer: customer, amount_cents: amount };
 }
@@ -1993,6 +2205,26 @@ app.post('/api/analytics/track', async (req, res) => {
           if (itemsErr) throw itemsErr;
         }
       }
+
+      try {
+        if (Array.isArray(cart.items) && cart.items.length && cart.visitor_id) {
+          const leadRes = await supabase
+            .from('newsletter_subscribers')
+            .select('*')
+            .eq('visitor_id', String(cart.visitor_id))
+            .maybeSingle();
+          if (!leadRes.error && leadRes.data) {
+            const JourneyEngine = require('./lib/journey-engine.js');
+            await JourneyEngine.enrollLeadOnAddToCart(supabase, leadRes.data);
+          }
+        }
+      } catch (cartJourneyErr) {
+        console.warn(
+          'cart journey enroll:',
+          cartJourneyErr && cartJourneyErr.message ? cartJourneyErr.message : cartJourneyErr
+        );
+      }
+
       return res.json({ ok: true, cart_id: cartId });
     }
 
