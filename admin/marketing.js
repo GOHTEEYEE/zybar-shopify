@@ -218,11 +218,7 @@ window.renderAdminmarketing = function (container) {
   function renderJourneyEditor(journeyId) {
     var isNew = journeyId === 'new';
     container.innerHTML =
-      pageHeader(
-        isNew ? 'New Journey' : 'Journey Editor',
-        '<a href="#marketing/journeys">← Customer Journey</a>'
-      ) +
-      '<div id="adminJourneyEditor"><div class="admin-loading">Loading…</div></div>';
+      '<div id="adminJourneyEditor"><div class="admin-loading">Loading journey builder…</div></div>';
 
     var metaP = fetchJson('/api/admin/journeys');
     var workP = isNew
@@ -233,7 +229,7 @@ window.renderAdminmarketing = function (container) {
       var host = document.getElementById('adminJourneyEditor');
       if (!host) return;
       if (!results[0].ok) {
-        host.innerHTML = '<p class="admin-error">Failed to load.</p>';
+        host.innerHTML = '<p class="admin-error">Failed to load journey builder.</p>';
         return;
       }
       var meta = results[0].body || {};
@@ -243,378 +239,35 @@ window.renderAdminmarketing = function (container) {
         return;
       }
 
+      if (!window.JourneyBuilder || !window.JourneyBuilder.mount) {
+        host.innerHTML =
+          '<p class="admin-error">Journey Builder failed to load. Refresh the page.</p>';
+        return;
+      }
+
       var journey = workspace && workspace.journey ? workspace.journey : null;
       var templates = (workspace && workspace.templates) || meta.templates || [];
-      var actionTypes = (workspace && workspace.action_types) || meta.action_types || ['email'];
-      var delayUnits = (workspace && workspace.delay_units) || meta.delay_units || ['minutes', 'hours', 'days', 'weeks'];
-      var triggerTypes =
-        (workspace && workspace.trigger_types) ||
-        meta.trigger_types || ['signup', 'add_to_cart', 'purchase', 'no_purchase', 'manual'];
-      var activeLeads = (workspace && workspace.active_leads) || [];
-
-      // Normalize templates list (DB vs code catalog)
       templates = templates.map(function (t) {
-        return {
-          key: t.template_key || t.key,
-          name: t.name
-        };
+        return { key: t.template_key || t.key, name: t.name, id: t.id || null };
       });
 
-      var state = {
-        id: journey ? journey.id : null,
-        name: journey ? journey.name : '',
-        description: journey ? journey.description || '' : '',
-        trigger_type: journey ? journey.trigger_type : 'signup',
-        is_active: journey ? !!journey.is_active : true,
-        steps: ((journey && journey.steps) || []).map(function (s, i) {
-          return {
-            step_order: s.step_order || i + 1,
-            step_name: s.step_name || '',
-            delay_value: s.delay_value || 0,
-            delay_unit: s.delay_unit || 'minutes',
-            action_type: s.action_type || 'email',
-            template_id: s.template_id || '',
-            status: 'configured'
-          };
-        })
-      };
-      if (!state.steps.length) {
-        state.steps.push({
-          step_order: 1,
-          step_name: 'Step 1',
-          delay_value: 0,
-          delay_unit: 'minutes',
-          action_type: 'email',
-          template_id: templates[0] ? templates[0].key : '',
-          status: 'configured'
-        });
-      }
-
-      function renumber() {
-        state.steps.forEach(function (s, i) {
-          s.step_order = i + 1;
-        });
-      }
-
-      function templateOptions(selected) {
-        return (
-          '<option value="">—</option>' +
-          templates
-            .map(function (t) {
-              return (
-                '<option value="' +
-                esc(t.key) +
-                '"' +
-                (t.key === selected ? ' selected' : '') +
-                '>' +
-                esc(t.name) +
-                '</option>'
-              );
-            })
-            .join('')
-        );
-      }
-
-      function paint() {
-        host.innerHTML =
-          '<div class="admin-card admin-journey-builder">' +
-          '<h3 class="admin-journey-steps-title" style="margin-top:0">Journey Information</h3>' +
-          '<div class="admin-form-row">' +
-          '<div class="admin-form-group"><label>Name</label><input id="jbName" type="text" value="' +
-          esc(state.name) +
-          '" /></div>' +
-          '<div class="admin-form-group"><label>Trigger</label><select id="jbTrigger">' +
-          triggerTypes
-            .map(function (t) {
-              return (
-                '<option value="' +
-                esc(t) +
-                '"' +
-                (t === state.trigger_type ? ' selected' : '') +
-                '>' +
-                esc(t) +
-                '</option>'
-              );
-            })
-            .join('') +
-          '</select></div>' +
-          '<div class="admin-form-group"><label>Active</label>' +
-          '<label class="admin-inline-check"><input type="checkbox" id="jbActive"' +
-          (state.is_active ? ' checked' : '') +
-          ' /> Enabled</label></div></div>' +
-          '<div class="admin-form-group"><label>Description</label><textarea id="jbDesc" rows="2">' +
-          esc(state.description) +
-          '</textarea></div>' +
-          '<h3 class="admin-journey-steps-title">Ordered Steps</h3>' +
-          '<div id="jbSteps" class="admin-journey-steps-list">' +
-          state.steps
-            .map(function (s, index) {
-              return (
-                '<div class="admin-journey-step-row" data-index="' +
-                index +
-                '" draggable="true">' +
-                '<div class="admin-journey-step-handle" title="Drag to reorder">⠿</div>' +
-                '<div class="admin-form-group"><label>Order</label><input class="jb-order" type="number" value="' +
-                esc(s.step_order) +
-                '" readonly /></div>' +
-                '<div class="admin-form-group"><label>Step name</label><input class="jb-name" type="text" value="' +
-                esc(s.step_name) +
-                '" /></div>' +
-                '<div class="admin-form-group"><label>Delay</label><input class="jb-delay" type="number" min="0" value="' +
-                esc(s.delay_value) +
-                '" /></div>' +
-                '<div class="admin-form-group"><label>Unit</label><select class="jb-unit">' +
-                delayUnits
-                  .map(function (u) {
-                    return (
-                      '<option value="' +
-                      esc(u) +
-                      '"' +
-                      (u === s.delay_unit ? ' selected' : '') +
-                      '>' +
-                      esc(u) +
-                      '</option>'
-                    );
-                  })
-                  .join('') +
-                '</select></div>' +
-                '<div class="admin-form-group"><label>Action</label><select class="jb-action">' +
-                actionTypes
-                  .map(function (a) {
-                    return (
-                      '<option value="' +
-                      esc(a) +
-                      '"' +
-                      (a === s.action_type ? ' selected' : '') +
-                      '>' +
-                      esc(a) +
-                      '</option>'
-                    );
-                  })
-                  .join('') +
-                '</select></div>' +
-                '<div class="admin-form-group"><label>Template</label><select class="jb-template">' +
-                templateOptions(s.template_id) +
-                '</select></div>' +
-                '<div class="admin-form-group"><label>Status</label><div style="padding-top:8px">' +
-                statusPill(s.status || 'configured') +
-                '</div></div>' +
-                '<div class="admin-journey-step-actions">' +
-                '<button type="button" class="admin-btn-secondary jb-dup-step" title="Duplicate">⧉</button>' +
-                '<button type="button" class="admin-btn-secondary jb-up">↑</button>' +
-                '<button type="button" class="admin-btn-secondary jb-down">↓</button>' +
-                '<button type="button" class="admin-btn-danger jb-remove">✕</button>' +
-                '</div></div>'
-              );
-            })
-            .join('') +
-          '</div>' +
-          '<div class="admin-journey-builder-actions">' +
-          '<button type="button" class="admin-btn-secondary" id="jbAddStep">Add Step</button>' +
-          '<button type="button" class="admin-btn-primary" id="jbSave">Save Journey</button>' +
-          '</div>' +
-          '<p id="jbStatus" class="admin-email-status" role="status"></p></div>' +
-          '<div class="admin-page-header" style="margin-top:1.5rem"><h3 class="admin-page-title" style="font-size:1.1rem">Active Leads</h3>' +
-          '<p class="admin-muted">Leads currently inside this journey.</p></div>' +
-          '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-          '<thead><tr><th>Email</th><th>Current Step</th><th>Status</th><th>Waiting</th><th>Ready Time</th><th>Next Action</th><th></th></tr></thead><tbody>' +
-          (activeLeads
-            .map(function (r) {
-              return (
-                '<tr data-lj="' +
-                esc(r.id) +
-                '"><td>' +
-                esc(r.lead_email || '—') +
-                '</td><td>' +
-                esc(r.current_step) +
-                '. ' +
-                esc(r.current_step_name || '') +
-                '</td><td>' +
-                statusPill(r.status) +
-                '</td><td>' +
-                esc(r.remaining_label) +
-                '</td><td>' +
-                esc(when(r.next_ready_at)) +
-                '</td><td>' +
-                esc(
-                  (r.current_action_type || '') +
-                    (r.current_template_id ? ' · ' + r.current_template_id : '')
-                ) +
-                '</td><td><button type="button" class="admin-btn-secondary jl-cancel">Cancel</button></td></tr>'
-              );
-            })
-            .join('') ||
-            '<tr><td colspan="7" class="admin-cell-empty">No active leads in this journey.</td></tr>') +
-          '</tbody></table></div></div>';
-
-        function readForm() {
-          state.name = document.getElementById('jbName').value.trim();
-          state.description = document.getElementById('jbDesc').value.trim();
-          state.trigger_type = document.getElementById('jbTrigger').value;
-          state.is_active = document.getElementById('jbActive').checked;
-          host.querySelectorAll('.admin-journey-step-row').forEach(function (row) {
-            var i = Number(row.getAttribute('data-index'));
-            if (!state.steps[i]) return;
-            state.steps[i].step_name = row.querySelector('.jb-name').value.trim();
-            state.steps[i].delay_value = Number(row.querySelector('.jb-delay').value) || 0;
-            state.steps[i].delay_unit = row.querySelector('.jb-unit').value;
-            state.steps[i].action_type = row.querySelector('.jb-action').value;
-            state.steps[i].template_id = row.querySelector('.jb-template').value || null;
-          });
+      window.JourneyBuilder.mount(host, {
+        journey: journey,
+        templates: templates,
+        trigger_types:
+          (workspace && workspace.trigger_types) ||
+          meta.trigger_types || ['signup', 'add_to_cart', 'purchase', 'no_purchase', 'manual'],
+        delay_units:
+          (workspace && workspace.delay_units) ||
+          meta.delay_units || ['minutes', 'hours', 'days', 'weeks'],
+        active_leads: (workspace && workspace.active_leads) || [],
+        onReload: function () {
+          renderJourneyEditor(journeyId);
+        },
+        onSaved: function (saved) {
+          if (saved && saved.id) renderJourneyEditor(saved.id);
         }
-
-        document.getElementById('jbAddStep').addEventListener('click', function () {
-          readForm();
-          state.steps.push({
-            step_order: state.steps.length + 1,
-            step_name: 'Step ' + (state.steps.length + 1),
-            delay_value: 1,
-            delay_unit: 'days',
-            action_type: 'email',
-            template_id: templates[0] ? templates[0].key : '',
-            status: 'configured'
-          });
-          paint();
-        });
-
-        host.querySelectorAll('.jb-dup-step').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            readForm();
-            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
-            var copy = Object.assign({}, state.steps[i], {
-              step_name: state.steps[i].step_name + ' (Copy)'
-            });
-            state.steps.splice(i + 1, 0, copy);
-            renumber();
-            paint();
-          });
-        });
-
-        host.querySelectorAll('.jb-up').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            readForm();
-            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
-            if (i <= 0) return;
-            var t = state.steps[i];
-            state.steps[i] = state.steps[i - 1];
-            state.steps[i - 1] = t;
-            renumber();
-            paint();
-          });
-        });
-        host.querySelectorAll('.jb-down').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            readForm();
-            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
-            if (i >= state.steps.length - 1) return;
-            var t = state.steps[i];
-            state.steps[i] = state.steps[i + 1];
-            state.steps[i + 1] = t;
-            renumber();
-            paint();
-          });
-        });
-        host.querySelectorAll('.jb-remove').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            readForm();
-            if (state.steps.length <= 1) return;
-            var i = Number(btn.closest('.admin-journey-step-row').getAttribute('data-index'));
-            state.steps.splice(i, 1);
-            renumber();
-            paint();
-          });
-        });
-
-        var dragIndex = null;
-        host.querySelectorAll('.admin-journey-step-row').forEach(function (row) {
-          row.addEventListener('dragstart', function () {
-            dragIndex = Number(row.getAttribute('data-index'));
-            row.classList.add('is-dragging');
-          });
-          row.addEventListener('dragend', function () {
-            row.classList.remove('is-dragging');
-            dragIndex = null;
-          });
-          row.addEventListener('dragover', function (e) {
-            e.preventDefault();
-          });
-          row.addEventListener('drop', function (e) {
-            e.preventDefault();
-            var dropIndex = Number(row.getAttribute('data-index'));
-            if (dragIndex == null || dropIndex === dragIndex) return;
-            readForm();
-            var moved = state.steps.splice(dragIndex, 1)[0];
-            state.steps.splice(dropIndex, 0, moved);
-            renumber();
-            paint();
-          });
-        });
-
-        host.querySelectorAll('.jl-cancel').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = btn.closest('[data-lj]').getAttribute('data-lj');
-            if (!window.confirm('Cancel this lead journey?')) return;
-            fetchJson('/api/admin/journey-leads/' + encodeURIComponent(id) + '/cancel', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: '{}'
-            }).then(function () {
-              renderJourneyEditor(state.id || journeyId);
-            });
-          });
-        });
-
-        document.getElementById('jbSave').addEventListener('click', function () {
-          readForm();
-          renumber();
-          var statusEl = document.getElementById('jbStatus');
-          var btn = document.getElementById('jbSave');
-          if (!state.name) {
-            statusEl.textContent = 'Name is required.';
-            statusEl.className = 'admin-email-status admin-email-status-err';
-            return;
-          }
-          btn.disabled = true;
-          btn.textContent = 'Saving…';
-          var payload = {
-            name: state.name,
-            description: state.description,
-            trigger_type: state.trigger_type,
-            is_active: state.is_active,
-            steps: state.steps
-          };
-          var req = state.id
-            ? fetchJson('/api/admin/journeys/' + encodeURIComponent(state.id), {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              })
-            : fetchJson('/api/admin/journeys', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              });
-          req
-            .then(function (result) {
-              if (!result.ok) {
-                statusEl.textContent = (result.body && result.body.error) || 'Save failed';
-                statusEl.className = 'admin-email-status admin-email-status-err';
-                return;
-              }
-              var saved = result.body.journey;
-              if (saved && saved.id) {
-                window.location.hash = '#marketing/journeys/edit/' + saved.id;
-                if (state.id === saved.id) renderJourneyEditor(saved.id);
-              }
-            })
-            .finally(function () {
-              btn.disabled = false;
-              btn.textContent = 'Save Journey';
-            });
-        });
-      }
-
-      paint();
+      });
     });
   }
 
