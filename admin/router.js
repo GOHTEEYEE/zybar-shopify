@@ -250,8 +250,12 @@
     var links = document.querySelectorAll('.admin-nav a[data-page]');
     links.forEach(function (a) {
       var href = a.getAttribute('href') || '';
+      var currentHash = (window.location.hash || '#marketing/email').split('?')[0];
       var isMarketing = name === 'marketing' && href.indexOf('#marketing/') === 0;
-      var matchesMarketingSection = isMarketing && href === (window.location.hash || '#marketing/email');
+      var matchesMarketingSection =
+        isMarketing &&
+        (href === currentHash ||
+          (href === '#marketing/campaigns' && currentHash.indexOf('#marketing/campaigns') === 0));
       a.classList.toggle(
         'active',
         (a.getAttribute('data-page') === name && !isMarketing) || matchesMarketingSection

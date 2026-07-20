@@ -5,7 +5,7 @@ window.renderAdminactivity = function (container) {
   if (!container) return;
 
   var U = window.AdminUtils || {};
-  var hash = (window.location.hash || '#activity').slice(1);
+  var hash = (window.location.hash || '#activity').slice(1).split('?')[0];
   var parts = hash.split('/');
   var visitorId = parts[1] ? decodeURIComponent(parts[1]) : null;
   var tab = parts[1] && !visitorId ? parts[1] : 'list';
@@ -43,10 +43,14 @@ window.renderAdminactivity = function (container) {
   function statusBadge(status) {
     var map = {
       anonymous: 'ca-badge-anonymous',
+      subscriber: 'ca-badge-browsing',
       browsing: 'ca-badge-browsing',
       product_viewed: 'ca-badge-product',
+      cart: 'ca-badge-cart',
       added_to_cart: 'ca-badge-cart',
+      checkout: 'ca-badge-checkout',
       checkout_started: 'ca-badge-checkout',
+      customer: 'ca-badge-purchased',
       purchased: 'ca-badge-purchased',
       abandoned: 'ca-badge-abandoned',
       inactive: 'ca-badge-inactive'
@@ -520,22 +524,141 @@ window.renderAdminactivity = function (container) {
     return;
   }
   if (tab === 'leads') {
-    renderSimpleTable('Email Leads', 'leads', '/api/customer-activity/leads', [
-      'Email', 'Country', 'Language', 'Discount', 'Signup Time', 'Purchased', 'Orders', 'Revenue', 'Source'
-    ], function (body) {
-      return (body.leads || []).map(function (l) {
+    var leadStatus = '';
+    try {
+      var leadHash = window.location.hash || '';
+      var leadQuery = leadHash.indexOf('?') >= 0 ? leadHash.split('?')[1] : '';
+      leadStatus = String(new URLSearchParams(leadQuery).get('status') || '').toLowerCase();
+    } catch (e) {
+      leadStatus = '';
+    }
+
+    var leadStatusTabs = [
+      { key: '', label: 'All' },
+      { key: 'subscriber', label: 'Subscriber' },
+      { key: 'browsing', label: 'Browsing' },
+      { key: 'cart', label: 'Cart' },
+      { key: 'checkout', label: 'Checkout' },
+      { key: 'customer', label: 'Customer' }
+    ];
+
+    container.innerHTML =
+      '<div class="admin-page-header">' +
+      '<h2 class="admin-page-title">Email Leads</h2>' +
+      '<p class="admin-muted" style="margin:0.35rem 0 0">Lead Status is derived from real journey events.</p>' +
+      '</div>' +
+      shellTabs('leads') +
+      '<div id="adminLeadsStatusBar" class="admin-leads-status-bar"><div class="admin-loading">Loading status counts…</div></div>' +
+      '<div id="adminLeadsHost"><div class="admin-loading">Loading leads…</div></div>';
+
+    function renderLeads(body) {
+      var audiences = body.audiences || [];
+      var countMap = {};
+      audiences.forEach(function (a) {
+        countMap[a.key] = a.count;
+      });
+
+      var statusBar = document.getElementById('adminLeadsStatusBar');
+      if (statusBar) {
+        statusBar.innerHTML =
+          '<div class="admin-leads-status-tabs">' +
+          leadStatusTabs
+            .map(function (t) {
+              var count =
+                t.key === ''
+                  ? audiences.reduce(function (sum, a) {
+                      return sum + (Number(a.count) || 0);
+                    }, 0)
+                  : countMap[t.key] != null
+                    ? countMap[t.key]
+                    : '—';
+              var href =
+                t.key === ''
+                  ? '#activity/leads'
+                  : '#activity/leads?status=' + encodeURIComponent(t.key);
+              return (
+                '<a class="admin-leads-status-tab' +
+                ((leadStatus || '') === t.key ? ' is-active' : '') +
+                '" href="' +
+                href +
+                '">' +
+                esc(t.label) +
+                (t.key ? ' <span>(' + esc(count) + ')</span>' : '') +
+                '</a>'
+              );
+            })
+            .join('') +
+          '</div>' +
+          (leadStatus
+            ? '<a class="admin-btn-primary admin-leads-send-campaign" href="#marketing/campaigns/' +
+              encodeURIComponent(leadStatus) +
+              '">Send Campaign</a>'
+            : '<span class="admin-muted">Select a status tab to send a campaign.</span>');
+      }
+
+      var host = document.getElementById('adminLeadsHost');
+      if (!host) return;
+      var rows = (body.leads || []).map(function (l) {
+        var status = l.status || (l.purchased ? 'customer' : '');
         return [
           esc(l.email),
+          status ? statusBadge(status === 'customer' ? 'purchased' : status) : '—',
           esc(l.country || '—'),
           esc(l.language || '—'),
           esc(l.discount_code || '—'),
           esc(when(l.signup_at)),
-          l.purchased ? statusBadge('purchased') : 'No',
-          esc(l.order_count),
+          l.purchased || status === 'customer' ? statusBadge('purchased') : 'No',
+          esc(l.order_count != null ? l.order_count : '—'),
           money(l.revenue_cents),
           esc(l.source || '—')
         ];
       });
+      var columns = [
+        'Email',
+        'Status',
+        'Country',
+        'Language',
+        'Discount',
+        'Signup Time',
+        'Purchased',
+        'Orders',
+        'Revenue',
+        'Source'
+      ];
+      var tbody =
+        rows
+          .map(function (cells) {
+            return '<tr>' + cells.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
+          })
+          .join('') ||
+        '<tr><td colspan="' +
+          columns.length +
+          '" class="admin-cell-empty">No leads in this status.</td></tr>';
+      host.innerHTML =
+        '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+        columns.map(function (c) { return '<th>' + c + '</th>'; }).join('') +
+        '</tr></thead><tbody>' +
+        tbody +
+        '</tbody></table></div></div>';
+    }
+
+    var leadsUrl = '/api/customer-activity/leads';
+    if (leadStatus) leadsUrl += '?status=' + encodeURIComponent(leadStatus);
+
+    fetchJson(leadsUrl).then(function (result) {
+      if (!result.ok) {
+        var host = document.getElementById('adminLeadsHost');
+        var bar = document.getElementById('adminLeadsStatusBar');
+        if (bar) bar.innerHTML = '';
+        if (host) {
+          host.innerHTML =
+            '<p class="admin-error">' +
+            esc((result.body && result.body.error) || 'Failed to load leads') +
+            '</p>';
+        }
+        return;
+      }
+      renderLeads(result.body || {});
     });
     return;
   }

@@ -1045,6 +1045,43 @@ app.patch('/api/admin/workflows', async (req, res) => {
   }
 });
 
+// ----- Campaigns (status audience → template → send) -----
+app.get('/api/admin/campaigns', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Campaigns are unavailable.' });
+  try {
+    const Campaigns = require('./lib/campaigns.js');
+    const data = await Campaigns.getCampaignBootstrap(supabase, req.query && req.query.audience);
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/campaigns error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load campaigns.' });
+  }
+});
+
+app.post('/api/admin/campaigns/preview', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Campaigns are unavailable.' });
+  try {
+    const Campaigns = require('./lib/campaigns.js');
+    const result = await Campaigns.previewCampaign(supabase, req.body || {}, process.env);
+    return res.status(result.status || 200).json(result.json || {});
+  } catch (err) {
+    console.error('POST /api/admin/campaigns/preview error:', err);
+    return res.status(500).json({ success: false, error: (err && err.message) || 'Preview failed.' });
+  }
+});
+
+app.post('/api/admin/campaigns/send', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Campaigns are unavailable.' });
+  try {
+    const Campaigns = require('./lib/campaigns.js');
+    const result = await Campaigns.sendCampaign(supabase, req.body || {}, process.env);
+    return res.status(result.status || 200).json(result.json || {});
+  } catch (err) {
+    console.error('POST /api/admin/campaigns/send error:', err);
+    return res.status(500).json({ success: false, error: (err && err.message) || 'Campaign send failed.' });
+  }
+});
+
 // ----- Persistent workflow runner (Vercel Cron) -----
 app.get('/api/workflows/run', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Workflow engine is unavailable.' });
@@ -1488,8 +1525,56 @@ app.get('/api/customer-activity/detail', async (req, res) => {
 app.get('/api/customer-activity/leads', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Not configured' });
   try {
+    const LeadStatus = require('./lib/lead-status.js');
+    const status = String((req.query && req.query.status) || '')
+      .trim()
+      .toLowerCase();
+    if (status && !LeadStatus.isValidLeadStatus(status)) {
+      return res.status(400).json({ error: 'Invalid lead status filter.' });
+    }
+
+    const allLeads = await LeadStatus.listActiveLeads(supabase);
+    const classified = await LeadStatus.classifyLeadsBatch(supabase, allLeads);
+    const counts = {};
+    LeadStatus.LEAD_STATUS_KEYS.forEach(function (key) {
+      counts[key] = 0;
+    });
+    Object.keys(classified).forEach(function (id) {
+      const s = classified[id].status;
+      if (counts[s] != null) counts[s] += 1;
+    });
+    const audiences = LeadStatus.LEAD_STATUSES.map(function (s) {
+      return { key: s.key, label: s.label, count: counts[s.key] || 0 };
+    });
+
+    if (status) {
+      const leads = allLeads
+        .filter(function (lead) {
+          return classified[lead.id] && classified[lead.id].status === status;
+        })
+        .map(function (lead) {
+          const snap = classified[lead.id];
+          return {
+            id: lead.id,
+            email: lead.email,
+            country: lead.country || null,
+            language: lead.language || null,
+            discount_code: lead.discount_code || null,
+            signup_at: lead.created_at,
+            source: lead.source || null,
+            visitor_id: lead.visitor_id || null,
+            status: snap.status,
+            last_activity_at: snap.last_activity_at,
+            purchased: snap.status === 'customer',
+            order_count: (snap.orders || []).length,
+            revenue_cents: snap.revenue_cents || 0
+          };
+        });
+      return res.json({ leads: leads, audiences: audiences, status: status });
+    }
+
     const data = await CustomerActivity.listEmailLeads(supabase, req.query || {});
-    return res.json({ leads: data });
+    return res.json({ leads: data, audiences: audiences });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Failed to load leads' });
   }

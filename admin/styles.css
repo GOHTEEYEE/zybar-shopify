@@ -234,6 +234,174 @@ body {
   font-size: 0.9rem;
 }
 
+.admin-campaign-steps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.admin-campaign-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--admin-text-muted);
+  font-size: 0.875rem;
+}
+
+.admin-campaign-step span {
+  display: inline-flex;
+  width: 1.4rem;
+  height: 1.4rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e5e7eb;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.admin-campaign-step.is-active,
+.admin-campaign-step.is-done {
+  color: var(--admin-text);
+  font-weight: 600;
+}
+
+.admin-campaign-step.is-active span,
+.admin-campaign-step.is-done span {
+  background: #111;
+  color: #fff;
+}
+
+.admin-campaign-card {
+  max-width: 880px;
+}
+
+.admin-campaign-audiences,
+.admin-campaign-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.admin-campaign-audience,
+.admin-campaign-template {
+  text-align: left;
+  border: 1px solid var(--admin-border);
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-campaign-audience:hover,
+.admin-campaign-template:hover,
+.admin-campaign-audience.is-selected,
+.admin-campaign-template.is-selected {
+  border-color: #111;
+  background: #f8fafc;
+}
+
+.admin-campaign-audience strong,
+.admin-campaign-template strong {
+  font-size: 0.95rem;
+}
+
+.admin-campaign-audience span,
+.admin-campaign-template span {
+  color: var(--admin-text-muted);
+  font-size: 0.8125rem;
+}
+
+.admin-campaign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+
+.admin-campaign-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.admin-campaign-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.admin-campaign-preview-card {
+  margin-top: 0.5rem;
+}
+
+.admin-campaign-preview-subject {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.admin-campaign-preview-frame {
+  width: 100%;
+  min-height: 420px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.admin-leads-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.admin-leads-status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-leads-status-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  background: #fff;
+}
+
+.admin-leads-status-tab span {
+  color: var(--admin-text-muted);
+}
+
+.admin-leads-status-tab.is-active {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+}
+
+.admin-leads-status-tab.is-active span {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.admin-leads-send-campaign {
+  text-decoration: none;
+}
+
 /* Main content */
 .admin-main {
   flex: 1;
