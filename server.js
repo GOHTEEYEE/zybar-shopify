@@ -3,9 +3,12 @@
  * Requires: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET (for webhook).
  * Run: node server.js  (or npm run server)
  */
-require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config();
+if (fs.existsSync(path.join(__dirname, '.env.local'))) {
+  require('dotenv').config({ path: path.join(__dirname, '.env.local'), override: true });
+}
 const express = require('express');
 const Stripe = require('stripe');
 const OpenAI = require('openai');
@@ -992,6 +995,21 @@ app.post('/api/contact', async (req, res) => {
   }
 
   return res.json({ ok: true, id: row.id, supabaseSaved: supabaseSaved });
+});
+
+// ----- Admin test email (Resend) -----
+app.post('/api/admin/email/send', async (req, res) => {
+  try {
+    const email = require('./lib/email.js');
+    const result = await email.sendAdminEmail(req.body || {}, process.env);
+    return res.status(result.status || 200).json(result.json || {});
+  } catch (err) {
+    console.error('POST /api/admin/email/send error:', err);
+    return res.status(500).json({
+      success: false,
+      error: (err && err.message) || 'Failed to send email'
+    });
+  }
 });
 
 // ----- Premium garage newsletter / email capture -----

@@ -122,6 +122,45 @@ body {
   color: var(--admin-sidebar-text);
 }
 
+.admin-nav-group-label {
+  display: block;
+  padding: 1rem 1.25rem 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(230, 237, 243, 0.45);
+}
+
+.admin-nav-group a {
+  padding-left: 1.75rem;
+  font-size: 0.875rem;
+}
+
+.admin-email-card {
+  max-width: 640px;
+}
+
+.admin-email-form textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.admin-email-status {
+  margin: 1rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.admin-email-status-ok {
+  color: #15803d;
+}
+
+.admin-email-status-err {
+  color: var(--admin-error);
+}
+
 /* Main content */
 .admin-main {
   flex: 1;
