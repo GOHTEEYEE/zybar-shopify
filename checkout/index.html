@@ -21,6 +21,7 @@
     <script src="/js/stripe-config.js"></script>
     <script src="/lib/pricing-calc.js"></script>
     <script src="/js/pricing.js"></script>
+    <script src="/js/member-pricing.js"></script>
     <script src="/js/pricing-summary.js"></script>
     <script src="/js/meta-pixel-config.js"></script>
     <script src="/js/meta-pixel.js"></script>
@@ -71,26 +72,7 @@
             <div class="checkout-line-items" id="checkout-product-list"></div>
           </section>
 
-          <!-- 2. Exclusive offer -->
-          <section class="checkout-block checkout-block--discount" aria-label="Exclusive offer">
-            <div class="checkout-discount">
-              <div class="checkout-discount-row">
-                <input
-                  class="checkout-input checkout-discount-input"
-                  type="text"
-                  id="checkout-discount-code"
-                  placeholder="Exclusive offer code"
-                  autocomplete="off"
-                />
-                <button type="button" class="checkout-btn-apply" id="checkout-discount-apply">
-                  Apply
-                </button>
-              </div>
-              <p class="checkout-discount-msg" id="checkout-discount-msg" hidden></p>
-            </div>
-          </section>
-
-          <!-- 3. Shipping experience -->
+          <!-- 2. Shipping experience -->
           <section class="checkout-block checkout-block--shipping" aria-labelledby="checkout-shipping-heading">
             <h2 class="checkout-block-title" id="checkout-shipping-heading">Delivery experience</h2>
             <p class="checkout-block-sub">Choose how your artwork arrives.</p>

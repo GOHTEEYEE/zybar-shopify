@@ -68,9 +68,14 @@
     var method = String(shippingMethod || "priority").toLowerCase();
     var isPriority =
       method.indexOf("express") !== -1 || method.indexOf("priority") !== -1;
+    var summary = getPricingSummary();
+    var label = "7–10 Business Days";
+    if (summary && typeof summary.estimateDeliveryRange === "function") {
+      label = summary.estimateDeliveryRange(method).label;
+    }
     return {
       isPriority: isPriority,
-      windowLabel: isPriority ? "7–14 Business Days" : "14–18 Business Days"
+      windowLabel: label
     };
   }
 
@@ -472,7 +477,11 @@
           "</span></div>"
         : "";
 
-    var discountLabel = isWelcomeCode(state.discountCode) ? "Member Savings" : "Discount";
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    var discountLabel =
+      (member && member.isActive()) || isWelcomeCode(state.discountCode)
+        ? "Member Savings"
+        : "Savings";
     var totalSavings = Math.round((calcLaunchSavings() + state.discount) * 100) / 100;
 
     return [
@@ -638,6 +647,13 @@
         lineItems: pending.lineItems,
         shippingMethod: shippingMethod,
         discountCode: pending.discountCode || state.discountCode || null,
+        memberCredential:
+          pending.memberCredential ||
+          (window.ZYBAR &&
+          window.ZYBAR.MemberPricing &&
+          window.ZYBAR.MemberPricing.getCredential
+            ? window.ZYBAR.MemberPricing.getCredential()
+            : null),
         priceId: pending.priceId,
         quantity: pending.quantity,
         productSlug: pending.productSlug,
@@ -1285,43 +1301,15 @@
     });
   }
 
-  /** Swap the coupon input for a premium "already applied" confirmation. */
-  function renderDiscountApplied(code, amount) {
-    var block = document.querySelector(".checkout-discount");
-    if (!block) return;
-    var welcome = isWelcomeCode(code);
-    var title = welcome ? "Member Welcome Discount Applied" : "Exclusive Offer Applied";
-    var sub = welcome
-      ? "Exclusive member pricing — automatically applied. No code needed."
-      : "Your offer has been applied to this order.";
-    block.innerHTML =
-      '<div class="checkout-discount-applied">' +
-      '<span class="checkout-discount-applied-check" aria-hidden="true">\u2713</span>' +
-      '<span class="checkout-discount-applied-body">' +
-      '<span class="checkout-discount-applied-title">' +
-      escapeHtml(title) +
-      "</span>" +
-      '<span class="checkout-discount-applied-sub">' +
-      escapeHtml(sub) +
-      "</span>" +
-      "</span>" +
-      '<span class="checkout-discount-applied-amount">\u2212' +
-      formatUsdLuxury(amount) +
-      "</span>" +
-      "</div>";
-  }
-
   /**
-   * Auto-apply the welcome discount when the customer's email is already
-   * known (garage member) or when the cart handed us a code — no manual entry.
+   * Auto-apply the active tier benefit for a recognized member.
    * Must run before the first Stripe session is created.
    */
   function resolveAutoDiscount() {
     var pricing = getPricing();
     if (!pricing || typeof pricing.applyDiscountUSD !== "function") return;
-    var summary = getPricingSummary();
-    var code = (state.pending && state.pending.discountCode) || "";
-    if (!code && summary && summary.isMember()) code = summary.WELCOME_CODE;
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    var code = member && member.isActive() ? member.getDiscountCode() : "";
     if (!code) return;
 
     var subtotal = pricing.calculateCartSubtotal(state.pending && state.pending.displayItems || []);
@@ -1332,50 +1320,10 @@
     }
     state.discount = discount;
     state.discountCode = code;
-    if (state.pending) state.pending.discountCode = code;
-    renderDiscountApplied(code, discount);
-  }
-
-  function wireDiscount() {
-    var applyBtn = document.getElementById("checkout-discount-apply");
-    var msg = document.getElementById("checkout-discount-msg");
-    if (!applyBtn) return;
-
-    applyBtn.addEventListener("click", function () {
-      var code = ((document.getElementById("checkout-discount-code") || {}).value || "")
-        .trim()
-        .toUpperCase();
-      if (!msg) return;
-      msg.hidden = false;
-      if (!code) {
-        msg.textContent = "Enter your offer code.";
-        msg.className = "checkout-discount-msg is-error";
-        return;
-      }
-      var pricing = getPricing();
-      if (!pricing || typeof pricing.applyDiscountUSD !== "function") {
-        msg.textContent = "Offers are temporarily unavailable.";
-        msg.className = "checkout-discount-msg is-error";
-        return;
-      }
-      var discount = pricing.applyDiscountUSD(code, state.subtotal);
-      if (discount > 0) {
-        state.discount = discount;
-        state.discountCode = code;
-        if (state.pending) state.pending.discountCode = code;
-        renderOrderSummary(state.displayItems);
-        renderDiscountApplied(code, discount);
-        invalidateSessionCache();
-        scheduleShippingRefresh();
-        return;
-      }
-      state.discount = 0;
-      state.discountCode = "";
-      if (state.pending) delete state.pending.discountCode;
-      renderOrderSummary(state.displayItems);
-      msg.textContent = "This code is not valid for this order.";
-      msg.className = "checkout-discount-msg is-error";
-    });
+    if (state.pending) {
+      state.pending.discountCode = code;
+      state.pending.memberCredential = member.getCredential();
+    }
   }
 
   function init() {
@@ -1430,9 +1378,16 @@
     // begin_checkout already tracked when leaving cart — avoid double-counting checkout_started
     wireBillingToggle();
     wireMobileSummary();
-    wireDiscount();
     wireCountrySelector();
     wireShippingMethod();
+    window.addEventListener("zybar:member-pricing-change", function () {
+      var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+      if (!member || !member.isActive() || state.discount > 0) return;
+      resolveAutoDiscount();
+      renderOrderSummary(state.displayItems);
+      invalidateSessionCache();
+      scheduleShippingRefresh();
+    });
 
     var form = document.getElementById("checkout-form");
     if (form) form.addEventListener("submit", handlePaySubmit);
@@ -1453,14 +1408,16 @@
 
   function start() {
     var pricing = getPricing();
-    if (pricing && typeof pricing.load === "function") {
-      pricing.load().then(init).catch(function (err) {
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    var pricingReady =
+      pricing && typeof pricing.load === "function" ? pricing.load() : Promise.resolve();
+    var memberReady = member && member.ready ? member.ready : Promise.resolve();
+    Promise.all([pricingReady, memberReady])
+      .then(init)
+      .catch(function (err) {
         console.error(err);
         init();
       });
-      return;
-    }
-    init();
   }
 
   if (document.readyState === "loading") {

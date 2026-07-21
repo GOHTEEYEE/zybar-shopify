@@ -64,10 +64,10 @@
     return window.ZYBAR && window.ZYBAR.PricingSummary ? window.ZYBAR.PricingSummary : null;
   }
 
-  /** Welcome code when the customer's email is already known (member). */
+  /** Active tier code for a server-recognized member. */
   function getMemberDiscountCode() {
-    var summary = getPricingSummary();
-    return summary && summary.isMember() ? summary.WELCOME_CODE : "";
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    return member && member.isActive() ? member.getDiscountCode() : "";
   }
 
   function calcLaunchSavings(items) {
@@ -319,6 +319,10 @@
       lineItems: validItems,
       shippingMethod: shippingMethod,
       discountCode: autoDiscountCode,
+      memberCredential:
+        window.ZYBAR && window.ZYBAR.MemberPricing
+          ? window.ZYBAR.MemberPricing.getCredential()
+          : "",
       displayItems: buildDisplayItemsFromCart(
         (items || []).filter(function (item) {
           return (
@@ -822,17 +826,24 @@
       if (root) {
         root.addEventListener("click", handleListClick);
       }
+      window.addEventListener("zybar:member-pricing-change", function () {
+        var items = repairCartItems(readCartItems());
+        render(items);
+        updateDockHeight();
+      });
     }
 
     var pricing = getPricing();
-    if (pricing && typeof pricing.load === "function") {
-      pricing.load().then(afterPricing).catch(function (err) {
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    var pricingReady =
+      pricing && typeof pricing.load === "function" ? pricing.load() : Promise.resolve();
+    var memberReady = member && member.ready ? member.ready : Promise.resolve();
+    Promise.all([pricingReady, memberReady])
+      .then(afterPricing)
+      .catch(function (err) {
         console.error(err);
         afterPricing();
       });
-      return;
-    }
-    afterPricing();
   }
 
   if (document.readyState === "loading") {

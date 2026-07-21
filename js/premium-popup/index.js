@@ -82,9 +82,9 @@
       '<div class="zybar-popup-body">' +
       '<p class="zybar-popup-kicker">Welcome to</p>' +
       '<h2 class="zybar-popup-title" id="zybar-popup-title">THE ZYBAR GARAGE</h2>' +
-      '<p class="zybar-popup-offer">Enjoy <strong>15% OFF</strong><br />your first order.</p>' +
+      '<p class="zybar-popup-offer">Activate <strong>Member Pricing</strong><br />for your first order.</p>' +
       '<ul class="zybar-popup-benefits" aria-label="Member benefits">' +
-      '<li><span aria-hidden="true">✓</span>15% OFF Today</li>' +
+      '<li><span aria-hidden="true">✓</span>Extra 15% Member Savings</li>' +
       '<li><span aria-hidden="true">✓</span>Early Access to New Collections</li>' +
       '<li><span aria-hidden="true">✓</span>Members-only Promotions</li>' +
       '</ul>' +
@@ -96,18 +96,14 @@
       langOptions +
       '</select>' +
       '<p class="zybar-popup-error" id="zybar-popup-error" role="alert" aria-live="polite"></p>' +
-      '<button type="submit" class="zybar-popup-cta">Unlock My 15% Off</button>' +
+      '<button type="submit" class="zybar-popup-cta">Activate Member Pricing</button>' +
       '<p class="zybar-popup-note">No spam. Unsubscribe anytime.</p>' +
       '</form>' +
       '</div></div>' +
       '<div class="zybar-popup-success" hidden>' +
       '<div class="zybar-popup-success-icon" aria-hidden="true">✓</div>' +
       '<h2>✓ Welcome to ZYBAR Garage</h2>' +
-      '<p class="zybar-popup-success-copy">Your 15% discount has been sent.</p>' +
-      '<div class="zybar-popup-code-wrap">' +
-      '<div class="zybar-popup-code-label">Discount Code</div>' +
-      '<div class="zybar-popup-code">ZYBAR15</div>' +
-      '</div>' +
+      '<p class="zybar-popup-success-copy">Your member pricing is active. Extra 15% savings will be applied automatically.</p>' +
       '<button type="button" class="zybar-popup-cta zybar-popup-continue">Continue Shopping</button>' +
       '</div></div>';
 
@@ -129,8 +125,8 @@
     teaser.id = 'zybar-premium-popup-teaser';
     teaser.hidden = true;
     teaser.innerHTML =
-      '<button type="button" class="zybar-popup-teaser-open" aria-label="Open 15% bonus offer">' +
-      '<span class="zybar-popup-teaser-label">BONUS 15%</span>' +
+      '<button type="button" class="zybar-popup-teaser-open" aria-label="Open member pricing">' +
+      '<span class="zybar-popup-teaser-label">MEMBER PRICING</span>' +
       '</button>' +
       '<button type="button" class="zybar-popup-teaser-close" aria-label="Hide bonus offer">&times;</button>';
     document.body.appendChild(teaser);
@@ -291,19 +287,17 @@
   PremiumPopupController.prototype.showSuccess = function (payload) {
     var formView = this.overlay.querySelector('.zybar-popup-form-view');
     var successView = this.overlay.querySelector('.zybar-popup-success');
-    var codeEl = this.overlay.querySelector('.zybar-popup-code');
     var copy = this.overlay.querySelector('.zybar-popup-success-copy');
     var title = successView.querySelector('h2');
 
     if (payload && payload.alreadyMember) {
       title.textContent = "You're already a member.";
-      copy.textContent = 'Your 15% discount code is ready to use at checkout.';
+      copy.textContent = 'Your member pricing is active and will be applied automatically.';
     } else {
       title.textContent = '✓ Welcome to ZYBAR Garage';
-      copy.textContent = 'Your 15% discount has been sent.';
+      copy.textContent = 'Extra 15% member savings will be applied automatically.';
     }
 
-    if (codeEl) codeEl.textContent = (payload && payload.discountCode) || 'ZYBAR15';
     if (formView) formView.hidden = true;
     if (successView) successView.hidden = false;
     this.overlay.querySelector('.zybar-popup-close').focus();
@@ -325,7 +319,7 @@
 
     this.setError('');
     cta.disabled = true;
-    cta.textContent = 'Unlocking…';
+    cta.textContent = 'Activating…';
 
     var utm = readUtm();
     var analytics = window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics : null;
@@ -353,16 +347,21 @@
       }
 
       root.ZYBAR.PremiumPopupStorage.markSubmitted(email);
+      if (root.ZYBAR.MemberPricing && data.member) {
+        root.ZYBAR.MemberPricing.activate(data.member);
+      }
       this.hideTeaser();
       if (root.ZYBAR.PremiumPopupAnalytics) {
         root.ZYBAR.PremiumPopupAnalytics.trackEmailSubmitted(email, language);
-        root.ZYBAR.PremiumPopupAnalytics.trackDiscountClaimed(data.discountCode || 'ZYBAR15');
+        root.ZYBAR.PremiumPopupAnalytics.trackDiscountClaimed(
+          data.member && data.member.discountCode ? data.member.discountCode : 'member_pricing'
+        );
       }
       this.showSuccess(data);
     } catch (err) {
       this.setError((err && err.message) || 'Unable to join right now.');
       cta.disabled = false;
-      cta.textContent = 'Unlock My 15% Off';
+      cta.textContent = 'Activate Member Pricing';
     }
   };
 

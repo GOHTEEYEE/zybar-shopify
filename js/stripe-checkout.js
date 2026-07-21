@@ -64,11 +64,14 @@
     return String(slug || "") + "::" + String(size || "") + "::" + String(powerType || "usb");
   }
 
-  /** Welcome code to auto-apply when the customer's email is already known. */
+  /** Member tier code to auto-apply for a server-recognized member. */
   function getAutoDiscountCode(subtotalUSD) {
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    if (!member || !member.isActive()) return "";
     var summary = window.ZYBAR && window.ZYBAR.PricingSummary;
-    if (!summary) return "";
-    return summary.computeWelcomeDiscountUSD(subtotalUSD) > 0 ? summary.WELCOME_CODE : "";
+    return summary && summary.computeWelcomeDiscountUSD(subtotalUSD) > 0
+      ? member.getDiscountCode()
+      : "";
   }
 
   function getQuantity() {
@@ -1088,6 +1091,11 @@
   }
 
   function goToPremiumCheckout(payload) {
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    if (member && member.isActive()) {
+      payload.memberCredential = member.getCredential();
+      payload.discountCode = member.getDiscountCode();
+    }
     if (window.ZYBAR && window.ZYBAR.Analytics) {
       var attr = window.ZYBAR.Analytics.getAttribution();
       payload.visitorId = attr.visitorId;
@@ -1604,7 +1612,10 @@
     var pricing = getPricing();
     if (pricing && typeof pricing.load === "function") {
       pricing.load().then(function () {
+        // Repair again with the real catalog (heals rows saved with $0).
+        repairCartItemsFromConfig();
         refreshPricingUi(getConfig());
+        refreshCartBadge();
       }).catch(function (err) {
         console.error(err);
         refreshPricingUi(getConfig());

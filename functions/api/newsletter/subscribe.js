@@ -8,6 +8,7 @@ function json(data, status) {
 }
 
 const DISCOUNT_CODE = 'ZYBAR15';
+const TOKEN_TTL_SECONDS = 180 * 24 * 60 * 60;
 const LANGUAGE_LABELS = {
   en: 'English',
   fr: 'Français',
@@ -44,6 +45,53 @@ function detectBrowser(userAgent) {
   if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) return 'Safari';
   if (/Firefox\//.test(ua)) return 'Firefox';
   return 'Other';
+}
+
+function base64Url(bytes) {
+  var binary = '';
+  new Uint8Array(bytes).forEach(function (byte) {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function memberPayload(subscriber, env) {
+  var secret = String(env.MEMBER_PRICING_SECRET || env.SUPABASE_SERVICE_ROLE_KEY || '');
+  if (!subscriber || !subscriber.id || !secret) return { active: false };
+  var now = Math.floor(Date.now() / 1000);
+  var encodedPayload = base64Url(
+    new TextEncoder().encode(
+      JSON.stringify({
+        v: 1,
+        sid: String(subscriber.id),
+        tier: 'welcome',
+        iat: now,
+        exp: now + TOKEN_TTL_SECONDS
+      })
+    )
+  );
+  var key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  var signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(encodedPayload)
+  );
+  return {
+    active: true,
+    tier: 'welcome',
+    tierLabel: 'Welcome Member',
+    eyebrow: 'Member Exclusive',
+    benefit: 'Extra 15% Savings Applied',
+    percent: 15,
+    discountCode: DISCOUNT_CODE,
+    credential: encodedPayload + '.' + base64Url(signature)
+  };
 }
 
 async function ensureDiscountCode(supabase) {
@@ -103,11 +151,25 @@ export async function onRequestPost(context) {
   }
 
   if (existingResult.data) {
+    var recognitionPatch = { status: 'active' };
+    if (body.visitor_id || body.visitorId) {
+      recognitionPatch.visitor_id = String(body.visitor_id || body.visitorId).slice(0, 80);
+    }
+    if (body.session_id || body.sessionId) {
+      recognitionPatch.session_id = String(body.session_id || body.sessionId).slice(0, 80);
+    }
+    var refreshedResult = await supabase
+      .from('newsletter_subscribers')
+      .update(recognitionPatch)
+      .eq('id', existingResult.data.id)
+      .select('id, status, discount_code')
+      .single();
+    var recognized = refreshedResult.data || existingResult.data;
     return json({
       ok: true,
       alreadyMember: true,
       message: "You're already a member.",
-      discountCode: existingResult.data.discount_code || DISCOUNT_CODE
+      member: await memberPayload(recognized, env)
     });
   }
 
@@ -134,11 +196,16 @@ export async function onRequestPost(context) {
 
   if (insertResult.error) {
     if (String(insertResult.error.code) === '23505') {
+      var duplicateResult = await supabase
+        .from('newsletter_subscribers')
+        .select('id, status, discount_code')
+        .ilike('email', email)
+        .maybeSingle();
       return json({
         ok: true,
         alreadyMember: true,
         message: "You're already a member.",
-        discountCode: DISCOUNT_CODE
+        member: await memberPayload(duplicateResult.data, env)
       });
     }
     return json({ error: 'Unable to join right now. Please try again.' }, 500);
@@ -162,7 +229,7 @@ export async function onRequestPost(context) {
   return json({
     ok: true,
     alreadyMember: false,
-    discountCode: (insertResult.data && insertResult.data.discount_code) || DISCOUNT_CODE,
+    member: await memberPayload(insertResult.data, env),
     subscriberId: insertResult.data && insertResult.data.id,
     journeyEnrolled: journeyEnrolled,
     message: 'Welcome to ZYBAR Garage'

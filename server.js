@@ -19,6 +19,7 @@ const AnalyticsFallback = require('./lib/analytics-fallback.js');
 const MetaCapi = require('./lib/meta-capi.js');
 const ChatbotKnowledge = require('./lib/chatbot-knowledge.js');
 const CustomerActivity = require('./lib/customer-activity.js');
+const MemberPricing = require('./lib/member-pricing.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -200,8 +201,9 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi) {
         : typeof item.slug === 'string'
           ? item.slug.trim()
           : '';
+    // Only trust a client-sent amount when positive; otherwise price from the catalog.
     const unitUSD =
-      typeof item.unitAmountUSD === 'number' && Number.isFinite(item.unitAmountUSD)
+      typeof item.unitAmountUSD === 'number' && Number.isFinite(item.unitAmountUSD) && item.unitAmountUSD > 0
         ? api.roundMoney(item.unitAmountUSD)
         : api.calculateProductUnitPrice({ slug: slug, productSlug: slug, size: size, powerType: powerType });
     const baseName =
@@ -1645,6 +1647,25 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
   }
 });
 
+app.post('/api/member-pricing/status', async (req, res) => {
+  if (!supabase) return res.status(503).json({ active: false });
+  try {
+    const member = await MemberPricing.resolveMember(
+      supabase,
+      {
+        credential: req.body && req.body.credential,
+        visitorId: req.body && req.body.visitorId,
+        sessionId: req.body && req.body.sessionId
+      },
+      process.env
+    );
+    return res.json(member);
+  } catch (err) {
+    console.error('POST /api/member-pricing/status error:', err);
+    return res.status(500).json({ active: false });
+  }
+});
+
 app.get('/api/contact-inquiries', async (req, res) => {
   if (supabase) {
     try {
@@ -2188,6 +2209,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     custom,
     shippingMethod,
     discountCode,
+    memberCredential,
     unitAmountUSD,
     name,
     visitorId,
@@ -2292,16 +2314,33 @@ app.post('/api/create-checkout-session', async (req, res) => {
   let appliedDiscountUSD = 0;
   let appliedDiscountCode = '';
   let appliedDiscountLabel = '';
-  if (discountCode && typeof pricingApi.applyDiscountUSD === 'function') {
-    const codeRaw = String(discountCode).trim();
+  let resolvedMember = { active: false };
+  try {
+    resolvedMember = await MemberPricing.resolveMember(
+      supabase,
+      {
+        credential: memberCredential,
+        visitorId: visitorId,
+        sessionId: sessionId
+      },
+      process.env
+    );
+  } catch (memberErr) {
+    console.warn('Checkout member pricing lookup:', memberErr && memberErr.message);
+  }
+  // The browser never authorizes pricing. Only a verified member identity can
+  // select a tier benefit; arbitrary client coupon strings are ignored.
+  const effectiveDiscountCode = resolvedMember.active ? resolvedMember.discountCode : '';
+  if (effectiveDiscountCode && typeof pricingApi.applyDiscountUSD === 'function') {
+    const codeRaw = String(effectiveDiscountCode).trim();
     appliedDiscountUSD = pricingApi.applyDiscountUSD(codeRaw, productSubtotalUSD);
     if (appliedDiscountUSD > 0) {
       appliedDiscountCode = codeRaw.toUpperCase();
       const catalogEntry =
         catalog && catalog.discountCodes ? catalog.discountCodes[codeRaw.toLowerCase()] : null;
       appliedDiscountLabel =
-        appliedDiscountCode === 'ZYBAR15'
-          ? 'Member Welcome Discount'
+        resolvedMember.active
+          ? resolvedMember.tierLabel + ' Savings'
           : (catalogEntry && catalogEntry.label) || 'Discount';
     }
   }

@@ -7,13 +7,12 @@
  *
  * Used by the mini cart drawer, the checkout page, and future campaigns.
  * All numbers come from ZYBAR.Pricing (Supabase catalog) — nothing hardcoded
- * except the welcome code constant, which is still validated against the
- * catalog before any discount is shown.
+ * Member eligibility comes from ZYBAR.MemberPricing and is validated by the
+ * server before checkout.
  */
 (function (root) {
   "use strict";
 
-  var MEMBER_STORAGE_KEY = "zybar_garage_popup_v1";
   var WELCOME_CODE = "ZYBAR15";
 
   function getPricing() {
@@ -42,16 +41,19 @@
       .replace(/"/g, "&quot;");
   }
 
-  /** True when the customer's email is already known (popup signup completed). */
+  function getMemberPricing() {
+    return root.ZYBAR && root.ZYBAR.MemberPricing ? root.ZYBAR.MemberPricing : null;
+  }
+
+  /** True only for a server-recognized member credential. */
   function isMember() {
-    try {
-      var raw = root.localStorage.getItem(MEMBER_STORAGE_KEY);
-      if (!raw) return false;
-      var state = JSON.parse(raw);
-      return !!(state && state.submitted);
-    } catch (_) {
-      return false;
-    }
+    var member = getMemberPricing();
+    return !!(member && member.isActive());
+  }
+
+  function getMemberState() {
+    var member = getMemberPricing();
+    return member ? member.getState() : { active: false };
   }
 
   function getWelcomeDiscountEntry() {
@@ -60,7 +62,9 @@
     var catalog = pricing.getCatalog();
     var codes = catalog && catalog.discountCodes ? catalog.discountCodes : null;
     if (!codes) return null;
-    return codes[WELCOME_CODE.toLowerCase()] || null;
+    var member = getMemberState();
+    var code = member.discountCode || WELCOME_CODE;
+    return codes[String(code).toLowerCase()] || null;
   }
 
   /**
@@ -71,7 +75,8 @@
     if (!isMember()) return 0;
     var pricing = getPricing();
     if (!pricing || typeof pricing.applyDiscountUSD !== "function") return 0;
-    return roundMoney(pricing.applyDiscountUSD(WELCOME_CODE, subtotalUSD));
+    var code = getMemberState().discountCode || WELCOME_CODE;
+    return roundMoney(pricing.applyDiscountUSD(code, subtotalUSD));
   }
 
   function lineQuantity(item) {
@@ -96,8 +101,9 @@
       itemCount += qty;
       var slug = item.slug || item.productSlug || "";
       var unit = Number(item.unitPriceUSD);
-      if (!Number.isFinite(unit) || unit < 0) {
-        unit = pricing
+      // Recompute when stored price is missing OR zero (a zeroed row is corrupt).
+      if (!Number.isFinite(unit) || unit <= 0) {
+        var computed = pricing
           ? pricing.calculateProductUnitPrice({
               slug: slug,
               productSlug: slug,
@@ -105,6 +111,7 @@
               powerType: item.powerType
             })
           : 0;
+        unit = computed > 0 ? computed : Math.max(0, Number.isFinite(unit) ? unit : 0);
       }
       var compareUnit =
         pricing && typeof pricing.calculateProductCompareAtPrice === "function"
@@ -125,6 +132,7 @@
 
     var launchSavings = roundMoney(Math.max(0, originalTotal - subtotal));
     var member = isMember();
+    var memberState = getMemberState();
     var memberSavings = computeWelcomeDiscountUSD(subtotal);
     var totalSavings = roundMoney(launchSavings + memberSavings);
     var total = roundMoney(Math.max(0, subtotal - memberSavings));
@@ -135,8 +143,9 @@
       originalTotal: originalTotal,
       launchSavings: launchSavings,
       isMember: member,
-      memberCode: memberSavings > 0 ? WELCOME_CODE : "",
-      memberLabel: "Member Welcome Discount",
+      memberCode: memberSavings > 0 ? memberState.discountCode || WELCOME_CODE : "",
+      memberTier: memberState.tier || "",
+      memberLabel: "Member Savings",
       memberSavings: memberSavings,
       totalSavings: totalSavings,
       total: total
@@ -162,21 +171,10 @@
     return MONTHS[date.getMonth()] + " " + date.getDate();
   }
 
-  function parseBusinessDayWindow(description, fallback) {
-    var match = String(description || "").match(/(\d+)\s*[–—-]\s*(\d+)/);
-    if (match) {
-      var min = parseInt(match[1], 10);
-      var max = parseInt(match[2], 10);
-      if (Number.isFinite(min) && Number.isFinite(max) && max >= min) {
-        return [min, max];
-      }
-    }
-    return fallback;
-  }
-
   /**
-   * Date-range delivery estimate ("Aug 3 – Aug 10") for a shipping method.
-   * Windows come from the catalog's shipping descriptions when available.
+   * Live date-range delivery estimate from today.
+   * Always 7–10 business days (matches worldwide delivery promise).
+   * Example on Jul 21 → "Jul 30 – Aug 4".
    */
   function estimateDeliveryRange(shippingMethod) {
     var pricing = getPricing();
@@ -185,19 +183,11 @@
       method = pricing.readShippingMethod();
     }
     method = String(method || "priority").toLowerCase();
-    var isPriority = method.indexOf("priority") !== -1 || method.indexOf("express") !== -1;
-    var window = isPriority ? [7, 14] : [14, 18];
-
-    if (pricing && typeof pricing.getShippingMethods === "function") {
-      var meta = pricing.getShippingMethods().filter(function (m) {
-        return m && m.code === method;
-      })[0];
-      if (meta) window = parseBusinessDayWindow(meta.description, window);
-    }
 
     var now = new Date();
-    var from = addBusinessDays(now, window[0]);
-    var to = addBusinessDays(now, window[1]);
+    now.setHours(12, 0, 0, 0);
+    var from = addBusinessDays(now, 7);
+    var to = addBusinessDays(now, 10);
     return {
       method: method,
       from: from,
@@ -311,8 +301,8 @@
   root.ZYBAR = root.ZYBAR || {};
   root.ZYBAR.PricingSummary = {
     WELCOME_CODE: WELCOME_CODE,
-    MEMBER_STORAGE_KEY: MEMBER_STORAGE_KEY,
     isMember: isMember,
+    getMemberState: getMemberState,
     getWelcomeDiscountEntry: getWelcomeDiscountEntry,
     computeWelcomeDiscountUSD: computeWelcomeDiscountUSD,
     computeCartBreakdown: computeCartBreakdown,

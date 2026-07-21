@@ -295,14 +295,29 @@
     });
   }
 
+  /** Stored unit price, or a live catalog price when the stored one is missing/zero. */
+  function rowUnitPrice(row) {
+    var unit = Number(row && row.unitPriceUSD);
+    if (Number.isFinite(unit) && unit > 0) return unit;
+    var pricing = getPricing();
+    if (!pricing || typeof pricing.calculateProductUnitPrice !== "function") return 0;
+    var slug = (row && (row.slug || row.productSlug)) || "";
+    var computed = pricing.calculateProductUnitPrice({
+      slug: slug,
+      productSlug: slug,
+      size: row && row.size,
+      powerType: row && row.powerType
+    });
+    return computed > 0 ? computed : 0;
+  }
+
   function renderCartRow(row, isJustAdded, index) {
     var slug = row && row.slug ? row.slug : "";
     var name = (row && row.name) || "Product";
     var imageUrl = row && row.imageUrl ? row.imageUrl : slug ? "/Image/" + slug + "-1.webp" : "";
     var qty = Number(row && row.quantity);
     var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
-    var unit = Number(row && row.unitPriceUSD);
-    var safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
+    var safeUnit = rowUnitPrice(row);
     var compareUnit = rowCompareAtUnit(row);
     var hasCompare = compareUnit > safeUnit && safeUnit > 0;
     var meta = [formatSizeLabel(row), (row && row.powerTypeLabel) || ""].filter(Boolean).join(" · ");
@@ -448,8 +463,21 @@
   function renderFooter(options) {
     var summary = getPricingSummary();
     var valueNote = "";
+    var memberBenefit = "";
     if (summary) {
       var breakdown = summary.computeCartBreakdown(getCartItems(options));
+      if (breakdown.memberSavings > 0) {
+        var member = summary.getMemberState ? summary.getMemberState() : {};
+        memberBenefit =
+          '<section class="mini-cart-member" aria-label="Member pricing active">' +
+          '<span class="mini-cart-member-check" aria-hidden="true">\u2713</span>' +
+          '<span><strong>' +
+          escapeHtml(member.eyebrow || "Member Exclusive") +
+          "</strong><b>" +
+          escapeHtml(member.benefit || "Extra Savings Applied") +
+          "</b><small>Automatically applied. No code required.</small></span>" +
+          "</section>";
+      }
       if (breakdown.totalSavings > 0) {
         valueNote =
           '<p class="mini-cart-value-note"><span aria-hidden="true">\u2713</span> You saved ' +
@@ -460,6 +488,7 @@
     return (
       '<div class="mini-cart-actions">' +
       valueNote +
+      memberBenefit +
       '<button type="button" class="mini-cart-btn mini-cart-btn--primary" data-mini-cart-checkout>' +
       '<span class="mini-cart-btn-icon" aria-hidden="true">' + ICONS.lock + "</span>" +
       "Checkout Securely</button>" +
@@ -577,6 +606,11 @@
     return Promise.resolve();
   }
 
+  function whenMemberReady() {
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    return member && member.ready ? member.ready : Promise.resolve();
+  }
+
   function openMiniCartDrawer(options) {
     if (!options || !options.item) return;
 
@@ -601,7 +635,7 @@
       }
     };
 
-    Promise.all([loadCatalog(), whenPricingReady()]).then(run);
+    Promise.all([loadCatalog(), whenPricingReady(), whenMemberReady()]).then(run);
   }
 
   function updateMiniCartDrawer(options) {
@@ -611,7 +645,7 @@
     }
     if (!options || !options.item) return;
     state.options = options;
-    Promise.all([loadCatalog(), whenPricingReady()]).then(function () {
+    Promise.all([loadCatalog(), whenPricingReady(), whenMemberReady()]).then(function () {
       renderDrawer(options.item, options, false);
     });
   }
@@ -643,4 +677,10 @@
       return state.isOpen;
     }
   };
+
+  window.addEventListener("zybar:member-pricing-change", function () {
+    if (state.isOpen && state.options && state.options.item) {
+      renderDrawer(state.options.item, state.options, false);
+    }
+  });
 })();
