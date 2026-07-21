@@ -53,7 +53,8 @@
       signup: 'Signup',
       add_to_cart: 'Add To Cart',
       purchase: 'Purchase',
-      no_purchase: 'No Purchase',
+      no_purchase: 'No Purchase (Legacy)',
+      no_purchase_90_days: '90 Days No Purchase',
       manual: 'Manual'
     };
     return map[t] || t;
@@ -239,11 +240,14 @@
       'signup',
       'add_to_cart',
       'purchase',
-      'no_purchase',
+      'no_purchase_90_days',
       'manual'
     ];
+    var journeyOptions = options.journey_options || [];
     var delayUnits = options.delay_units || ['minutes', 'hours', 'days', 'weeks'];
     var activeLeads = options.active_leads || [];
+    var analytics = options.analytics || { enrollments: {}, queue: {} };
+    var history = options.history || [];
     var journey = options.journey || null;
     var isNew = !journey || !journey.id;
 
@@ -276,8 +280,19 @@
       id: journey && journey.id ? journey.id : null,
       name: journey && journey.name ? journey.name : '',
       description: journey && journey.description ? journey.description : '',
-      is_active: journey ? !!journey.is_active : true,
+      is_active: journey ? !!journey.is_active : false,
+      status:
+        journey && journey.status
+          ? journey.status
+          : journey && journey.is_active
+            ? 'published'
+            : 'draft',
       trigger_type: journey && journey.trigger_type ? journey.trigger_type : 'signup',
+      exit_trigger: journey && journey.exit_trigger ? journey.exit_trigger : '',
+      next_journey_id:
+        journey && journey.next_journey_id ? journey.next_journey_id : '',
+      exit_behavior:
+        journey && journey.exit_behavior === 'cancelled' ? 'cancelled' : 'completed',
       nodes: graph.nodes,
       edges: graph.edges,
       selectedId: null,
@@ -655,6 +670,55 @@
       );
     }
 
+    function renderAnalytics() {
+      var enrollments = analytics.enrollments || {};
+      var queue = analytics.queue || {};
+      return (
+        '<section class="jb-leads"><div class="jb-leads-head"><h3>Analytics</h3>' +
+        '<p class="admin-muted">Simple workflow health metrics.</p></div>' +
+        '<div class="admin-card"><dl class="admin-dl admin-journey-card-meta">' +
+        '<div><dt>Active</dt><dd>' +
+        esc((enrollments.waiting || 0) + (enrollments.ready || 0)) +
+        '</dd></div><div><dt>Completed</dt><dd>' +
+        esc(enrollments.completed || 0) +
+        '</dd></div><div><dt>Cancelled</dt><dd>' +
+        esc(enrollments.cancelled || 0) +
+        '</dd></div><div><dt>Queue Pending</dt><dd>' +
+        esc(queue.pending || 0) +
+        '</dd></div><div><dt>Emails Completed</dt><dd>' +
+        esc(queue.completed || 0) +
+        '</dd></div><div><dt>Failed</dt><dd>' +
+        esc(queue.failed || 0) +
+        '</dd></div></dl></div></section>'
+      );
+    }
+
+    function renderHistory() {
+      return (
+        '<section class="jb-leads"><div class="jb-leads-head"><h3>History</h3>' +
+        '<p class="admin-muted">Recent transitions and queue outcomes for this workflow.</p></div>' +
+        '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
+        '<thead><tr><th>When</th><th>Lead</th><th>Event</th><th>Status</th></tr></thead><tbody>' +
+        (history
+          .map(function (item) {
+            return (
+              '<tr><td>' +
+              esc(when(item.at)) +
+              '</td><td>' +
+              esc(item.lead_email || '—') +
+              '</td><td>' +
+              esc(item.message || item.event_type || '—') +
+              '</td><td>' +
+              statusPill(item.status) +
+              '</td></tr>'
+            );
+          })
+          .join('') ||
+          '<tr><td colspan="4" class="admin-cell-empty">No workflow history yet.</td></tr>') +
+        '</tbody></table></div></div></section>'
+      );
+    }
+
     function paint() {
       syncTriggerNode();
       var order = orderedNodes();
@@ -696,11 +760,55 @@
           })
           .join('') +
         '</select></label>' +
+        '<label class="jb-header-field">Exit Trigger' +
+        '<select id="jbHeaderExitTrigger"><option value="">None</option>' +
+        triggerTypes
+          .map(function (t) {
+            return (
+              '<option value="' +
+              esc(t) +
+              '"' +
+              (t === state.exit_trigger ? ' selected' : '') +
+              '>' +
+              esc(triggerLabel(t)) +
+              '</option>'
+            );
+          })
+          .join('') +
+        '</select></label>' +
+        '<label class="jb-header-field">Next Journey' +
+        '<select id="jbHeaderNextJourney"><option value="">None</option>' +
+        journeyOptions
+          .filter(function (option) {
+            return option.id !== state.id;
+          })
+          .map(function (option) {
+            return (
+              '<option value="' +
+              esc(option.id) +
+              '"' +
+              (option.id === state.next_journey_id ? ' selected' : '') +
+              '>' +
+              esc(option.name) +
+              '</option>'
+            );
+          })
+          .join('') +
+        '</select></label>' +
+        '<label class="jb-header-field">On Exit' +
+        '<select id="jbHeaderExitBehavior">' +
+        '<option value="completed"' +
+        (state.exit_behavior === 'completed' ? ' selected' : '') +
+        '>Complete</option>' +
+        '<option value="cancelled"' +
+        (state.exit_behavior === 'cancelled' ? ' selected' : '') +
+        '>Cancel</option></select></label>' +
         '<label class="jb-header-field jb-status-toggle">' +
         '<input type="checkbox" id="jbHeaderActive"' +
         (state.is_active ? ' checked' : '') +
+        (state.status === 'archived' ? ' disabled' : '') +
         ' /> ' +
-        (state.is_active ? 'Published' : 'Draft') +
+        (state.status === 'archived' ? 'Archived' : state.is_active ? 'Published' : 'Draft') +
         '</label>' +
         '</div>' +
         '<div class="jb-header-actions">' +
@@ -709,6 +817,9 @@
         '">' +
         (state.dirty ? 'Unsaved' : 'Saved') +
         '</span>' +
+        (state.id && state.status !== 'archived'
+          ? '<button type="button" class="admin-btn-secondary" id="jbRunWorkflow">Test Workflow</button>'
+          : '') +
         '<button type="button" class="admin-btn-secondary" id="jbSaveDraft">Save</button>' +
         '<button type="button" class="admin-btn-primary" id="jbPublish">Publish</button>' +
         '</div></header>' +
@@ -719,6 +830,8 @@
         renderDrawer() +
         '</div>' +
         renderLeads() +
+        renderAnalytics() +
+        renderHistory() +
         '<p id="jbStatusMsg" class="admin-email-status" role="status"></p>' +
         '</div>';
 
@@ -736,10 +849,19 @@
     function readHeader() {
       var nameEl = document.getElementById('jbHeaderName');
       var trigEl = document.getElementById('jbHeaderTrigger');
+      var exitEl = document.getElementById('jbHeaderExitTrigger');
+      var nextEl = document.getElementById('jbHeaderNextJourney');
+      var behaviorEl = document.getElementById('jbHeaderExitBehavior');
       var actEl = document.getElementById('jbHeaderActive');
       if (nameEl) state.name = nameEl.value.trim();
       if (trigEl) state.trigger_type = trigEl.value;
-      if (actEl) state.is_active = actEl.checked;
+      if (exitEl) state.exit_trigger = exitEl.value;
+      if (nextEl) state.next_journey_id = nextEl.value;
+      if (behaviorEl) state.exit_behavior = behaviorEl.value;
+      if (actEl && state.status !== 'archived') {
+        state.is_active = actEl.checked;
+        state.status = actEl.checked ? 'published' : 'draft';
+      }
       syncTriggerNode();
     }
 
@@ -754,11 +876,18 @@
         setStatus('Add at least one Wait or Email node.', false);
         return;
       }
-      if (publish) state.is_active = true;
+      if (publish) {
+        state.is_active = true;
+        state.status = 'published';
+      }
       var payload = {
         name: state.name,
         description: state.description,
         trigger_type: state.trigger_type,
+        exit_trigger: state.exit_trigger || null,
+        next_journey_id: state.next_journey_id || null,
+        exit_behavior: state.exit_behavior,
+        status: state.status,
         is_active: state.is_active,
         steps: steps
       };
@@ -825,10 +954,28 @@
           paint();
         });
       }
+      [
+        'jbHeaderExitTrigger',
+        'jbHeaderNextJourney',
+        'jbHeaderExitBehavior'
+      ].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', function () {
+          readHeader();
+          state.dirty = true;
+          var dirty = document.querySelector('.jb-dirty');
+          if (dirty) {
+            dirty.classList.add('is-on');
+            dirty.textContent = 'Unsaved';
+          }
+        });
+      });
       var act = document.getElementById('jbHeaderActive');
       if (act) {
         act.addEventListener('change', function () {
           state.is_active = act.checked;
+          state.status = act.checked ? 'published' : 'draft';
           state.dirty = true;
           paint();
         });
@@ -837,6 +984,15 @@
       document.getElementById('jbSaveDraft').addEventListener('click', function () {
         saveJourney(false);
       });
+      var runWorkflow = document.getElementById('jbRunWorkflow');
+      if (runWorkflow) {
+        runWorkflow.addEventListener('click', function () {
+          readHeader();
+          if (typeof options.onRun === 'function') {
+            options.onRun({ id: state.id, name: state.name || 'Workflow' });
+          }
+        });
+      }
       document.getElementById('jbPublish').addEventListener('click', function () {
         saveJourney(true);
       });

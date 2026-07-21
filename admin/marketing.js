@@ -60,8 +60,12 @@ window.renderAdminmarketing = function (container) {
   function statusPill(status) {
     var s = String(status || '');
     var cls = 'admin-workflow-pill admin-workflow-pill-status';
-    if (s === 'pending' || s === 'waiting') cls += ' admin-journey-pill-wait';
-    if (s === 'ready' || s === 'executing' || s === 'active') cls += ' admin-journey-pill-ready';
+    if (s === 'pending' || s === 'waiting' || s === 'scheduled' || s === 'draft') {
+      cls += ' admin-journey-pill-wait';
+    }
+    if (s === 'ready' || s === 'executing' || s === 'active' || s === 'published') {
+      cls += ' admin-journey-pill-ready';
+    }
     if (s === 'completed' || s === 'partial') cls += ' admin-journey-pill-ok';
     if (s === 'failed' || s === 'cancelled' || s === 'archived' || s === 'off') cls += ' admin-journey-pill-off';
     return '<span class="' + cls + '">' + esc(s) + '</span>';
@@ -89,6 +93,109 @@ window.renderAdminmarketing = function (container) {
       (actionsHtml || '') +
       '</div></div>'
     );
+  }
+
+  function openRunWorkflowModal(journey) {
+    var existing = document.getElementById('adminRunWorkflowModal');
+    if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'adminRunWorkflowModal';
+    modal.className = 'admin-run-workflow-backdrop';
+    modal.innerHTML =
+      '<section class="admin-run-workflow-modal" role="dialog" aria-modal="true" aria-labelledby="runWorkflowTitle">' +
+      '<div class="admin-run-workflow-head"><div>' +
+      '<p class="admin-run-workflow-kicker">Test Workflow</p>' +
+      '<h3 id="runWorkflowTitle">Test ' +
+      esc(journey.name || 'Workflow') +
+      '</h3></div>' +
+      '<button type="button" class="admin-run-workflow-close" aria-label="Close">×</button></div>' +
+      '<p class="admin-muted">Enter one email per line. Existing leads move into this journey; new addresses become isolated test leads. Every email is generated and sent through the normal Action Queue.</p>' +
+      '<label class="admin-run-workflow-label" for="runWorkflowEmails">Email addresses</label>' +
+      '<textarea id="runWorkflowEmails" class="admin-run-workflow-emails" rows="7" placeholder="john@gmail.com&#10;mary@gmail.com&#10;amy@gmail.com"></textarea>' +
+      '<div id="runWorkflowResults" class="admin-run-workflow-results" role="status"></div>' +
+      '<div class="admin-run-workflow-actions">' +
+      '<button type="button" class="admin-btn-secondary admin-run-workflow-cancel">Cancel</button>' +
+      '<button type="button" class="admin-btn-primary admin-run-workflow-submit">Test Workflow</button>' +
+      '</div></section>';
+    document.body.appendChild(modal);
+
+    var textarea = modal.querySelector('#runWorkflowEmails');
+    var submit = modal.querySelector('.admin-run-workflow-submit');
+    var results = modal.querySelector('#runWorkflowResults');
+
+    function close() {
+      modal.remove();
+      document.removeEventListener('keydown', onKeydown);
+    }
+    function onKeydown(event) {
+      if (event.key === 'Escape') close();
+    }
+    document.addEventListener('keydown', onKeydown);
+    modal.querySelector('.admin-run-workflow-close').addEventListener('click', close);
+    modal.querySelector('.admin-run-workflow-cancel').addEventListener('click', close);
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) close();
+    });
+    submit.addEventListener('click', function () {
+      var emails = textarea.value
+        .split(/[\n,;]+/)
+        .map(function (email) {
+          return email.trim();
+        })
+        .filter(Boolean);
+      if (!emails.length) {
+        results.innerHTML = '<p class="admin-error">Enter at least one email address.</p>';
+        textarea.focus();
+        return;
+      }
+      submit.disabled = true;
+      submit.textContent = 'Running…';
+      results.innerHTML = '<div class="admin-loading">Starting workflow tests…</div>';
+      fetchJson('/api/admin/journeys/' + encodeURIComponent(journey.id) + '/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails: emails })
+      })
+        .then(function (response) {
+          if (!response.ok) {
+            results.innerHTML =
+              '<p class="admin-error">' +
+              esc((response.body && response.body.error) || 'Workflow test failed.') +
+              '</p>';
+            return;
+          }
+          var body = response.body || {};
+          results.innerHTML =
+            '<p class="admin-run-workflow-summary">Succeeded ' +
+            esc(body.succeeded || 0) +
+            ' of ' +
+            esc(body.requested || emails.length) +
+            '</p><ul class="admin-run-workflow-result-list">' +
+            (body.results || [])
+              .map(function (item) {
+                return (
+                  '<li><span>' +
+                  esc(item.email) +
+                  '</span>' +
+                  statusPill(item.status || (item.ok ? 'completed' : 'failed')) +
+                  (item.error ? '<small>' + esc(item.error) + '</small>' : '') +
+                  '</li>'
+                );
+              })
+              .join('') +
+            '</ul>';
+        })
+        .catch(function () {
+          results.innerHTML = '<p class="admin-error">Workflow test failed.</p>';
+        })
+        .finally(function () {
+          submit.disabled = false;
+          submit.textContent = 'Test Again';
+        });
+    });
+    setTimeout(function () {
+      textarea.focus();
+    }, 0);
   }
 
   /* ========== Customer Journey cards ========== */
@@ -123,6 +230,7 @@ window.renderAdminmarketing = function (container) {
             var es = j.enroll_stats || {};
             var activeLeads = (es.waiting || 0) + (es.ready || 0);
             var steps = (j.steps || []).length;
+            var journeyStatus = j.status || (j.is_active ? 'published' : 'draft');
             return (
               '<article class="admin-card admin-journey-card" data-id="' +
               esc(j.id) +
@@ -131,7 +239,7 @@ window.renderAdminmarketing = function (container) {
               '<h3>' +
               esc(j.name) +
               '</h3>' +
-              statusPill(j.is_active ? 'active' : 'off') +
+              statusPill(journeyStatus) +
               '</div>' +
               '<dl class="admin-dl admin-journey-card-meta">' +
               '<div><dt>Trigger</dt><dd>' +
@@ -148,21 +256,40 @@ window.renderAdminmarketing = function (container) {
               esc(j.description || '') +
               '</p>' +
               '<div class="admin-journey-card-actions">' +
+              (journeyStatus !== 'archived'
+                ? '<button type="button" class="admin-btn-secondary jc-run">Test Workflow</button>'
+                : '') +
               '<a class="admin-btn-primary" href="#marketing/journeys/edit/' +
               esc(j.id) +
               '">Open</a>' +
               '<button type="button" class="admin-btn-secondary jc-dup">Duplicate</button>' +
-              '<button type="button" class="admin-btn-secondary jc-toggle" data-active="' +
-              (j.is_active ? '1' : '0') +
+              '<button type="button" class="admin-btn-secondary jc-toggle" data-status="' +
+              esc(journeyStatus) +
               '">' +
-              (j.is_active ? 'Disable' : 'Enable') +
+              (journeyStatus === 'published'
+                ? 'Move to Draft'
+                : journeyStatus === 'archived'
+                  ? 'Restore Draft'
+                  : 'Publish') +
               '</button>' +
-              '<button type="button" class="admin-btn-danger jc-del">Delete</button>' +
+              (journeyStatus !== 'archived'
+                ? '<button type="button" class="admin-btn-danger jc-del">Archive</button>'
+                : '') +
               '</div></article>'
             );
           })
           .join('') +
         '</div>';
+
+      host.querySelectorAll('.jc-run').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.closest('[data-id]').getAttribute('data-id');
+          var journey = journeys.filter(function (item) {
+            return item.id === id;
+          })[0];
+          if (journey) openRunWorkflowModal(journey);
+        });
+      });
 
       host.querySelectorAll('.jc-dup').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -186,12 +313,14 @@ window.renderAdminmarketing = function (container) {
       host.querySelectorAll('.jc-toggle').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var id = btn.closest('[data-id]').getAttribute('data-id');
-          var next = btn.getAttribute('data-active') !== '1';
+          var current = btn.getAttribute('data-status');
+          var next = current === 'published' ? 'draft' : 'published';
+          if (current === 'archived') next = 'draft';
           btn.disabled = true;
           fetchJson('/api/admin/journeys/' + encodeURIComponent(id), {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_active: next })
+            body: JSON.stringify({ status: next })
           }).then(function () {
             renderJourneysHome();
           });
@@ -200,12 +329,18 @@ window.renderAdminmarketing = function (container) {
 
       host.querySelectorAll('.jc-del').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          if (!window.confirm('Delete this journey? Active enrollments will be cancelled.')) return;
+          if (
+            !window.confirm(
+              'Archive this journey? Existing history and active customer progress will be preserved.'
+            )
+          ) {
+            return;
+          }
           var id = btn.closest('[data-id]').getAttribute('data-id');
           btn.disabled = true;
           fetchJson('/api/admin/journeys/' + encodeURIComponent(id), { method: 'DELETE' }).then(
             function (r) {
-              if (!r.ok) alert((r.body && r.body.error) || 'Delete failed');
+              if (!r.ok) alert((r.body && r.body.error) || 'Archive failed');
               renderJourneysHome();
             }
           );
@@ -256,11 +391,24 @@ window.renderAdminmarketing = function (container) {
         templates: templates,
         trigger_types:
           (workspace && workspace.trigger_types) ||
-          meta.trigger_types || ['signup', 'add_to_cart', 'purchase', 'no_purchase', 'manual'],
+          meta.trigger_types || [
+            'signup',
+            'add_to_cart',
+            'purchase',
+            'no_purchase_90_days',
+            'manual'
+          ],
+        journey_options:
+          (workspace && workspace.journey_options) || meta.journeys || [],
         delay_units:
           (workspace && workspace.delay_units) ||
           meta.delay_units || ['minutes', 'hours', 'days', 'weeks'],
         active_leads: (workspace && workspace.active_leads) || [],
+        analytics: (workspace && workspace.analytics) || null,
+        history: (workspace && workspace.history) || [],
+        onRun: function (currentJourney) {
+          openRunWorkflowModal(currentJourney);
+        },
         onReload: function () {
           renderJourneyEditor(journeyId);
         },
@@ -682,6 +830,8 @@ window.renderAdminmarketing = function (container) {
               (r.body.promoted || 0) +
               ' · Completed ' +
               (r.body.completed || 0) +
+              ' · Cancelled stale ' +
+              (r.body.cancelled || 0) +
               ' · Failed ' +
               (r.body.failed || 0),
             true

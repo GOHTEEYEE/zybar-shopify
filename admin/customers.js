@@ -379,6 +379,8 @@ window.renderAdmincustomers = function (container) {
         })
       ) +
       '</p></div>' +
+      '<div class="admin-card" id="customerLifecycleCard"><h3>Customer Lifecycle</h3>' +
+      '<div class="admin-loading">Loading lifecycle…</div></div>' +
       '<div class="admin-card"><h3>Orders History</h3><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Order</th><th>Product</th><th>Total</th><th>Date</th><th>Status</th></tr></thead><tbody>' +
       history +
       '</tbody></table></div></div>' +
@@ -389,6 +391,85 @@ window.renderAdmincustomers = function (container) {
       escapeHtml(customer.notes || 'No notes yet. Add notes on individual orders.') +
       '</p></div>' +
       '</div>';
+
+    fetch('/api/admin/customer-lifecycle?email=' + encodeURIComponent(customer.email))
+      .then(function (res) {
+        return res.json().then(function (body) {
+          return { ok: res.ok, body: body };
+        });
+      })
+      .then(function (result) {
+        var card = document.getElementById('customerLifecycleCard');
+        if (!card) return;
+        if (!result.ok) {
+          card.innerHTML =
+            '<h3>Customer Lifecycle</h3><p class="admin-muted">Unable to load lifecycle.</p>';
+          return;
+        }
+        var lifecycle = result.body && result.body.lifecycle;
+        if (!lifecycle) {
+          card.innerHTML =
+            '<h3>Customer Lifecycle</h3><p class="admin-muted">No lifecycle record for this customer.</p>';
+          return;
+        }
+        var currentJourney = lifecycle.current_journey;
+        var currentStep = lifecycle.current_step;
+        var journeyHistory = (lifecycle.history || [])
+          .map(function (item) {
+            return (
+              '<tr><td>' +
+              escapeHtml(item.journey_name || '—') +
+              '</td><td>' +
+              escapeHtml(item.status || '—') +
+              '</td><td>' +
+              escapeHtml(formatDateTime(item.started_at)) +
+              '</td><td>' +
+              escapeHtml(formatDateTime(item.completed_at)) +
+              '</td></tr>'
+            );
+          })
+          .join('');
+        card.innerHTML =
+          '<h3>Customer Lifecycle</h3>' +
+          '<dl class="admin-dl">' +
+          '<div><dt>Current Journey</dt><dd>' +
+          escapeHtml(currentJourney ? currentJourney.name : '—') +
+          '</dd></div>' +
+          '<div><dt>Current Step</dt><dd>' +
+          escapeHtml(
+            currentStep
+              ? currentStep.step_order + '. ' + currentStep.step_name
+              : '—'
+          ) +
+          '</dd></div>' +
+          '<div><dt>Journey Status</dt><dd>' +
+          escapeHtml(lifecycle.journey_status || '—') +
+          '</dd></div>' +
+          '<div><dt>Started At</dt><dd>' +
+          escapeHtml(formatDateTime(lifecycle.journey_started_at)) +
+          '</dd></div>' +
+          '<div><dt>Completed At</dt><dd>' +
+          escapeHtml(formatDateTime(lifecycle.journey_completed_at)) +
+          '</dd></div>' +
+          '<div><dt>Next Ready</dt><dd>' +
+          escapeHtml(formatDateTime(lifecycle.next_ready_at)) +
+          '</dd></div>' +
+          '</dl>' +
+          '<h4 style="margin:1rem 0 .5rem">Journey History</h4>' +
+          '<div class="admin-table-wrap"><table class="admin-table">' +
+          '<thead><tr><th>Journey</th><th>Status</th><th>Started</th><th>Completed</th></tr></thead>' +
+          '<tbody>' +
+          (journeyHistory ||
+            '<tr><td colspan="4" class="admin-cell-empty">No journey history.</td></tr>') +
+          '</tbody></table></div>';
+      })
+      .catch(function () {
+        var card = document.getElementById('customerLifecycleCard');
+        if (card) {
+          card.innerHTML =
+            '<h3>Customer Lifecycle</h3><p class="admin-muted">Unable to load lifecycle.</p>';
+        }
+      });
   }
 
   if (detailKey) {
