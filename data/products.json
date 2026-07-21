@@ -1,12 +1,12 @@
 {
   "currency": "usd",
   "pricesBySize": {
-    "30x45": 98,
-    "40x60": 117
+    "30x45": 138,
+    "40x60": 148
   },
   "compareAtPricesBySize": {
-    "30x45": 115,
-    "40x60": 130
+    "30x45": 198,
+    "40x60": 208
   },
   "perProductPricesBySize": {},
   "products": [

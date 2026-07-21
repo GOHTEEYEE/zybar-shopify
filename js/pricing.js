@@ -80,14 +80,14 @@
           code: 'standard',
           label: 'Standard Shipping',
           description: '14–18 Business Days',
-          priceUsd: 15,
+          priceUsd: 23.99,
           isDefault: false
         },
         {
           code: 'priority',
           label: 'Priority Shipping',
           description: '7–14 Business Days',
-          priceUsd: 18,
+          priceUsd: 26.99,
           isDefault: true
         }
       ];
