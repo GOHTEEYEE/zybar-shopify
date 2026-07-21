@@ -394,6 +394,31 @@
     return { title: raw, subtitle: "LED Wall Art" };
   }
 
+  /**
+   * Thumb fallback: .webp -> .jpg -> -on.webp. Lives here because the
+   * checkout page does not load stripe-checkout.js (no ZYBAR.Cart).
+   */
+  function checkoutThumbError(img) {
+    if (!img) return;
+    var step = Number(img.getAttribute("data-fallback-step") || "0");
+    var src = String(img.getAttribute("src") || "");
+    var next = "";
+    if (step === 0 && /\.webp$/i.test(src)) {
+      next = src.replace(/\.webp$/i, ".jpg");
+    } else if (step <= 1) {
+      next = src.replace(/-(\d+)(?:-on)?\.(webp|jpe?g|png)$/i, "-$1-on.webp");
+      if (next === src) next = "";
+    }
+    img.setAttribute("data-fallback-step", String(step + 1));
+    if (next && next !== src) {
+      img.src = next;
+      return;
+    }
+    img.onerror = null;
+  }
+  window.ZYBAR = window.ZYBAR || {};
+  window.ZYBAR.CheckoutThumbError = checkoutThumbError;
+
   function buildLineItemHtml(item) {
     var qty = Number(item.quantity);
     var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
@@ -414,7 +439,7 @@
       '<div class="checkout-line-thumb-wrap">',
       '<img class="checkout-line-thumb" src="' +
         escapeHtml(imageUrl) +
-        '" alt="" width="72" height="72" loading="eager" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.Cart&amp;&amp;ZYBAR.Cart.onProductThumbError)ZYBAR.Cart.onProductThumbError(this)" />',
+        '" alt="" width="72" height="72" loading="eager" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.CheckoutThumbError)ZYBAR.CheckoutThumbError(this)" />',
       '<span class="checkout-line-qty" aria-label="Quantity">' + safeQty + "</span>",
       "</div>",
       '<div class="checkout-line-details">',
