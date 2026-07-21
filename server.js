@@ -2742,11 +2742,24 @@ app.post('/api/analytics/track', async (req, res) => {
 });
 
 function parseAnalyticsRange(req) {
-  const end = req.query.end ? new Date(req.query.end) : new Date();
+  const rawStart = req.query.start ? String(req.query.start) : '';
+  const rawEnd = req.query.end ? String(req.query.end) : '';
+
+  // Full ISO instants from the admin UI carry the user's local midnight already;
+  // use them verbatim (end is exclusive) instead of snapping to server-local days.
+  if (rawStart.includes('T') && rawEnd.includes('T')) {
+    const exactStart = new Date(rawStart);
+    const exactEnd = new Date(rawEnd);
+    if (!Number.isNaN(exactStart.getTime()) && !Number.isNaN(exactEnd.getTime())) {
+      return { start: exactStart.toISOString(), end: exactEnd.toISOString() };
+    }
+  }
+
+  const end = rawEnd ? new Date(rawEnd) : new Date();
   end.setHours(23, 59, 59, 999);
   const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
-  const start = req.query.start
-    ? new Date(req.query.start)
+  const start = rawStart
+    ? new Date(rawStart)
     : new Date(end.getTime() - (days - 1) * 86400000);
   start.setHours(0, 0, 0, 0);
   const endExcl = new Date(end.getTime() + 86400000);

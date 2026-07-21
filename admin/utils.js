@@ -26,6 +26,15 @@
     return x;
   }
 
+  // Local calendar date (YYYY-MM-DD) in the admin user's timezone.
+  // toISOString() would shift to UTC and report the wrong day near midnight.
+  function localDateString(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
   function resolveRange(preset, customStart, customEnd) {
     var now = new Date();
     var start;
@@ -57,8 +66,8 @@
       preset: preset,
       start: start.toISOString(),
       end: endExcl.toISOString(),
-      startDate: start.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
+      startDate: localDateString(start),
+      endDate: localDateString(end),
       days: daySpan
     };
   }
@@ -246,11 +255,13 @@
   }
 
   function apiQuery(range) {
+    // Send exact UTC instants (computed from the admin's local midnight) so the
+    // server does not re-interpret date-only strings in its own timezone.
     return (
       'start=' +
-      encodeURIComponent(range.startDate) +
+      encodeURIComponent(range.start || range.startDate) +
       '&end=' +
-      encodeURIComponent(range.endDate) +
+      encodeURIComponent(range.end || range.endDate) +
       '&days=' +
       encodeURIComponent(String(range.days))
     );

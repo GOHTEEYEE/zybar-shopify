@@ -65,7 +65,16 @@ window.renderAdminactivity = function (container) {
       encodeURIComponent(state.preset) +
       '&limit=40&offset=' +
       state.offset;
-    if (state.preset === 'custom' && state.customStart && state.customEnd) {
+    // Always send exact UTC instants for the admin's local-timezone range so
+    // the server does not recompute "today"/"yesterday" in its own timezone.
+    if (U.resolveRange) {
+      var range = U.resolveRange(state.preset, state.customStart, state.customEnd);
+      q +=
+        '&start=' +
+        encodeURIComponent(range.start) +
+        '&end=' +
+        encodeURIComponent(range.end);
+    } else if (state.preset === 'custom' && state.customStart && state.customEnd) {
       q +=
         '&start=' +
         encodeURIComponent(state.customStart) +
