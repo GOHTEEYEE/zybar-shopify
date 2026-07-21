@@ -208,12 +208,17 @@
 
   /* ----- Render ----- */
 
-  function rowHtml(className, label, value, labelNote) {
+  var GIFT_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/>' +
+    '<line x1="12" y1="22" x2="12" y2="7"/>' +
+    '<path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>' +
+    '<path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>';
+
+  function rowHtml(className, label, value) {
     return (
       '<div class="zps-row ' + className + '">' +
-      '<span class="zps-label">' + label +
-      (labelNote ? '<em class="zps-label-note">' + labelNote + "</em>" : "") +
-      "</span>" +
+      '<span class="zps-label">' + label + "</span>" +
       '<span class="zps-value">' + value + "</span>" +
       "</div>"
     );
@@ -221,10 +226,12 @@
 
   /**
    * Renders the breakdown block. Options:
-   *   showDelivery (default true) — Estimated Delivery row
+   *   showDelivery (default true) — Estimated Delivery row inside the block
+   *   showShipping (default false) — "Shipping — Calculated at checkout" row
+   *   shippingValue — custom shipping value text
    *   shippingMethod — override the persisted shipping selection
    *   totalLabel (default "Total")
-   *   note — small print under the total (default shipping note)
+   *   note — small print under the total (default shipping note; "" to omit)
    */
   function renderBreakdownHtml(breakdown, options) {
     options = options || {};
@@ -236,10 +243,10 @@
 
     if (b.launchSavings > 0) {
       parts.push(
-        rowHtml("zps-row--original", "Original Price", '<s class="zps-strike">' + escapeHtml(formatUsd(b.originalTotal)) + "</s>")
+        rowHtml("zps-row--original", "Retail Price", '<s class="zps-strike">' + escapeHtml(formatUsd(b.originalTotal)) + "</s>")
       );
       parts.push(
-        rowHtml("zps-row--discount", "Launch Offer", "\u2212" + escapeHtml(formatUsd(b.launchSavings)))
+        rowHtml("zps-row--discount", "Launch Discount", "\u2212 " + escapeHtml(formatUsd(b.launchSavings)))
       );
     } else {
       parts.push(rowHtml("zps-row--original", "Subtotal", escapeHtml(formatUsd(b.subtotal))));
@@ -249,9 +256,18 @@
       parts.push(
         rowHtml(
           "zps-row--discount zps-row--member",
-          '<span class="zps-member-check" aria-hidden="true">\u2713</span>' + escapeHtml(b.memberLabel),
-          "\u2212" + escapeHtml(formatUsd(b.memberSavings)),
-          "Automatically applied"
+          escapeHtml(b.memberLabel),
+          "\u2212 " + escapeHtml(formatUsd(b.memberSavings))
+        )
+      );
+    }
+
+    if (options.showShipping) {
+      parts.push(
+        rowHtml(
+          "zps-row--shipping",
+          "Shipping",
+          '<span class="zps-shipping-note">' + escapeHtml(options.shippingValue || "Calculated at checkout") + "</span>"
         )
       );
     }
@@ -264,13 +280,18 @@
     }
 
     if (b.totalSavings > 0) {
-      parts.push('<div class="zps-divider" role="presentation"></div>');
       parts.push(
-        rowHtml("zps-row--savings", "You Saved Today", escapeHtml(formatUsd(b.totalSavings)))
+        '<div class="zps-savings-banner">' +
+        '<span class="zps-savings-banner-label">' +
+        GIFT_SVG +
+        "You Saved Today</span>" +
+        '<span class="zps-savings-banner-value">' +
+        escapeHtml(formatUsd(b.totalSavings)) +
+        "</span>" +
+        "</div>"
       );
     }
 
-    parts.push('<div class="zps-divider zps-divider--strong" role="presentation"></div>');
     parts.push(
       rowHtml(
         "zps-row--total",

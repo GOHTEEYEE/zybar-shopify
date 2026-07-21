@@ -5,12 +5,15 @@
   "use strict";
 
   var DRAWER_ID = "zybar-mini-cart";
+  /** Rows shown before the list collapses behind "+N More Items". */
+  var VISIBLE_ROW_LIMIT = 3;
   var catalogCache = null;
   var catalogPromise = null;
   var state = {
     isOpen: false,
     lastFocus: null,
-    options: null
+    options: null,
+    expanded: false
   };
 
   function escapeHtml(value) {
@@ -60,12 +63,6 @@
         return catalogCache;
       });
     return catalogPromise;
-  }
-
-  function getLedColorForSlug(slug) {
-    if (!catalogCache || !slug) return "";
-    var product = catalogCache[slug];
-    return product && product.ledColor ? String(product.ledColor) : "";
   }
 
   function formatSizeLabel(item) {
@@ -145,8 +142,7 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' +
       "</span>" +
       '<div class="mini-cart-header-copy">' +
-      '<h2 class="mini-cart-title" id="mini-cart-title">Added to Your Cart</h2>' +
-      '<p class="mini-cart-subtitle">Reserved for you — checkout takes less than a minute.</p>' +
+      '<h2 class="mini-cart-title" id="mini-cart-title" data-mini-cart-confirm>Added to your cart</h2>' +
       "</div>" +
       "</div>" +
       '<button type="button" class="mini-cart-close" aria-label="Close">' +
@@ -168,30 +164,92 @@
     return root;
   }
 
-  function buildSpecRow(label, value, index) {
-    if (!value && value !== 0) return "";
+  /** Total quantity across all rows. */
+  function countCartItems(items) {
+    return (items || []).reduce(function (sum, row) {
+      var qty = Number(row && row.quantity);
+      return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
+    }, 0);
+  }
+
+  /** Just-added row first, everything else in stored order. */
+  function orderItemsForDisplay(items, addedKey) {
+    if (!addedKey) return (items || []).slice();
+    var added = [];
+    var rest = [];
+    (items || []).forEach(function (row) {
+      if (row && row.key === addedKey) added.push(row);
+      else rest.push(row);
+    });
+    return added.concat(rest);
+  }
+
+  var ICONS = {
+    handmade:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M12 3v2M5.6 5.6l1.4 1.4M3 12h2M18.4 5.6 17 7M21 12h-2"/>' +
+      '<path d="M7 21v-4a5 5 0 0 1 10 0v4"/><path d="M9 21v-3M15 21v-3"/></svg>',
+    lock:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.4"/></svg>',
+    globe:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+    shield:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M12 3 5 6v6c0 4.4 3 7.4 7 9 4-1.6 7-4.6 7-9V6l-7-3z"/><path d="m9 12 2 2 4-4"/></svg>',
+    truck:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M3 7h11v10H3V7zm11 3h4l3 3v4h-7V10z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>',
+    check:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.2 2.4 2.4 4.6-5"/></svg>'
+  };
+
+  function renderTrustSection() {
+    function badge(icon, label) {
+      return (
+        '<li class="mini-cart-trust-badge">' +
+        '<span class="mini-cart-trust-badge-icon" aria-hidden="true">' + icon + "</span>" +
+        '<span class="mini-cart-trust-badge-label">' + label + "</span>" +
+        "</li>"
+      );
+    }
     return (
-      '<div class="mini-cart-spec-row" style="--spec-index:' +
-      index +
-      '">' +
-      '<span class="mini-cart-spec-label">' +
-      escapeHtml(label) +
-      "</span>" +
-      '<span class="mini-cart-spec-value">' +
-      escapeHtml(value) +
-      "</span>" +
+      '<ul class="mini-cart-trust" aria-label="Purchase assurances">' +
+      badge(ICONS.handmade, 'Handmade in Japan <span aria-hidden="true">🇯🇵</span>') +
+      badge(ICONS.lock, "Secure Checkout") +
+      badge(ICONS.globe, "Ships Worldwide") +
+      badge(ICONS.shield, "30-Day Guarantee") +
+      "</ul>"
+    );
+  }
+
+  function renderSocialProof() {
+    return (
+      '<div class="mini-cart-social" aria-label="Customer rating">' +
+      '<div class="mini-cart-social-main">' +
+      '<span class="mini-cart-stars" aria-hidden="true">★★★★★</span>' +
+      '<span class="mini-cart-social-copy">Trusted by Car Enthusiasts Worldwide</span>' +
+      "</div>" +
+      '<div class="mini-cart-social-rating">' +
+      '<strong>4.9/5</strong>' +
+      "<span>Average Rating</span>" +
+      "</div>" +
       "</div>"
     );
   }
 
-  function renderTrustSection() {
+  function renderDeliveryCard() {
+    var summary = getPricingSummary();
+    if (!summary) return "";
+    var delivery = summary.estimateDeliveryRange();
     return (
-      '<ul class="mini-cart-trust" aria-label="Purchase assurances">' +
-      '<li><span class="mini-cart-trust-icon" aria-hidden="true">✓</span> Handmade in Japan <span aria-hidden="true">🇯🇵</span></li>' +
-      '<li><span class="mini-cart-trust-icon" aria-hidden="true">✓</span> Secure Checkout</li>' +
-      '<li><span class="mini-cart-trust-icon" aria-hidden="true">✓</span> Ships Worldwide</li>' +
-      '<li><span class="mini-cart-trust-icon" aria-hidden="true">✓</span> 30-Day Satisfaction Guarantee</li>' +
-      "</ul>"
+      '<div class="mini-cart-delivery" aria-label="Estimated delivery">' +
+      '<span class="mini-cart-delivery-icon" aria-hidden="true">' + ICONS.truck + "</span>" +
+      '<span class="mini-cart-delivery-label">Estimated Delivery</span>' +
+      '<span class="mini-cart-delivery-value">' + escapeHtml(delivery.label) + "</span>" +
+      "</div>"
     );
   }
 
@@ -210,55 +268,110 @@
     return window.ZYBAR && window.ZYBAR.Pricing ? window.ZYBAR.Pricing : null;
   }
 
-  /** Compare-at unit price for the just-added line (0 when none). */
-  function lineCompareAtUnit(item) {
-    var pricing = getPricing();
-    if (!pricing || typeof pricing.calculateProductCompareAtPrice !== "function") return 0;
-    var slug = (item && (item.slug || item.productSlug)) || "";
-    return pricing.calculateProductCompareAtPrice({
-      slug: slug,
-      productSlug: slug,
-      size: item && item.size,
-      powerType: item && item.powerType
-    });
-  }
-
-  function renderLinePriceRow(item) {
+  function renderQuantityStepper(item) {
     var qty = Number(item && item.quantity);
     var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
-    var unit = Number(item && item.unitPriceUSD);
-    var safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
-    var compareUnit = lineCompareAtUnit(item);
-    var hasCompare = compareUnit > safeUnit && safeUnit > 0;
-
     return (
-      '<div class="mini-cart-subtotal-row">' +
-      '<span class="mini-cart-subtotal-label">' +
-      (safeQty > 1 ? "Subtotal" : "Price") +
-      "</span>" +
-      '<span class="mini-cart-subtotal-value">' +
-      (hasCompare
-        ? '<s class="mini-cart-line-compare">' + escapeHtml(formatUsd(compareUnit * safeQty)) + "</s> "
-        : "") +
-      escapeHtml(formatUsd(safeUnit * safeQty)) +
-      "</span>" +
-      "</div>"
+      '<span class="mini-cart-qty" role="group" aria-label="Quantity">' +
+      '<button type="button" class="mini-cart-qty-btn" data-mini-cart-qty="-1" aria-label="Decrease quantity"' +
+      (safeQty <= 1 ? " disabled" : "") +
+      ">\u2212</button>" +
+      '<span class="mini-cart-qty-value" aria-live="polite">' + safeQty + "</span>" +
+      '<button type="button" class="mini-cart-qty-btn" data-mini-cart-qty="1" aria-label="Increase quantity">+</button>' +
+      "</span>"
     );
   }
 
-  function renderCartMetaLink(items, item) {
-    var totalCount = (items || []).reduce(function (sum, row) {
-      var qty = Number(row && row.quantity);
-      return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
-    }, 0);
-    var addedQty = Number(item && item.quantity);
-    if (!Number.isFinite(addedQty) || addedQty < 1) addedQty = 1;
-    if (totalCount <= addedQty) return "";
+  /** Compare-at unit price for a row (0 when none). */
+  function rowCompareAtUnit(row) {
+    var pricing = getPricing();
+    if (!pricing || typeof pricing.calculateProductCompareAtPrice !== "function") return 0;
+    var slug = (row && (row.slug || row.productSlug)) || "";
+    return pricing.calculateProductCompareAtPrice({
+      slug: slug,
+      productSlug: slug,
+      size: row && row.size,
+      powerType: row && row.powerType
+    });
+  }
+
+  function renderCartRow(row, isJustAdded, index) {
+    var slug = row && row.slug ? row.slug : "";
+    var name = (row && row.name) || "Product";
+    var imageUrl = row && row.imageUrl ? row.imageUrl : slug ? "/Image/" + slug + "-1.webp" : "";
+    var qty = Number(row && row.quantity);
+    var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    var unit = Number(row && row.unitPriceUSD);
+    var safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
+    var compareUnit = rowCompareAtUnit(row);
+    var hasCompare = compareUnit > safeUnit && safeUnit > 0;
+    var meta = [formatSizeLabel(row), (row && row.powerTypeLabel) || ""].filter(Boolean).join(" · ");
+
     return (
-      '<a class="mini-cart-cart-link" href="/cart/">' +
-      "Your cart · " + totalCount + " items" +
-      '<span aria-hidden="true"> →</span>' +
-      "</a>"
+      '<li class="mini-cart-item' +
+      (isJustAdded ? " mini-cart-item--added" : "") +
+      '" data-item-key="' +
+      escapeHtml(row && row.key ? row.key : "") +
+      '" style="--item-index:' +
+      index +
+      '">' +
+      (isJustAdded ? '<span class="mini-cart-item-badge">Just Added</span>' : "") +
+      '<div class="mini-cart-item-thumb-wrap">' +
+      '<img class="mini-cart-thumb" src="' +
+      escapeHtml(imageUrl) +
+      '" alt="" width="64" height="64" loading="lazy" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.Cart&amp;&amp;ZYBAR.Cart.onProductThumbError)ZYBAR.Cart.onProductThumbError(this)" />' +
+      "</div>" +
+      '<div class="mini-cart-item-info">' +
+      '<p class="mini-cart-item-name">' + escapeHtml(name) + "</p>" +
+      '<p class="mini-cart-item-meta">' + escapeHtml(meta) + "</p>" +
+      renderQuantityStepper(row) +
+      "</div>" +
+      '<div class="mini-cart-item-price">' +
+      (hasCompare
+        ? '<s class="mini-cart-item-compare">' + escapeHtml(formatUsd(compareUnit * safeQty)) + "</s>"
+        : "") +
+      '<span class="mini-cart-item-amount">' + escapeHtml(formatUsd(safeUnit * safeQty)) + "</span>" +
+      "</div>" +
+      "</li>"
+    );
+  }
+
+  function renderCartList(items, addedKey) {
+    var ordered = orderItemsForDisplay(items, addedKey);
+    var totalCount = countCartItems(ordered);
+    var collapsed = !state.expanded && ordered.length > VISIBLE_ROW_LIMIT;
+    var visible = collapsed ? ordered.slice(0, VISIBLE_ROW_LIMIT) : ordered;
+    var hiddenCount = ordered.length - visible.length;
+
+    var rows = visible
+      .map(function (row, index) {
+        return renderCartRow(row, !!(addedKey && row && row.key === addedKey), index);
+      })
+      .join("");
+
+    return (
+      '<section class="mini-cart-list-section" aria-label="Cart contents">' +
+      '<div class="mini-cart-cart-head">' +
+      '<h3 class="mini-cart-cart-title">Your Cart</h3>' +
+      '<span class="mini-cart-cart-count">' +
+      totalCount +
+      (totalCount === 1 ? " Item" : " Items") +
+      "</span>" +
+      "</div>" +
+      '<ul class="mini-cart-items">' +
+      rows +
+      "</ul>" +
+      (hiddenCount > 0
+        ? '<button type="button" class="mini-cart-more-btn" data-mini-cart-expand>+' +
+          hiddenCount +
+          " More " +
+          (hiddenCount === 1 ? "Item" : "Items") +
+          "</button>"
+        : "") +
+      (ordered.length > 1
+        ? '<a class="mini-cart-cart-link" href="/cart/">View Full Cart <span aria-hidden="true">→</span></a>'
+        : "") +
+      "</section>"
     );
   }
 
@@ -279,56 +392,56 @@
       );
     }
     var breakdown = summary.computeCartBreakdown(items);
-    var memberNote = "";
+    var guaranteeNote = "";
     if (breakdown.memberSavings > 0) {
-      memberNote =
-        '<p class="mini-cart-member-note">' +
-        '<span aria-hidden="true">✓</span> Your Welcome Discount has already been applied.' +
-        "</p>";
+      guaranteeNote = "Best price guaranteed. Your member discount is already applied.";
+    } else if (breakdown.totalSavings > 0) {
+      guaranteeNote = "Best price guaranteed. No coupon needed.";
     }
     return (
       '<section class="mini-cart-pricing" aria-label="Order value">' +
-      summary.renderBreakdownHtml(breakdown, { totalLabel: "Total" }) +
-      memberNote +
+      summary.renderBreakdownHtml(breakdown, {
+        totalLabel: "Total",
+        showDelivery: false,
+        showShipping: true,
+        note: ""
+      }) +
+      (guaranteeNote
+        ? '<p class="mini-cart-guarantee">' +
+          '<span class="mini-cart-guarantee-icon" aria-hidden="true">' + ICONS.check + "</span>" +
+          escapeHtml(guaranteeNote) +
+          "</p>"
+        : "") +
       "</section>"
     );
   }
 
   function renderBody(item, options) {
-    var slug = item && item.slug ? item.slug : "";
-    var size = formatSizeLabel(item);
-    var power =
-      (item && item.powerTypeLabel) ||
-      (item && item.powerType ? String(item.powerType) : "") ||
-      "—";
-    var qty = Number(item && item.quantity);
-    var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
-    var imageUrl = item && item.imageUrl ? item.imageUrl : slug ? "/Image/" + slug + "-1.webp" : "";
-    var name = (item && item.name) || "Product";
     var items = getCartItems(options);
+    var addedKey = item && item.key ? item.key : "";
 
     return (
-      '<article class="mini-cart-product">' +
-      '<div class="mini-cart-thumb-wrap">' +
-      '<img class="mini-cart-thumb" src="' +
-      escapeHtml(imageUrl) +
-      '" alt="" width="120" height="120" loading="lazy" onerror="if(window.ZYBAR&amp;&amp;ZYBAR.Cart&amp;&amp;ZYBAR.Cart.onProductThumbError)ZYBAR.Cart.onProductThumbError(this)" />' +
-      "</div>" +
-      '<div class="mini-cart-product-info">' +
-      '<h3 class="mini-cart-product-name">' +
-      escapeHtml(name) +
-      "</h3>" +
-      '<div class="mini-cart-spec">' +
-      buildSpecRow("Size", size, 0) +
-      buildSpecRow("Power", power, 1) +
-      buildSpecRow("Quantity", String(safeQty), 2) +
-      "</div>" +
-      renderLinePriceRow(item) +
-      "</div>" +
-      "</article>" +
-      renderCartMetaLink(items, item) +
+      renderCartList(items, addedKey) +
       renderPricingBreakdown(items) +
-      renderTrustSection()
+      renderDeliveryCard() +
+      renderTrustSection() +
+      renderSocialProof()
+    );
+  }
+
+  function renderPaymentMarks() {
+    return (
+      '<ul class="mini-cart-payments" aria-label="Accepted payment methods">' +
+      '<li class="mini-cart-pay mini-cart-pay--apple">' +
+      '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 12.54c-.03-2.5 2.04-3.7 2.13-3.76-1.16-1.7-2.97-1.93-3.61-1.96-1.54-.16-3 .9-3.78.9-.78 0-1.98-.88-3.26-.86-1.68.03-3.22.98-4.08 2.48-1.74 3.02-.44 7.49 1.25 9.94.83 1.2 1.82 2.55 3.12 2.5 1.25-.05 1.72-.81 3.23-.81 1.5 0 1.93.81 3.25.79 1.35-.03 2.2-1.22 3.02-2.43.95-1.39 1.34-2.74 1.36-2.81-.03-.01-2.61-1-2.63-3.98zM14.56 5.2c.69-.83 1.15-1.99 1.02-3.14-.99.04-2.18.66-2.89 1.49-.63.73-1.19 1.91-1.04 3.04 1.1.09 2.23-.56 2.91-1.39z"/></svg>' +
+      " Pay</li>" +
+      '<li class="mini-cart-pay mini-cart-pay--google">G Pay</li>' +
+      '<li class="mini-cart-pay mini-cart-pay--visa">VISA</li>' +
+      '<li class="mini-cart-pay mini-cart-pay--mc" aria-label="Mastercard">' +
+      '<svg viewBox="0 0 38 24" aria-hidden="true"><circle cx="15" cy="12" r="8" fill="#EB001B"/><circle cx="23" cy="12" r="8" fill="#F79E1B" fill-opacity="0.9"/></svg>' +
+      "</li>" +
+      '<li class="mini-cart-pay mini-cart-pay--amex">AMEX</li>' +
+      "</ul>"
     );
   }
 
@@ -337,23 +450,21 @@
     var valueNote = "";
     if (summary) {
       var breakdown = summary.computeCartBreakdown(getCartItems(options));
-      if (breakdown.memberSavings > 0) {
+      if (breakdown.totalSavings > 0) {
         valueNote =
-          '<p class="mini-cart-value-note">You save ' +
+          '<p class="mini-cart-value-note"><span aria-hidden="true">\u2713</span> You saved ' +
           escapeHtml(formatUsd(breakdown.totalSavings)) +
-          " today — your discount is already applied.</p>";
-      } else if (breakdown.totalSavings > 0) {
-        valueNote =
-          '<p class="mini-cart-value-note">You save ' +
-          escapeHtml(formatUsd(breakdown.totalSavings)) +
-          " today.</p>";
+          " today — best available price applied.</p>";
       }
     }
     return (
       '<div class="mini-cart-actions">' +
       valueNote +
-      '<button type="button" class="mini-cart-btn mini-cart-btn--primary" data-mini-cart-checkout>Checkout Securely</button>' +
-      '<button type="button" class="mini-cart-continue" data-mini-cart-continue>Continue Shopping</button>' +
+      '<button type="button" class="mini-cart-btn mini-cart-btn--primary" data-mini-cart-checkout>' +
+      '<span class="mini-cart-btn-icon" aria-hidden="true">' + ICONS.lock + "</span>" +
+      "Checkout Securely</button>" +
+      renderPaymentMarks() +
+      '<button type="button" class="mini-cart-continue" data-mini-cart-continue>Continue Shopping <span aria-hidden="true">\u2192</span></button>' +
       "</div>"
     );
   }
@@ -380,6 +491,57 @@
     }
   }
 
+  /** Quantity stepper — updates the persisted cart, then re-renders in place. */
+  function handleQuantityClick(button) {
+    var delta = Number(button.getAttribute("data-mini-cart-qty"));
+    if (!Number.isFinite(delta) || !delta) return;
+    var rowEl = button.closest("[data-item-key]");
+    var key = rowEl ? rowEl.getAttribute("data-item-key") : "";
+    var options = state.options;
+    if (!key || !options) return;
+
+    var current = getCartItems(options).filter(function (row) {
+      return row && row.key === key;
+    })[0];
+    if (!current) return;
+    if (delta < 0 && Number(current.quantity) <= 1) return;
+
+    var cart = window.ZYBAR && window.ZYBAR.Cart;
+    var nextItems;
+    if (cart && typeof cart.updateCartItemQuantity === "function") {
+      nextItems = cart.updateCartItemQuantity(key, delta);
+    } else {
+      current.quantity = Math.max(1, (Number(current.quantity) || 1) + delta);
+      nextItems = getCartItems(options);
+    }
+    var nextRow = (nextItems || []).filter(function (row) {
+      return row && row.key === key;
+    })[0];
+    if (!nextRow) return;
+
+    options.items = nextItems;
+    if (options.item && options.item.key === key) options.item = nextRow;
+    renderDrawer(options.item, options, false);
+  }
+
+  function wireBodyActions(drawer) {
+    var body = drawer.querySelector("[data-mini-cart-body]");
+    if (!body || body.getAttribute("data-qty-wired")) return;
+    body.setAttribute("data-qty-wired", "1");
+    body.addEventListener("click", function (event) {
+      var qtyBtn = event.target && event.target.closest("[data-mini-cart-qty]");
+      if (qtyBtn) {
+        handleQuantityClick(qtyBtn);
+        return;
+      }
+      var expandBtn = event.target && event.target.closest("[data-mini-cart-expand]");
+      if (expandBtn && state.options) {
+        state.expanded = true;
+        renderDrawer(state.options.item, state.options, false);
+      }
+    });
+  }
+
   function renderDrawer(item, options, shouldAnimate) {
     var drawer = ensureDrawerDom();
     var body = drawer.querySelector("[data-mini-cart-body]");
@@ -387,9 +549,18 @@
     var scroll = drawer.querySelector(".mini-cart-scroll");
     if (!body || !footer || !scroll) return;
 
+    var confirm = drawer.querySelector("[data-mini-cart-confirm]");
+    if (confirm) {
+      var name = item && item.name ? String(item.name) : "";
+      confirm.innerHTML = name
+        ? "<strong>" + escapeHtml(name) + "</strong> has been added to your cart."
+        : "Added to your cart";
+    }
+
     body.innerHTML = renderBody(item, options);
     footer.innerHTML = renderFooter(options);
     wireFooterActions(drawer, options);
+    wireBodyActions(drawer);
 
     scroll.classList.remove("is-animated");
     if (shouldAnimate) {
@@ -413,6 +584,7 @@
       state.options = options;
       var drawer = ensureDrawerDom();
       var wasOpen = state.isOpen;
+      if (!wasOpen) state.expanded = false;
 
       renderDrawer(options.item, options, !wasOpen);
 
