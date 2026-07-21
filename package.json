@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev:test": "PORT=3001 ZYBAR_MY=1 node server.js",
+    "acceptance:marketing-v1": "node scripts/marketing-v1-acceptance.js",
     "start": "node server.js",
     "server": "node server.js",
     "sync-stripe": "node scripts/sync-prices-to-stripe.js",

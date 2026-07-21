@@ -1483,6 +1483,22 @@ app.post('/api/admin/journey-queue/execute', async (req, res) => {
   }
 });
 
+app.post('/api/admin/journey-queue/:id/retry', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const result = await JourneyEngine.retryFailedAction(
+      supabase,
+      req.params.id,
+      process.env
+    );
+    return res.json(Object.assign({ ok: result.worker.completed === 1 }, result.worker));
+  } catch (err) {
+    console.error('POST /api/admin/journey-queue/:id/retry error:', err);
+    return res.status(400).json({ error: (err && err.message) || 'Failed to retry action.' });
+  }
+});
+
 app.get('/api/admin/journey-history', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
   try {

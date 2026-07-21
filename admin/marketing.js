@@ -781,11 +781,13 @@ window.renderAdminmarketing = function (container) {
         var rows = result.body.queue || [];
         host.innerHTML =
           '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-          '<thead><tr><th>Lead</th><th>Journey</th><th>Step</th><th>Action</th><th>Scheduled</th><th>Status</th></tr></thead><tbody>' +
+          '<thead><tr><th>Lead</th><th>Journey</th><th>Step</th><th>Action</th><th>Scheduled</th><th>Status</th><th></th></tr></thead><tbody>' +
           (rows
             .map(function (r) {
               return (
-                '<tr><td>' +
+                '<tr data-action-id="' +
+                esc(r.id) +
+                '"><td>' +
                 esc(r.lead_email || r.recipient || '—') +
                 '</td><td>' +
                 esc(r.journey_name || '—') +
@@ -801,12 +803,37 @@ window.renderAdminmarketing = function (container) {
                 (r.error_message
                   ? '<div class="admin-muted">' + esc(r.error_message) + '</div>'
                   : '') +
+                '</td><td>' +
+                (r.status === 'failed'
+                  ? '<button type="button" class="admin-btn-secondary jq-retry">Retry</button>'
+                  : '') +
                 '</td></tr>'
               );
             })
             .join('') ||
-            '<tr><td colspan="6" class="admin-cell-empty">Queue empty. Due steps are promoted when you Execute Ready Actions.</td></tr>') +
+            '<tr><td colspan="7" class="admin-cell-empty">Queue empty. Due steps are promoted when you Execute Ready Actions.</td></tr>') +
           '</tbody></table></div></div>';
+        host.querySelectorAll('.jq-retry').forEach(function (button) {
+          button.addEventListener('click', function () {
+            var row = button.closest('[data-action-id]');
+            var actionId = row && row.getAttribute('data-action-id');
+            if (!actionId || !window.confirm('Retry this failed email through the Queue Worker?')) return;
+            button.disabled = true;
+            button.textContent = 'Retrying…';
+            fetchJson('/api/admin/journey-queue/' + encodeURIComponent(actionId) + '/retry', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: '{}'
+            }).then(function (retryResult) {
+              if (!retryResult.ok || !retryResult.body.ok) {
+                setMsg((retryResult.body && retryResult.body.error) || 'Retry failed.', false);
+              } else {
+                setMsg('Retry completed successfully.', true);
+              }
+              load();
+            });
+          });
+        });
       });
     }
 
