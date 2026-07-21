@@ -1,60 +1,124 @@
 /**
- * Admin auth - email + admin code only (no password, no Supabase Auth).
- * Code is validated against Supabase admin_codes table; you set ADMIN_CODE in config only if not using DB.
- * By default, login is stored in sessionStorage so refresh keeps you logged in until you close the tab or sign out.
- * Set window.ADMIN_REQUIRE_LOGIN_EVERY_TIME = true in admin/config.js to require the admin code on every page load/refresh.
+ * Admin auth — server-validated code + signed, short-lived bearer session.
  */
 (function () {
   'use strict';
 
-  if (window.ZYBAR_MY_TEST) {
-    window.adminAuth = {
-      ready: Promise.resolve(true),
-      configReady: true,
-      user: { email: 'test@zybar.my' },
-      isAdmin: true,
-      unauthorized: false,
-      error: '',
-      showLogin: false,
-      signOut: function () { window.location.reload(); }
-    };
-    return;
-  }
-
   var SUPABASE_URL = window.ADMIN_SUPABASE_URL;
   var SUPABASE_ANON_KEY = window.ADMIN_SUPABASE_ANON_KEY;
-
   var STORAGE_KEY = 'adminCodeVerified';
   var STORAGE_EMAIL = 'adminEmail';
-
+  var STORAGE_TOKEN = 'adminSessionToken';
   var requireLoginEveryTime = !!(window.ADMIN_REQUIRE_LOGIN_EVERY_TIME);
-
   var authState = {
     _user: null,
     _isAdmin: false,
     showLogin: true
   };
+  var nativeFetch = window.fetch.bind(window);
 
-  function checkAdmin() {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      return Promise.resolve(false);
-    }
-    if (requireLoginEveryTime && typeof sessionStorage !== 'undefined') {
+  function clearSession() {
+    if (typeof sessionStorage !== 'undefined') {
       sessionStorage.removeItem(STORAGE_KEY);
       sessionStorage.removeItem(STORAGE_EMAIL);
-    }
-    var verified = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(STORAGE_KEY);
-    var email = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(STORAGE_EMAIL) : null;
-    if (verified) {
-      authState._user = email ? { email: email } : { email: '' };
-      authState._isAdmin = true;
-      authState.showLogin = false;
-      return Promise.resolve(true);
+      sessionStorage.removeItem(STORAGE_TOKEN);
     }
     authState._user = null;
     authState._isAdmin = false;
     authState.showLogin = true;
-    return Promise.resolve(true);
+  }
+
+  function storeSession(body) {
+    if (!body || !body.token) return false;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(STORAGE_KEY, '1');
+      sessionStorage.setItem(STORAGE_EMAIL, body.email || '');
+      sessionStorage.setItem(STORAGE_TOKEN, body.token);
+    }
+    authState._user = { email: body.email || '' };
+    authState._isAdmin = true;
+    authState.showLogin = false;
+    return true;
+  }
+
+  function getToken() {
+    return typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem(STORAGE_TOKEN) || ''
+      : '';
+  }
+
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : input && input.url ? input.url : '';
+    var options = Object.assign({}, init || {});
+    if (/^\/api\/admin(?:\/|-)/.test(url)) {
+      var headers = new Headers(options.headers || (input && input.headers) || {});
+      var token = getToken();
+      if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', 'Bearer ' + token);
+      }
+      options.headers = headers;
+    }
+    return nativeFetch(input, options).then(function (response) {
+      if (
+        response.status === 401 &&
+        /^\/api\/admin(?:\/|-)/.test(url) &&
+        url.indexOf('/api/admin/auth/login') !== 0
+      ) {
+        clearSession();
+      }
+      return response;
+    });
+  };
+
+  function validateStoredSession() {
+    if (requireLoginEveryTime && typeof sessionStorage !== 'undefined') {
+      clearSession();
+    }
+    var token = getToken();
+    if (!token) return Promise.resolve(false);
+    return window
+      .fetch('/api/admin/auth/session')
+      .then(function (response) {
+        if (!response.ok) {
+          clearSession();
+          return false;
+        }
+        return response.json().then(function (body) {
+          authState._user = { email: body.email || '' };
+          authState._isAdmin = true;
+          authState.showLogin = false;
+          return true;
+        });
+      })
+      .catch(function () {
+        clearSession();
+        return false;
+      });
+  }
+
+  function createTestSession() {
+    return nativeFetch('/api/admin/auth/test-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    })
+      .then(function (response) {
+        if (!response.ok) return false;
+        return response.json().then(storeSession);
+      })
+      .catch(function () {
+        return false;
+      });
+  }
+
+  function checkAdmin() {
+    if (window.ZYBAR_MY_TEST) {
+      return validateStoredSession().then(function (valid) {
+        return valid ? true : createTestSession();
+      });
+    }
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return Promise.resolve(false);
+    return validateStoredSession();
   }
 
   var authReady = checkAdmin();
@@ -68,11 +132,9 @@
     get error() { return ''; },
     get showLogin() { return authState.showLogin; },
     set showLogin(v) { authState.showLogin = v; },
+    storeSession: storeSession,
     signOut: function () {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.removeItem(STORAGE_KEY);
-        sessionStorage.removeItem(STORAGE_EMAIL);
-      }
+      clearSession();
       window.location.reload();
     }
   };

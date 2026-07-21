@@ -29,24 +29,24 @@
         return;
       }
       if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
-      if (!window.supabase) {
-        if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
-        errEl.textContent = 'Supabase client not loaded. Refresh the page and try again.';
-        errEl.classList.add('visible');
-        return;
-      }
-      window.supabase.rpc('validate_and_use_admin_code', { p_code: code, p_email: email })
-        .then(function (res) {
-          var ok = res.data === true;
-          if (!ok) {
+      window.fetch('/api/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, code: code })
+      })
+        .then(function (response) {
+          return response.json().then(function (body) {
+            return { ok: response.ok, body: body };
+          });
+        })
+        .then(function (result) {
+          if (!result.ok || !window.adminAuth.storeSession(result.body)) {
             if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
-            errEl.textContent = 'Invalid or already used code. Check the code or use a different one.';
+            errEl.textContent =
+              (result.body && result.body.error) ||
+              'Invalid or already used code. Check the code or use a different one.';
             errEl.classList.add('visible');
             return;
-          }
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem('adminCodeVerified', '1');
-            sessionStorage.setItem('adminEmail', email);
           }
           window.location.reload();
         })

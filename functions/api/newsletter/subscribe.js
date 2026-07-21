@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { sendEmail } from '../../__lib/email/resend.js';
 
 function json(data, status) {
   return new Response(JSON.stringify(data), {
@@ -60,38 +59,6 @@ async function ensureDiscountCode(supabase) {
     },
     { onConflict: 'code' }
   );
-}
-
-async function sendWelcomeEmail(env, email) {
-  if (!env.RESEND_API_KEY) return { sent: false };
-  var storeUrl = env.STORE_URL || 'https://www.zybar.shop';
-  var html =
-    '<div style="background:#0b0b0b;padding:32px;font-family:Georgia,serif;color:#fff;text-align:center;">' +
-    '<div style="letter-spacing:.28em;font-size:12px;opacity:.55;">WELCOME TO</div>' +
-    '<div style="font-size:28px;margin-top:8px;">THE ZYBAR GARAGE</div>' +
-    '<p style="font-family:Helvetica,Arial,sans-serif;opacity:.72;">Your 15% first-order discount is ready.</p>' +
-    '<div style="display:inline-block;margin:18px 0;padding:16px 24px;border:1px solid rgba(255,255,255,.18);border-radius:12px;">' +
-    '<div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:.18em;opacity:.5;">DISCOUNT CODE</div>' +
-    '<div style="font-size:28px;letter-spacing:.12em;margin-top:6px;">' +
-    DISCOUNT_CODE +
-    '</div></div>' +
-    '<div><a href="' +
-    storeUrl +
-    '/collections/all/" style="display:inline-block;background:#fff;color:#111;text-decoration:none;padding:14px 24px;border-radius:999px;font-family:Helvetica,Arial,sans-serif;font-weight:600;">Shop the Collection</a></div>' +
-    '<p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;opacity:.55;margin-top:28px;">Shipping: Standard 14–18 days · Priority 7–14 days</p>' +
-    '</div>';
-
-  try {
-    await sendEmail({
-      env: env,
-      to: email,
-      subject: 'Welcome to ZYBAR Garage',
-      html: html
-    });
-    return { sent: true };
-  } catch (_) {
-    return { sent: false };
-  }
 }
 
 export async function onRequestPost(context) {
@@ -177,14 +144,27 @@ export async function onRequestPost(context) {
     return json({ error: 'Unable to join right now. Please try again.' }, 500);
   }
 
-  var emailResult = await sendWelcomeEmail(env, email);
+  var journeyEnrolled = false;
+  var journeyResult = await supabase
+    .from('journeys')
+    .select('id')
+    .eq('trigger_type', 'signup')
+    .eq('status', 'published')
+    .maybeSingle();
+  if (!journeyResult.error && journeyResult.data) {
+    var transitionResult = await supabase.rpc('transition_lead_journey', {
+      p_lead_id: insertResult.data.id,
+      p_journey_id: journeyResult.data.id
+    });
+    journeyEnrolled = !transitionResult.error && Boolean(transitionResult.data);
+  }
 
   return json({
     ok: true,
     alreadyMember: false,
     discountCode: (insertResult.data && insertResult.data.discount_code) || DISCOUNT_CODE,
     subscriberId: insertResult.data && insertResult.data.id,
-    emailSent: Boolean(emailResult && emailResult.sent),
+    journeyEnrolled: journeyEnrolled,
     message: 'Welcome to ZYBAR Garage'
   });
 }

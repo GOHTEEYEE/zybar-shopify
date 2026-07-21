@@ -5,6 +5,7 @@
  */
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 require('dotenv').config();
 if (fs.existsSync(path.join(__dirname, '.env.local'))) {
   require('dotenv').config({ path: path.join(__dirname, '.env.local'), override: true });
@@ -29,8 +30,63 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const adminSessionSecret = process.env.ADMIN_SESSION_SECRET || supabaseServiceKey;
 const openAiApiKey = process.env.OPENAI_API_KEY;
 const openAiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+function encodeAdminTokenPart(value) {
+  return Buffer.from(value).toString('base64url');
+}
+
+function signAdminSession(email) {
+  if (!adminSessionSecret) throw new Error('Admin session signing is not configured.');
+  const payload = encodeAdminTokenPart(
+    JSON.stringify({
+      email: String(email || '').trim().toLowerCase(),
+      exp: Date.now() + 8 * 60 * 60 * 1000
+    })
+  );
+  const signature = crypto
+    .createHmac('sha256', adminSessionSecret)
+    .update(payload)
+    .digest('base64url');
+  return payload + '.' + signature;
+}
+
+function verifyAdminSession(token) {
+  if (!adminSessionSecret || !token) return null;
+  const parts = String(token).split('.');
+  if (parts.length !== 2) return null;
+  const expected = crypto
+    .createHmac('sha256', adminSessionSecret)
+    .update(parts[0])
+    .digest();
+  let supplied;
+  try {
+    supplied = Buffer.from(parts[1], 'base64url');
+  } catch (_) {
+    return null;
+  }
+  if (expected.length !== supplied.length || !crypto.timingSafeEqual(expected, supplied)) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    if (!payload.email || !payload.exp || Number(payload.exp) <= Date.now()) return null;
+    return payload;
+  } catch (_) {
+    return null;
+  }
+}
+
+function requireAdminSession(req, res, next) {
+  const authorization = String(req.headers.authorization || '');
+  const token = authorization.indexOf('Bearer ') === 0 ? authorization.slice(7) : '';
+  const session = verifyAdminSession(token);
+  if (!session) return res.status(401).json({ error: 'Admin authentication required.' });
+  req.adminSession = session;
+  next();
+}
 
 if (!stripeSecretKey) {
   console.warn('Missing STRIPE_SECRET_KEY. Set it in .env to enable checkout.');
@@ -540,6 +596,55 @@ app.post(
 // ----- JSON body for other routes -----
 app.use(express.json({ limit: '3mb' }));
 
+app.post('/api/admin/auth/login', async (req, res) => {
+  if (!supabase || !adminSessionSecret) {
+    return res.status(503).json({ error: 'Admin authentication is unavailable.' });
+  }
+  const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+  const code = String((req.body && req.body.code) || '').trim();
+  if (!email || !code) return res.status(400).json({ error: 'Email and admin code are required.' });
+  try {
+    const validation = await supabase.rpc('validate_and_use_admin_code', {
+      p_code: code,
+      p_email: email
+    });
+    if (validation.error) throw validation.error;
+    if (validation.data !== true) {
+      return res.status(401).json({ error: 'Invalid or already used admin code.' });
+    }
+    return res.json({
+      ok: true,
+      email: email,
+      token: signAdminSession(email),
+      expires_in: 8 * 60 * 60
+    });
+  } catch (err) {
+    console.error('POST /api/admin/auth/login error:', err);
+    return res.status(500).json({ error: 'Could not validate admin code.' });
+  }
+});
+
+app.post('/api/admin/auth/test-session', function (req, res) {
+  if (!isZybarMy || !adminSessionSecret) return res.status(404).json({ error: 'Not found.' });
+  return res.json({
+    ok: true,
+    email: 'test@zybar.my',
+    token: signAdminSession('test@zybar.my'),
+    expires_in: 8 * 60 * 60
+  });
+});
+
+app.use(function protectAdminApis(req, res, next) {
+  if (req.path.indexOf('/api/admin/') === 0 || req.path.indexOf('/api/admin-') === 0) {
+    return requireAdminSession(req, res, next);
+  }
+  next();
+});
+
+app.get('/api/admin/auth/session', function (req, res) {
+  return res.json({ ok: true, email: req.adminSession.email });
+});
+
 app.get('/api/admin-reviews', async (req, res) => {
   if (!supabase) {
     return res.status(503).json({ error: 'Supabase is not configured for reviews yet.' });
@@ -1026,23 +1131,9 @@ app.get('/api/admin/workflows', async (req, res) => {
 });
 
 app.patch('/api/admin/workflows', async (req, res) => {
-  if (!supabase) return res.status(503).json({ error: 'Workflow engine is unavailable.' });
-  try {
-    const workflowKey = String((req.body && req.body.workflow_key) || '').trim();
-    if (!workflowKey) {
-      return res.status(400).json({ error: 'workflow_key is required.' });
-    }
-    const WorkflowEngine = require('./lib/workflow-engine.js');
-    const workflow = await WorkflowEngine.updateWorkflowEnabled(
-      supabase,
-      workflowKey,
-      !!(req.body && req.body.enabled)
-    );
-    return res.json({ ok: true, workflow: workflow });
-  } catch (err) {
-    console.error('PATCH /api/admin/workflows error:', err);
-    return res.status(500).json({ error: 'Failed to update workflow.' });
-  }
+  return res.status(410).json({
+    error: 'Legacy workflows are retired. Use Customer Journey lifecycle transitions.'
+  });
 });
 
 // ----- Campaigns (status audience → template → send) -----
@@ -1084,23 +1175,10 @@ app.post('/api/admin/campaigns/send', async (req, res) => {
 
 // ----- Persistent workflow runner (Vercel Cron) — legacy; Journey Engine is manual -----
 app.get('/api/workflows/run', async (req, res) => {
-  if (!supabase) return res.status(503).json({ error: 'Workflow engine is unavailable.' });
-  const authHeader = req.headers.authorization || '';
-  const cronSecret = process.env.CRON_SECRET || '';
-  if (!cronSecret || authHeader !== 'Bearer ' + cronSecret) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  try {
-    const WorkflowEngine = require('./lib/workflow-engine.js');
-    const result = await WorkflowEngine.runDueWorkflowExecutions(supabase, process.env, 10);
-    return res.json(Object.assign({ ok: true }, result));
-  } catch (err) {
-    console.error('GET /api/workflows/run error:', err);
-    return res.status(500).json({
-      ok: false,
-      error: (err && err.message) || 'Workflow runner failed'
-    });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: 'Legacy workflow runner is retired. Journey actions execute from the manual queue.'
+  });
 });
 
 // ----- Customer Journey Engine (manual execution) -----
@@ -1195,16 +1273,41 @@ app.post('/api/admin/journeys/:id/duplicate', async (req, res) => {
   }
 });
 
+app.post('/api/admin/journeys/:id/run', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const rawEmails = req.body && req.body.emails;
+    const emails = (Array.isArray(rawEmails) ? rawEmails : String(rawEmails || '').split(/[\n,;]+/))
+      .map(function (email) {
+        return String(email || '').trim();
+      })
+      .filter(Boolean);
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const result = await JourneyEngine.runJourneyForTestEmails(
+      supabase,
+      req.params.id,
+      emails,
+      process.env
+    );
+    return res.json(Object.assign({ ok: result.failed === 0 }, result));
+  } catch (err) {
+    console.error('POST /api/admin/journeys/:id/run error:', err);
+    return res.status(400).json({
+      error: (err && err.message) || 'Failed to run workflow test.'
+    });
+  }
+});
+
 app.delete('/api/admin/journeys/:id', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
   try {
     const JourneyEngine = require('./lib/journey-engine.js');
-    const ok = await JourneyEngine.deleteJourney(supabase, req.params.id);
-    if (!ok) return res.status(404).json({ error: 'Journey not found.' });
-    return res.json({ ok: true });
+    const journey = await JourneyEngine.archiveJourney(supabase, req.params.id);
+    if (!journey) return res.status(404).json({ error: 'Journey not found or already archived.' });
+    return res.json({ ok: true, journey: journey });
   } catch (err) {
-    console.error('DELETE /api/admin/journeys/:id error:', err);
-    return res.status(500).json({ error: (err && err.message) || 'Failed to delete journey.' });
+    console.error('ARCHIVE /api/admin/journeys/:id error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to archive journey.' });
   }
 });
 
@@ -1249,6 +1352,73 @@ app.get('/api/admin/email-leads', async (req, res) => {
   } catch (err) {
     console.error('GET /api/admin/email-leads error:', err);
     return res.status(500).json({ error: (err && err.message) || 'Failed to load email leads.' });
+  }
+});
+
+app.get('/api/admin/customer-lifecycle', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const email = String((req.query && req.query.email) || '').trim();
+    if (!email) return res.status(400).json({ error: 'email is required.' });
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const lifecycle = await JourneyEngine.getCustomerLifecycleByEmail(supabase, email);
+    return res.json({ lifecycle: lifecycle });
+  } catch (err) {
+    console.error('GET /api/admin/customer-lifecycle error:', err);
+    return res.status(500).json({
+      error: (err && err.message) || 'Failed to load customer lifecycle.'
+    });
+  }
+});
+
+app.post('/api/admin/journey-transition', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const leadId = String((req.body && req.body.lead_id) || '').trim();
+    const triggerType = String((req.body && req.body.trigger_type) || '').trim();
+    if (!leadId || !triggerType) {
+      return res.status(400).json({ error: 'lead_id and trigger_type are required.' });
+    }
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const leadResult = await supabase
+      .from('newsletter_subscribers')
+      .select('*')
+      .eq('id', leadId)
+      .maybeSingle();
+    if (leadResult.error) throw leadResult.error;
+    if (!leadResult.data) return res.status(404).json({ error: 'Lead not found.' });
+    const transitioned = await JourneyEngine.enroll(
+      supabase,
+      leadResult.data,
+      triggerType
+    );
+    return res.json({
+      ok: true,
+      transitioned: transitioned.length > 0,
+      lead_journey: transitioned[0] || null
+    });
+  } catch (err) {
+    console.error('POST /api/admin/journey-transition error:', err);
+    return res.status(500).json({
+      error: (err && err.message) || 'Failed to transition customer journey.'
+    });
+  }
+});
+
+app.post('/api/admin/journey-transition/no-purchase', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const result = await JourneyEngine.transitionNoPurchaseLeads(supabase, {
+      days: (req.body && req.body.days) || 90,
+      limit: (req.body && req.body.limit) || 100
+    });
+    return res.json(Object.assign({ ok: true }, result));
+  } catch (err) {
+    console.error('POST /api/admin/journey-transition/no-purchase error:', err);
+    return res.status(500).json({
+      error: (err && err.message) || 'Failed to transition no-purchase customers.'
+    });
   }
 });
 
@@ -1317,7 +1487,10 @@ app.get('/api/admin/journey-history', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
   try {
     const JourneyEngine = require('./lib/journey-engine.js');
-    const history = await JourneyEngine.listHistoryAdmin(supabase, req.query && req.query.limit);
+    const history = await JourneyEngine.listHistoryAdmin(supabase, {
+      limit: req.query && req.query.limit,
+      journey_id: req.query && req.query.journey_id
+    });
     return res.json({ history: history });
   } catch (err) {
     console.error('GET /api/admin/journey-history error:', err);
@@ -1694,11 +1867,23 @@ async function persistPaidCheckoutSession(session) {
       (session.customer_email) ||
       null;
     if (email) {
-      const leadRes = await supabase
+      let leadRes = await supabase
         .from('newsletter_subscribers')
         .select('*')
         .ilike('email', String(email).trim().toLowerCase())
         .maybeSingle();
+      if (!leadRes.error && !leadRes.data) {
+        leadRes = await supabase
+          .from('newsletter_subscribers')
+          .insert({
+            email: String(email).trim().toLowerCase(),
+            source: 'purchase',
+            status: 'active',
+            is_test: false
+          })
+          .select('*')
+          .single();
+      }
       if (!leadRes.error && leadRes.data) {
         const JourneyEngine = require('./lib/journey-engine.js');
         await JourneyEngine.enrollLeadOnPurchase(supabase, leadRes.data);
