@@ -60,6 +60,23 @@
     return next;
   }
 
+  function getPricingSummary() {
+    return window.ZYBAR && window.ZYBAR.PricingSummary ? window.ZYBAR.PricingSummary : null;
+  }
+
+  /** Welcome code when the customer's email is already known (member). */
+  function getMemberDiscountCode() {
+    var summary = getPricingSummary();
+    return summary && summary.isMember() ? summary.WELCOME_CODE : "";
+  }
+
+  function calcLaunchSavings(items) {
+    var summary = getPricingSummary();
+    if (!summary) return 0;
+    var breakdown = summary.computeCartBreakdown(items || []);
+    return breakdown.launchSavings || 0;
+  }
+
   function calcOrderTotals(items) {
     var pricing = getPricing();
     if (!pricing) {
@@ -74,7 +91,8 @@
     }
     return pricing.calculateOrderTotals({
       items: items,
-      shippingMethod: pricing.readShippingMethod()
+      shippingMethod: pricing.readShippingMethod(),
+      discountCode: getMemberDiscountCode()
     });
   }
 
@@ -288,9 +306,19 @@
       button.textContent = "Redirecting…";
     }
 
+    var checkoutSubtotal = validItems.reduce(function (sum, row) {
+      return sum + (Number(row.unitAmountUSD) || 0) * (Number(row.quantity) || 1);
+    }, 0);
+    var summary = getPricingSummary();
+    var autoDiscountCode =
+      summary && summary.computeWelcomeDiscountUSD(checkoutSubtotal) > 0
+        ? summary.WELCOME_CODE
+        : "";
+
     goToPremiumCheckout({
       lineItems: validItems,
       shippingMethod: shippingMethod,
+      discountCode: autoDiscountCode,
       displayItems: buildDisplayItemsFromCart(
         (items || []).filter(function (item) {
           return (
@@ -324,10 +352,37 @@
     );
   }
 
-  function summaryHtml(totals) {
+  function summaryHtml(totals, items) {
     var subtotal = totals && typeof totals.subtotal === "number" ? totals.subtotal : 0;
     var shipping = totals && typeof totals.shipping === "number" ? totals.shipping : 0;
+    var discount = totals && typeof totals.discount === "number" ? totals.discount : 0;
     var total = totals && typeof totals.total === "number" ? totals.total : subtotal + shipping;
+    var totalSavings = Math.round((calcLaunchSavings(items) + discount) * 100) / 100;
+
+    var discountRow =
+      discount > 0
+        ? '<div class="cart-summary-row cart-summary-row--discount">' +
+          '<dt><span class="cart-summary-check" aria-hidden="true">✓</span>Member Welcome Discount</dt>' +
+          '<dd><span class="cart-money" id="cart-discount" data-value="' +
+          discount +
+          '">−' +
+          formatUsd(discount) +
+          "</span></dd>" +
+          "</div>"
+        : "";
+
+    var savingsRow =
+      totalSavings > 0
+        ? '<div class="cart-summary-row cart-summary-row--savings">' +
+          "<dt>You Saved Today</dt>" +
+          '<dd><span id="cart-savings" data-value="' +
+          totalSavings +
+          '">' +
+          formatUsd(totalSavings) +
+          "</span></dd>" +
+          "</div>"
+        : "";
+
     return (
       '<aside class="cart-summary" id="cart-summary" aria-label="Order summary">' +
       '<div class="cart-summary-inner">' +
@@ -340,6 +395,7 @@
       formatUsd(subtotal) +
       "</span></dd>" +
       "</div>" +
+      discountRow +
       '<div class="cart-summary-row cart-summary-row--muted">' +
       "<dt>Shipping</dt>" +
       '<dd><span class="cart-money" id="cart-shipping" data-value="' +
@@ -352,6 +408,7 @@
       "<dt>Taxes</dt>" +
       '<dd><span class="cart-summary-note">Calculated at checkout</span></dd>' +
       "</div>" +
+      savingsRow +
       '<div class="cart-summary-row cart-summary-row--total">' +
       "<dt>Total</dt>" +
       '<dd><span class="cart-money cart-money--large" id="cart-estimated-total" data-value="' +
@@ -362,7 +419,7 @@
       "</div>" +
       "</dl>" +
       '<div class="cart-summary-actions">' +
-      '<button type="button" class="cart-checkout-btn" id="cart-checkout-btn">Checkout</button>' +
+      '<button type="button" class="cart-checkout-btn" id="cart-checkout-btn">Checkout Securely</button>' +
       '<a href="/collections/all/" class="cart-continue-btn">Continue Shopping</a>' +
       "</div>" +
       "</div>" +
@@ -488,7 +545,7 @@
       listHtml +
       "</ul>" +
       "</section>" +
-      summaryHtml(totals) +
+      summaryHtml(totals, items) +
       "</div>";
 
     requestAnimationFrame(function () {
@@ -518,6 +575,26 @@
 
   function updateTotals(items) {
     var totals = calcOrderTotals(items);
+
+    // Discount/savings rows appear or disappear with cart contents —
+    // re-render the summary when presence no longer matches.
+    var discountEl = document.getElementById("cart-discount");
+    var savingsEl = document.getElementById("cart-savings");
+    var totalSavings = Math.round((calcLaunchSavings(items) + totals.discount) * 100) / 100;
+    var presenceMismatch =
+      (totals.discount > 0) !== !!discountEl || (totalSavings > 0) !== !!savingsEl;
+    if (presenceMismatch) {
+      var summaryEl = document.getElementById("cart-summary");
+      if (summaryEl) {
+        summaryEl.outerHTML = summaryHtml(totals, items);
+        wireSummaryActions(items);
+        updateDockHeight();
+      }
+    } else {
+      if (discountEl) discountEl.textContent = "−" + formatUsd(totals.discount);
+      if (savingsEl) savingsEl.textContent = formatUsd(totalSavings);
+    }
+
     var subEl = document.getElementById("cart-subtotal");
     var shipEl = document.getElementById("cart-shipping");
     var totalEl = document.getElementById("cart-estimated-total");

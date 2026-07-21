@@ -145,8 +145,8 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' +
       "</span>" +
       '<div class="mini-cart-header-copy">' +
-      '<h2 class="mini-cart-title" id="mini-cart-title">Item added to your cart</h2>' +
-      '<p class="mini-cart-subtitle">✓ Item added to your cart.</p>' +
+      '<h2 class="mini-cart-title" id="mini-cart-title">Added to Your Cart</h2>' +
+      '<p class="mini-cart-subtitle">Reserved for you — checkout takes less than a minute.</p>' +
       "</div>" +
       "</div>" +
       '<button type="button" class="mini-cart-close" aria-label="Close">' +
@@ -190,11 +190,111 @@
       '<li><span class="mini-cart-trust-icon" aria-hidden="true">✓</span> Handmade in Japan <span aria-hidden="true">🇯🇵</span></li>' +
       '<li><span class="mini-cart-trust-icon" aria-hidden="true">✓</span> Secure Checkout</li>' +
       '<li><span class="mini-cart-trust-icon" aria-hidden="true">✓</span> Ships Worldwide</li>' +
+      '<li><span class="mini-cart-trust-icon" aria-hidden="true">✓</span> 30-Day Satisfaction Guarantee</li>' +
       "</ul>"
     );
   }
 
-  function renderBody(item) {
+  function getPricingSummary() {
+    return window.ZYBAR && window.ZYBAR.PricingSummary ? window.ZYBAR.PricingSummary : null;
+  }
+
+  function getCartItems(options) {
+    if (options && Array.isArray(options.items)) return options.items;
+    var cart = window.ZYBAR && window.ZYBAR.Cart;
+    if (cart && typeof cart.readCartItems === "function") return cart.readCartItems();
+    return options && options.item ? [options.item] : [];
+  }
+
+  function getPricing() {
+    return window.ZYBAR && window.ZYBAR.Pricing ? window.ZYBAR.Pricing : null;
+  }
+
+  /** Compare-at unit price for the just-added line (0 when none). */
+  function lineCompareAtUnit(item) {
+    var pricing = getPricing();
+    if (!pricing || typeof pricing.calculateProductCompareAtPrice !== "function") return 0;
+    var slug = (item && (item.slug || item.productSlug)) || "";
+    return pricing.calculateProductCompareAtPrice({
+      slug: slug,
+      productSlug: slug,
+      size: item && item.size,
+      powerType: item && item.powerType
+    });
+  }
+
+  function renderLinePriceRow(item) {
+    var qty = Number(item && item.quantity);
+    var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    var unit = Number(item && item.unitPriceUSD);
+    var safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
+    var compareUnit = lineCompareAtUnit(item);
+    var hasCompare = compareUnit > safeUnit && safeUnit > 0;
+
+    return (
+      '<div class="mini-cart-subtotal-row">' +
+      '<span class="mini-cart-subtotal-label">' +
+      (safeQty > 1 ? "Subtotal" : "Price") +
+      "</span>" +
+      '<span class="mini-cart-subtotal-value">' +
+      (hasCompare
+        ? '<s class="mini-cart-line-compare">' + escapeHtml(formatUsd(compareUnit * safeQty)) + "</s> "
+        : "") +
+      escapeHtml(formatUsd(safeUnit * safeQty)) +
+      "</span>" +
+      "</div>"
+    );
+  }
+
+  function renderCartMetaLink(items, item) {
+    var totalCount = (items || []).reduce(function (sum, row) {
+      var qty = Number(row && row.quantity);
+      return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
+    }, 0);
+    var addedQty = Number(item && item.quantity);
+    if (!Number.isFinite(addedQty) || addedQty < 1) addedQty = 1;
+    if (totalCount <= addedQty) return "";
+    return (
+      '<a class="mini-cart-cart-link" href="/cart/">' +
+      "Your cart · " + totalCount + " items" +
+      '<span aria-hidden="true"> →</span>' +
+      "</a>"
+    );
+  }
+
+  function renderPricingBreakdown(items) {
+    var summary = getPricingSummary();
+    if (!summary) {
+      // Component missing — fall back to a plain subtotal so nothing breaks.
+      var subtotal = (items || []).reduce(function (sum, row) {
+        return sum + lineSubtotal(row);
+      }, 0);
+      return (
+        '<div class="mini-cart-subtotal-row">' +
+        '<span class="mini-cart-subtotal-label">Subtotal</span>' +
+        '<span class="mini-cart-subtotal-value">' +
+        escapeHtml(formatUsd(subtotal)) +
+        "</span>" +
+        "</div>"
+      );
+    }
+    var breakdown = summary.computeCartBreakdown(items);
+    var memberNote = "";
+    if (breakdown.memberSavings > 0) {
+      memberNote =
+        '<p class="mini-cart-member-note">' +
+        '<span aria-hidden="true">✓</span> Your Welcome Discount has already been applied.' +
+        "</p>";
+    }
+    return (
+      '<section class="mini-cart-pricing" aria-label="Order value">' +
+      summary.renderBreakdownHtml(breakdown, { totalLabel: "Total" }) +
+      memberNote +
+      "</section>"
+    );
+  }
+
+  function renderBody(item, options) {
     var slug = item && item.slug ? item.slug : "";
     var size = formatSizeLabel(item);
     var power =
@@ -205,7 +305,7 @@
     var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
     var imageUrl = item && item.imageUrl ? item.imageUrl : slug ? "/Image/" + slug + "-1.webp" : "";
     var name = (item && item.name) || "Product";
-    var subtotal = formatUsd(lineSubtotal(item));
+    var items = getCartItems(options);
 
     return (
       '<article class="mini-cart-product">' +
@@ -223,23 +323,37 @@
       buildSpecRow("Power", power, 1) +
       buildSpecRow("Quantity", String(safeQty), 2) +
       "</div>" +
-      '<div class="mini-cart-subtotal-row">' +
-      '<span class="mini-cart-subtotal-label">Subtotal</span>' +
-      '<span class="mini-cart-subtotal-value">' +
-      escapeHtml(subtotal) +
-      "</span>" +
-      "</div>" +
+      renderLinePriceRow(item) +
       "</div>" +
       "</article>" +
+      renderCartMetaLink(items, item) +
+      renderPricingBreakdown(items) +
       renderTrustSection()
     );
   }
 
-  function renderFooter() {
+  function renderFooter(options) {
+    var summary = getPricingSummary();
+    var valueNote = "";
+    if (summary) {
+      var breakdown = summary.computeCartBreakdown(getCartItems(options));
+      if (breakdown.memberSavings > 0) {
+        valueNote =
+          '<p class="mini-cart-value-note">You save ' +
+          escapeHtml(formatUsd(breakdown.totalSavings)) +
+          " today — your discount is already applied.</p>";
+      } else if (breakdown.totalSavings > 0) {
+        valueNote =
+          '<p class="mini-cart-value-note">You save ' +
+          escapeHtml(formatUsd(breakdown.totalSavings)) +
+          " today.</p>";
+      }
+    }
     return (
       '<div class="mini-cart-actions">' +
-      '<button type="button" class="mini-cart-btn mini-cart-btn--primary" data-mini-cart-checkout>Checkout</button>' +
-      '<button type="button" class="mini-cart-btn mini-cart-btn--secondary" data-mini-cart-continue>Continue Shopping</button>' +
+      valueNote +
+      '<button type="button" class="mini-cart-btn mini-cart-btn--primary" data-mini-cart-checkout>Checkout Securely</button>' +
+      '<button type="button" class="mini-cart-continue" data-mini-cart-continue>Continue Shopping</button>' +
       "</div>"
     );
   }
@@ -273,8 +387,8 @@
     var scroll = drawer.querySelector(".mini-cart-scroll");
     if (!body || !footer || !scroll) return;
 
-    body.innerHTML = renderBody(item);
-    footer.innerHTML = renderFooter();
+    body.innerHTML = renderBody(item, options);
+    footer.innerHTML = renderFooter(options);
     wireFooterActions(drawer, options);
 
     scroll.classList.remove("is-animated");
@@ -282,6 +396,14 @@
       void scroll.offsetWidth;
       scroll.classList.add("is-animated");
     }
+  }
+
+  function whenPricingReady() {
+    var pricing = getPricing();
+    if (pricing && typeof pricing.load === "function") {
+      return pricing.load().catch(function () {});
+    }
+    return Promise.resolve();
   }
 
   function openMiniCartDrawer(options) {
@@ -307,7 +429,7 @@
       }
     };
 
-    loadCatalog().then(run);
+    Promise.all([loadCatalog(), whenPricingReady()]).then(run);
   }
 
   function updateMiniCartDrawer(options) {
@@ -317,7 +439,7 @@
     }
     if (!options || !options.item) return;
     state.options = options;
-    loadCatalog().then(function () {
+    Promise.all([loadCatalog(), whenPricingReady()]).then(function () {
       renderDrawer(options.item, options, false);
     });
   }

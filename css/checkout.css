@@ -315,6 +315,58 @@
   display: none !important;
 }
 
+/* Applied offer — replaces the coupon field when a discount is active */
+.checkout-discount-applied {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.95rem 1.1rem;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 14px;
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.checkout-discount-applied-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  color: var(--co-accent);
+  font-size: 0.8rem;
+}
+
+.checkout-discount-applied-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.checkout-discount-applied-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--co-primary);
+}
+
+.checkout-discount-applied-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--co-muted);
+}
+
+.checkout-discount-applied-amount {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--co-accent);
+  white-space: nowrap;
+}
+
 /* Totals */
 .checkout-block--totals .checkout-totals {
   margin-top: 0;
@@ -341,6 +393,16 @@
 .checkout-total-row span:last-child {
   color: var(--co-primary);
   font-weight: 400;
+}
+
+.checkout-total-row--discount span:last-child,
+.checkout-total-row--savings span,
+.checkout-total-row--savings span:last-child {
+  color: var(--co-accent);
+}
+
+.checkout-total-row--savings {
+  font-weight: 500;
 }
 
 .checkout-total-row--grand {

@@ -2187,6 +2187,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     embedded,
     custom,
     shippingMethod,
+    discountCode,
     unitAmountUSD,
     name,
     visitorId,
@@ -2279,7 +2280,37 @@ app.post('/api/create-checkout-session', async (req, res) => {
     );
   }
 
+  // Validate the discount against the catalog and price it off the product
+  // subtotal only (shipping stays full price) — same math the storefront shows.
+  const productSubtotalUSD = stripeLineItems.reduce(function (sum, li) {
+    const isProduct =
+      li && li.price_data && li.price_data.product_data && li.price_data.product_data.metadata;
+    if (!isProduct) return sum;
+    return sum + (li.price_data.unit_amount * li.quantity) / 100;
+  }, 0);
+
+  let appliedDiscountUSD = 0;
+  let appliedDiscountCode = '';
+  let appliedDiscountLabel = '';
+  if (discountCode && typeof pricingApi.applyDiscountUSD === 'function') {
+    const codeRaw = String(discountCode).trim();
+    appliedDiscountUSD = pricingApi.applyDiscountUSD(codeRaw, productSubtotalUSD);
+    if (appliedDiscountUSD > 0) {
+      appliedDiscountCode = codeRaw.toUpperCase();
+      const catalogEntry =
+        catalog && catalog.discountCodes ? catalog.discountCodes[codeRaw.toLowerCase()] : null;
+      appliedDiscountLabel =
+        appliedDiscountCode === 'ZYBAR15'
+          ? 'Member Welcome Discount'
+          : (catalogEntry && catalogEntry.label) || 'Discount';
+    }
+  }
+
   const metadata = {};
+  if (appliedDiscountCode) {
+    metadata.discountCode = appliedDiscountCode;
+    metadata.discountUSD = appliedDiscountUSD.toFixed(2);
+  }
   if (productSlug) metadata.productSlug = String(productSlug);
   if (size) metadata.size = String(size);
   if (powerType) metadata.powerType = String(powerType);
@@ -2351,6 +2382,18 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
   try {
     console.log('Checkout line item prices:', stripeLineItems.map(function (i) { return i.price; }));
+
+    // Attach the validated discount as a real Stripe coupon so the charged
+    // amount always matches the savings promised in the cart and checkout UI.
+    if (appliedDiscountUSD > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: Math.round(appliedDiscountUSD * 100),
+        currency: 'usd',
+        duration: 'once',
+        name: String(appliedDiscountLabel).slice(0, 40)
+      });
+      sessionBase.discounts = [{ coupon: coupon.id }];
+    }
 
     if (isCustom || isEmbedded) {
       if (isCustom) {

@@ -64,6 +64,13 @@
     return String(slug || "") + "::" + String(size || "") + "::" + String(powerType || "usb");
   }
 
+  /** Welcome code to auto-apply when the customer's email is already known. */
+  function getAutoDiscountCode(subtotalUSD) {
+    var summary = window.ZYBAR && window.ZYBAR.PricingSummary;
+    if (!summary) return "";
+    return summary.computeWelcomeDiscountUSD(subtotalUSD) > 0 ? summary.WELCOME_CODE : "";
+  }
+
   function getQuantity() {
     var qtyEl = document.querySelector(".product-quantity span");
     var qty = qtyEl ? parseInt(qtyEl.textContent, 10) : 1;
@@ -305,6 +312,7 @@
     goToPremiumCheckout({
       lineItems: validItems,
       shippingMethod: shippingMethod,
+      discountCode: getAutoDiscountCode(cartValue),
       displayItems: buildDisplayItemsFromCart(
         (items || []).filter(function (item) {
           return (
@@ -1252,6 +1260,7 @@
             unitAmountUSD: unitAmountUSD
           }],
           shippingMethod: shippingMethod,
+          discountCode: getAutoDiscountCode(unitAmountUSD * quantity),
           displayItems: [{
             name: getProductName(),
             imageUrl: imageUrl,
@@ -1335,6 +1344,7 @@
     var drawer = window.ZYBAR.MiniCartDrawer;
     var payload = {
       item: item,
+      items: readCartItems(),
       cartCount: getCartTotalCount(),
       onCheckout: function (button) {
         beginCartCheckout(readCartItems(), button);

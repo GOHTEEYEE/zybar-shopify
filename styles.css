@@ -7315,6 +7315,152 @@ body.zybar-mini-cart-open {
   color: #fff;
 }
 
+.mini-cart-line-compare {
+  color: rgba(255, 255, 255, 0.38);
+  font-weight: 400;
+  margin-right: 0.4rem;
+}
+
+.mini-cart-cart-link {
+  display: inline-block;
+  margin-top: 0.9rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  transition: color 200ms ease;
+}
+
+.mini-cart-cart-link:hover {
+  color: #fff;
+}
+
+/* ----- Reusable price breakdown (mini cart, campaigns) ----- */
+.mini-cart-pricing {
+  margin-top: 1rem;
+}
+
+.zps {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.95rem 1rem 0.8rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.zps-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.zps-label {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.zps-label-note {
+  display: block;
+  font-style: normal;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  color: rgba(212, 175, 55, 0.75);
+  margin-top: 0.1rem;
+}
+
+.zps-value {
+  color: #fff;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.zps-strike {
+  color: rgba(255, 255, 255, 0.38);
+  font-weight: 400;
+}
+
+.zps-row--discount .zps-value {
+  color: #d4af37;
+}
+
+.zps-row--member .zps-label {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.zps-member-check {
+  color: #d4af37;
+  margin-right: 0.35rem;
+}
+
+.zps-row--delivery .zps-value {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.zps-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0.15rem 0;
+}
+
+.zps-divider--strong {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.zps-row--savings .zps-label,
+.zps-row--savings .zps-value {
+  color: #d4af37;
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+}
+
+.zps-row--total .zps-label {
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.zps-row--total .zps-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.zps-note {
+  margin: 0.1rem 0 0;
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.mini-cart-member-note {
+  margin: 0.65rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.mini-cart-member-note span {
+  color: #d4af37;
+  margin-right: 0.3rem;
+}
+
+.mini-cart-value-note {
+  margin: 0 0 0.15rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #d4af37;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
 .mini-cart-trust {
   list-style: none;
   margin: 1rem 0 0;
@@ -7435,6 +7581,14 @@ body.zybar-mini-cart-open {
   animation-delay: calc(0.1s + (var(--spec-index, 0) * 0.04s));
 }
 
+.mini-cart-scroll.is-animated .mini-cart-pricing {
+  animation: mini-cart-info-in 0.44s 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mini-cart-scroll.is-animated .mini-cart-value-note {
+  animation: mini-cart-fade-in 0.38s 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .mini-cart-scroll.is-animated .mini-cart-trust {
   animation: mini-cart-trust-in 0.42s 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -7519,6 +7673,8 @@ body.zybar-mini-cart-open {
   .mini-cart-scroll.is-animated .mini-cart-thumb-wrap,
   .mini-cart-scroll.is-animated .mini-cart-product-info,
   .mini-cart-scroll.is-animated .mini-cart-spec-row,
+  .mini-cart-scroll.is-animated .mini-cart-pricing,
+  .mini-cart-scroll.is-animated .mini-cart-value-note,
   .mini-cart-scroll.is-animated .mini-cart-trust,
   .mini-cart-scroll.is-animated .mini-cart-btn--primary,
   .mini-cart-scroll.is-animated .mini-cart-btn--secondary,
@@ -7932,6 +8088,23 @@ body.cart-page {
   color: var(--cart-muted);
   font-style: normal;
   font-weight: 400;
+}
+
+.cart-summary-row--discount dt,
+.cart-summary-row--discount dd {
+  font-size: 14px;
+  color: #d4af37;
+  font-weight: 500;
+}
+
+.cart-summary-check {
+  margin-right: 6px;
+}
+
+.cart-summary-row--savings dt,
+.cart-summary-row--savings dd {
+  color: #d4af37;
+  font-weight: 600;
 }
 
 .cart-summary-row--total {

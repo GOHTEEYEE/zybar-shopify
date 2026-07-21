@@ -14,6 +14,7 @@
     shipping: 0,
     tax: 0,
     discount: 0,
+    discountCode: "",
     total: 0,
     displayItems: [],
     clientSecret: "",
@@ -34,6 +35,16 @@
 
   function getPricing() {
     return window.ZYBAR && window.ZYBAR.Pricing ? window.ZYBAR.Pricing : null;
+  }
+
+  function getPricingSummary() {
+    return window.ZYBAR && window.ZYBAR.PricingSummary ? window.ZYBAR.PricingSummary : null;
+  }
+
+  function isWelcomeCode(code) {
+    var summary = getPricingSummary();
+    if (!summary || !code) return false;
+    return String(code).toLowerCase() === String(summary.WELCOME_CODE).toLowerCase();
   }
 
   function formatUsd(amount) {
@@ -446,6 +457,13 @@
     return state;
   }
 
+  function calcLaunchSavings() {
+    var summary = getPricingSummary();
+    if (!summary) return 0;
+    var breakdown = summary.computeCartBreakdown(state.displayItems);
+    return breakdown.launchSavings || 0;
+  }
+
   function renderTotalsHtml() {
     var taxRow =
       state.tax > 0
@@ -453,6 +471,9 @@
           formatUsdLuxury(state.tax) +
           "</span></div>"
         : "";
+
+    var discountLabel = isWelcomeCode(state.discountCode) ? "Member Savings" : "Discount";
+    var totalSavings = Math.round((calcLaunchSavings() + state.discount) * 100) / 100;
 
     return [
       '<div class="checkout-total-row"><span>Subtotal</span><span class="checkout-money" data-total="subtotal" data-value="' +
@@ -467,8 +488,15 @@
         "</span></div>",
       taxRow,
       state.discount > 0
-        ? '<div class="checkout-total-row"><span>Discount</span><span>-' +
+        ? '<div class="checkout-total-row checkout-total-row--discount"><span>' +
+          escapeHtml(discountLabel) +
+          "</span><span>\u2212" +
           formatUsdLuxury(state.discount) +
+          "</span></div>"
+        : "",
+      totalSavings > 0
+        ? '<div class="checkout-total-row checkout-total-row--savings"><span>You Saved Today</span><span>' +
+          formatUsdLuxury(totalSavings) +
           "</span></div>"
         : "",
       '<div class="checkout-total-row checkout-total-row--grand"><span>TOTAL</span><span class="checkout-money" data-total="grand" data-value="' +
@@ -609,6 +637,7 @@
         custom: true,
         lineItems: pending.lineItems,
         shippingMethod: shippingMethod,
+        discountCode: pending.discountCode || state.discountCode || null,
         priceId: pending.priceId,
         quantity: pending.quantity,
         productSlug: pending.productSlug,
@@ -1256,6 +1285,57 @@
     });
   }
 
+  /** Swap the coupon input for a premium "already applied" confirmation. */
+  function renderDiscountApplied(code, amount) {
+    var block = document.querySelector(".checkout-discount");
+    if (!block) return;
+    var welcome = isWelcomeCode(code);
+    var title = welcome ? "Member Welcome Discount Applied" : "Exclusive Offer Applied";
+    var sub = welcome
+      ? "Exclusive member pricing — automatically applied. No code needed."
+      : "Your offer has been applied to this order.";
+    block.innerHTML =
+      '<div class="checkout-discount-applied">' +
+      '<span class="checkout-discount-applied-check" aria-hidden="true">\u2713</span>' +
+      '<span class="checkout-discount-applied-body">' +
+      '<span class="checkout-discount-applied-title">' +
+      escapeHtml(title) +
+      "</span>" +
+      '<span class="checkout-discount-applied-sub">' +
+      escapeHtml(sub) +
+      "</span>" +
+      "</span>" +
+      '<span class="checkout-discount-applied-amount">\u2212' +
+      formatUsdLuxury(amount) +
+      "</span>" +
+      "</div>";
+  }
+
+  /**
+   * Auto-apply the welcome discount when the customer's email is already
+   * known (garage member) or when the cart handed us a code — no manual entry.
+   * Must run before the first Stripe session is created.
+   */
+  function resolveAutoDiscount() {
+    var pricing = getPricing();
+    if (!pricing || typeof pricing.applyDiscountUSD !== "function") return;
+    var summary = getPricingSummary();
+    var code = (state.pending && state.pending.discountCode) || "";
+    if (!code && summary && summary.isMember()) code = summary.WELCOME_CODE;
+    if (!code) return;
+
+    var subtotal = pricing.calculateCartSubtotal(state.pending && state.pending.displayItems || []);
+    var discount = pricing.applyDiscountUSD(code, subtotal);
+    if (!(discount > 0)) {
+      if (state.pending) delete state.pending.discountCode;
+      return;
+    }
+    state.discount = discount;
+    state.discountCode = code;
+    if (state.pending) state.pending.discountCode = code;
+    renderDiscountApplied(code, discount);
+  }
+
   function wireDiscount() {
     var applyBtn = document.getElementById("checkout-discount-apply");
     var msg = document.getElementById("checkout-discount-msg");
@@ -1268,30 +1348,32 @@
       if (!msg) return;
       msg.hidden = false;
       if (!code) {
-        msg.textContent = "Enter a discount code.";
+        msg.textContent = "Enter your offer code.";
         msg.className = "checkout-discount-msg is-error";
         return;
       }
       var pricing = getPricing();
       if (!pricing || typeof pricing.applyDiscountUSD !== "function") {
-        msg.textContent = "Discount codes are temporarily unavailable.";
+        msg.textContent = "Offers are temporarily unavailable.";
         msg.className = "checkout-discount-msg is-error";
         return;
       }
       var discount = pricing.applyDiscountUSD(code, state.subtotal);
       if (discount > 0) {
         state.discount = discount;
+        state.discountCode = code;
         if (state.pending) state.pending.discountCode = code;
-        updateOrderTotalsAnimated();
-        msg.textContent = "Discount applied.";
-        msg.className = "checkout-discount-msg is-success";
+        renderOrderSummary(state.displayItems);
+        renderDiscountApplied(code, discount);
         invalidateSessionCache();
         scheduleShippingRefresh();
         return;
       }
       state.discount = 0;
-      updateOrderTotalsAnimated();
-      msg.textContent = "This discount code is not valid for this order.";
+      state.discountCode = "";
+      if (state.pending) delete state.pending.discountCode;
+      renderOrderSummary(state.displayItems);
+      msg.textContent = "This code is not valid for this order.";
       msg.className = "checkout-discount-msg is-error";
     });
   }
@@ -1343,6 +1425,7 @@
       }
     }
 
+    resolveAutoDiscount();
     renderOrderSummary(pending.displayItems);
     // begin_checkout already tracked when leaving cart — avoid double-counting checkout_started
     wireBillingToggle();
