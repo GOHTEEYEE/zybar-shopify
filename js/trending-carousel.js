@@ -85,9 +85,12 @@
     var p30 = Number(product.prices["30x45"]) || 0;
     var p40 = Number(product.prices["40x60"]) || 0;
     var from = p30 || p40;
-    var compare = p40 > p30 ? p40 : "";
+    var compare =
+      typeof pricing.getProductCompareAtSizePriceUSD === "function"
+        ? Number(pricing.getProductCompareAtSizePriceUSD(slug, "30x45")) || 0
+        : 0;
     return {
-      compare: compare ? pricing.formatUsd(compare) : "",
+      compare: compare > from ? pricing.formatUsd(compare) : "",
       price: from ? pricing.formatUsd(from) : ""
     };
   }
