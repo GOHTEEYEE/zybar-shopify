@@ -1009,7 +1009,78 @@ window.renderAdminmarketing = function (container) {
       if (send) {
         send.addEventListener('click', function () {
           if (!window.confirm('Send campaign now?')) return;
+
+          var startedAt = Date.now();
+          var el = document.getElementById('cStatus');
+          var back2 = document.getElementById('cBack');
+          if (back2) back2.disabled = true;
           send.disabled = true;
+          send.textContent = 'Sending\u2026';
+          el.textContent =
+            'Sending your campaign\u2026 emails go out one by one, so this can take a minute for larger audiences. Keep this tab open.';
+          el.className = 'admin-email-status';
+
+          function showResult(sent, skipped, failed, note) {
+            send.textContent = 'Sent';
+            el.innerHTML =
+              esc('Sent ' + sent + ' (skipped ' + skipped + ', failed ' + failed + ')') +
+              (note ? ' \u2014 ' + esc(note) : '') +
+              ' \u00B7 <a href="#marketing/history">View in History</a>';
+            el.className =
+              'admin-email-status ' +
+              (failed > 0 ? 'admin-email-status-err' : 'admin-email-status-ok');
+          }
+
+          function showError(message) {
+            el.textContent = message;
+            el.className = 'admin-email-status admin-email-status-err';
+            send.disabled = false;
+            send.textContent = 'Send Now';
+            if (back2) back2.disabled = false;
+          }
+
+          // If the request drops (Vercel timeout, network blip), the server
+          // keeps sending and writes a campaign log at the end. Poll History
+          // until that log appears so the admin always gets a real answer.
+          function confirmFromHistory(attempt) {
+            if (attempt > 24) {
+              return showError(
+                'Connection dropped and no result was logged yet. Check the History page in a minute before re-sending, so you do not email everyone twice.'
+              );
+            }
+            el.textContent =
+              'Connection dropped while sending \u2014 checking the server for the result\u2026 (' +
+              'the campaign usually still completes)';
+            el.className = 'admin-email-status';
+            setTimeout(function () {
+              fetchJson('/api/admin/journey-history?limit=20')
+                .then(function (r) {
+                  var events = (r.ok && r.body && r.body.history) || [];
+                  for (var i = 0; i < events.length; i++) {
+                    var ev = events[i];
+                    var meta = ev.metadata || {};
+                    if (
+                      ev.event_type === 'campaign_send' &&
+                      meta.audience === state.audience &&
+                      meta.template_key === state.template_key &&
+                      new Date(ev.at).getTime() >= startedAt - 60000
+                    ) {
+                      return showResult(
+                        Number(meta.sent_count) || 0,
+                        Number(meta.skipped_count) || 0,
+                        Number(meta.failed_count) || 0,
+                        'confirmed from server log'
+                      );
+                    }
+                  }
+                  confirmFromHistory(attempt + 1);
+                })
+                .catch(function () {
+                  confirmFromHistory(attempt + 1);
+                });
+            }, 5000);
+          }
+
           fetchJson('/api/admin/campaigns/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1017,18 +1088,16 @@ window.renderAdminmarketing = function (container) {
               audience: state.audience,
               template_key: state.template_key
             })
-          }).then(function (r) {
-            var el = document.getElementById('cStatus');
-            if (!r.ok || !r.body.success) {
-              el.textContent = (r.body && r.body.error) || 'Send failed';
-              el.className = 'admin-email-status admin-email-status-err';
-              send.disabled = false;
-              return;
-            }
-            el.textContent =
-              'Sent ' + r.body.sent + ' (skipped ' + r.body.skipped + ', failed ' + r.body.failed + ')';
-            el.className = 'admin-email-status admin-email-status-ok';
-          });
+          })
+            .then(function (r) {
+              if (!r.ok || !r.body.success) {
+                return showError((r.body && r.body.error) || 'Send failed');
+              }
+              showResult(r.body.sent, r.body.skipped, r.body.failed, '');
+            })
+            .catch(function () {
+              confirmFromHistory(1);
+            });
         });
       }
     }
