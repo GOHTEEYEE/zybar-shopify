@@ -389,6 +389,64 @@
     return wrap;
   }
 
+  function getMemberCtaState() {
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    if (!member || typeof member.isActive !== "function" || !member.isActive()) return null;
+    var state = typeof member.getState === "function" ? member.getState() : {};
+    var percent = Number(state.percent) || 15;
+    return { percent: percent };
+  }
+
+  /**
+   * Dynamic Add to Cart CTA: members see their extra savings baked into the
+   * button and a "Member Pricing Active" note above it. Non-members see the
+   * plain CTA. Re-runs whenever member status changes.
+   */
+  function syncMemberCta() {
+    if (!isProductPage()) return;
+    var memberState = getMemberCtaState();
+
+    var mainCta = document.querySelector(".pdp-luxury-buy .product-add-cart.pdp-luxury-cta");
+    if (mainCta) {
+      mainCta.textContent = memberState
+        ? "Add to Cart \u00B7 Save Extra " + memberState.percent + "%"
+        : "Add to Cart";
+      mainCta.classList.toggle("pdp-luxury-cta--member", !!memberState);
+    }
+
+    var stickyCta = document.querySelector(".pdp-sticky-cta");
+    if (stickyCta) {
+      stickyCta.textContent = memberState
+        ? "\uD83D\uDED2 Add to Cart \u00B7 Extra " + memberState.percent + "% Off"
+        : "\uD83D\uDED2 Add to cart";
+    }
+
+    var buy = document.querySelector(".pdp-luxury-buy");
+    var note = document.querySelector(".pdp-member-note");
+    if (memberState && buy && mainCta) {
+      if (!note) {
+        note = document.createElement("p");
+        note.className = "pdp-member-note";
+        note.setAttribute("aria-live", "polite");
+        buy.insertBefore(note, mainCta);
+      }
+      note.innerHTML =
+        '<span class="pdp-member-note-check" aria-hidden="true">\u2713</span>' +
+        '<span class="pdp-member-note-copy"><strong>Member Pricing Active</strong>' +
+        "<small>Extra " + memberState.percent + "% will be applied automatically.</small></span>";
+    } else if (note) {
+      note.remove();
+    }
+  }
+
+  function watchMemberCta() {
+    window.addEventListener("zybar:member-pricing-change", syncMemberCta);
+    var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+    if (member && member.ready && typeof member.ready.then === "function") {
+      member.ready.then(syncMemberCta);
+    }
+  }
+
   function initPdpLuxuryUi() {
     if (!isProductPage()) return;
     var details = document.querySelector(".product-showcase-details");
@@ -513,6 +571,8 @@
     if (duplicateFeatures) duplicateFeatures.classList.add("pdp-luxury-hidden");
 
     updatePdpLuxuryRating(loadLocalReviews(getProductSlug()));
+    syncMemberCta();
+    watchMemberCta();
   }
 
   window.ZYBAR = window.ZYBAR || {};

@@ -3761,6 +3761,56 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, filter 0.2s ease;
 }
 
+.pdp-luxury-cta.product-add-cart.pdp-luxury-cta--member {
+  font-size: 24px;
+  letter-spacing: 0.4px;
+}
+
+.pdp-member-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 10px;
+  background: rgba(212, 175, 55, 0.06);
+}
+
+.pdp-member-note-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  border-radius: 50%;
+  background: rgba(212, 175, 55, 0.16);
+  color: #d4af37;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.pdp-member-note-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.pdp-member-note-copy strong {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #e8c96a;
+}
+
+.pdp-member-note-copy small {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.62);
+}
+
 .pdp-luxury-cta.product-add-cart:hover {
   filter: brightness(1.08);
   background: #ffffff;
@@ -6279,6 +6329,11 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
     letter-spacing: 0.5px;
   }
 
+  .pdp-luxury-cta.product-add-cart.pdp-luxury-cta--member {
+    font-size: 17px;
+    letter-spacing: 0.3px;
+  }
+
   .pdp-luxury-trust {
     gap: 0.7rem;
     margin-bottom: 1.65rem;
@@ -7338,6 +7393,41 @@ body.zybar-mini-cart-open {
   font-size: 0.75rem;
   line-height: 1.35;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.mini-cart-item-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mini-cart-item-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: -0.15rem -0.15rem 0 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.mini-cart-item-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
+.mini-cart-item-remove:hover,
+.mini-cart-item-remove:focus-visible {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
 }
 
 .mini-cart-item-price {

@@ -341,11 +341,21 @@
       '<p class="mini-cart-item-meta">' + escapeHtml(meta) + "</p>" +
       renderQuantityStepper(row) +
       "</div>" +
+      '<div class="mini-cart-item-side">' +
+      '<button type="button" class="mini-cart-item-remove" data-mini-cart-remove aria-label="Remove ' +
+      escapeHtml(name) +
+      ' from cart">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>' +
+      '<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>' +
+      '<line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>' +
+      "</button>" +
       '<div class="mini-cart-item-price">' +
       (hasCompare
         ? '<s class="mini-cart-item-compare">' + escapeHtml(formatUsd(compareUnit * safeQty)) + "</s>"
         : "") +
       '<span class="mini-cart-item-amount">' + escapeHtml(formatUsd(safeUnit * safeQty)) + "</span>" +
+      "</div>" +
       "</div>" +
       "</li>"
     );
@@ -553,6 +563,37 @@
     renderDrawer(options.item, options, false);
   }
 
+  /** Bin icon — removes the row from the persisted cart and re-renders. */
+  function handleRemoveClick(button) {
+    var rowEl = button.closest("[data-item-key]");
+    var key = rowEl ? rowEl.getAttribute("data-item-key") : "";
+    var options = state.options;
+    if (!key || !options) return;
+
+    var cart = window.ZYBAR && window.ZYBAR.Cart;
+    var nextItems;
+    if (cart && typeof cart.removeCartItem === "function") {
+      nextItems = cart.removeCartItem(key);
+    } else {
+      nextItems = getCartItems(options).filter(function (row) {
+        return row && row.key !== key;
+      });
+    }
+
+    if (!nextItems || !nextItems.length) {
+      closeMiniCartDrawer();
+      return;
+    }
+
+    options.items = nextItems;
+    if (options.item && options.item.key === key) {
+      // The just-added item itself was removed — drop the highlight and show
+      // a neutral header instead of naming a product no longer in the cart.
+      options.item = {};
+    }
+    renderDrawer(options.item, options, false);
+  }
+
   function wireBodyActions(drawer) {
     var body = drawer.querySelector("[data-mini-cart-body]");
     if (!body || body.getAttribute("data-qty-wired")) return;
@@ -561,6 +602,11 @@
       var qtyBtn = event.target && event.target.closest("[data-mini-cart-qty]");
       if (qtyBtn) {
         handleQuantityClick(qtyBtn);
+        return;
+      }
+      var removeBtn = event.target && event.target.closest("[data-mini-cart-remove]");
+      if (removeBtn) {
+        handleRemoveClick(removeBtn);
         return;
       }
       var expandBtn = event.target && event.target.closest("[data-mini-cart-expand]");
@@ -583,7 +629,7 @@
       var name = item && item.name ? String(item.name) : "";
       confirm.innerHTML = name
         ? "<strong>" + escapeHtml(name) + "</strong> has been added to your cart."
-        : "Added to your cart";
+        : "Your Cart";
     }
 
     body.innerHTML = renderBody(item, options);
