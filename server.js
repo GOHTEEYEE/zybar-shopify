@@ -595,6 +595,44 @@ app.post(
   }
 );
 
+// ----- Resend engagement webhook: raw body for Svix signature verification -----
+app.post(
+  '/api/webhooks/resend',
+  express.raw({ type: '*/*' }),
+  async (req, res) => {
+    const secret = process.env.RESEND_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error('RESEND_WEBHOOK_SECRET is not set');
+      return res.status(500).json({ error: 'Webhook not configured' });
+    }
+    if (!supabase) {
+      return res.status(503).json({ error: 'Engagement tracking unavailable' });
+    }
+
+    const ResendWebhook = require('./lib/resend-webhook.js');
+    const rawBody = req.body; // Buffer from express.raw()
+    if (!ResendWebhook.verifySignature(rawBody, req.headers, secret)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    let event;
+    try {
+      event = JSON.parse(Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody || ''));
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid JSON payload' });
+    }
+
+    try {
+      const result = await ResendWebhook.handleEvent(supabase, event);
+      return res.json({ received: true, ok: result.ok });
+    } catch (err) {
+      console.error('POST /api/webhooks/resend error:', err);
+      // Acknowledge so Resend does not hammer retries on a persistent bug.
+      return res.json({ received: true, ok: false });
+    }
+  }
+);
+
 // ----- JSON body for other routes -----
 app.use(express.json({ limit: '3mb' }));
 

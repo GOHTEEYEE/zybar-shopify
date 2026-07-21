@@ -205,6 +205,31 @@ body {
   color: #4b5563;
 }
 
+.admin-engage-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+.admin-engage-open {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.admin-engage-click {
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803d;
+}
+
+.admin-engage-none {
+  background: rgba(107, 114, 128, 0.12);
+  color: #6b7280;
+}
+
 .admin-page-header-row {
   display: flex;
   align-items: flex-start;

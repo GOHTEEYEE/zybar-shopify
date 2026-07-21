@@ -71,6 +71,48 @@ window.renderAdminmarketing = function (container) {
     return '<span class="' + cls + '">' + esc(s) + '</span>';
   }
 
+  function engagePill(label, cls) {
+    return '<span class="admin-engage-pill ' + cls + '">' + esc(label) + '</span>';
+  }
+
+  function rate(part, whole) {
+    var p = Number(part) || 0;
+    var w = Number(whole) || 0;
+    if (w <= 0) return '';
+    return ' (' + Math.round((p / w) * 100) + '%)';
+  }
+
+  /** Open/click engagement cell for History rows (campaign + journey email). */
+  function engagementCell(row) {
+    var m = (row && row.metadata) || {};
+    if (row.event_type === 'campaign_send') {
+      var sent = Number(m.sent_count) || 0;
+      var opened = Number(m.opened_count) || 0;
+      var clicked = Number(m.clicked_count) || 0;
+      if (!sent) return '<span class="admin-muted">—</span>';
+      return (
+        engagePill('Opened ' + opened + rate(opened, sent), 'admin-engage-open') +
+        ' ' +
+        engagePill('Clicked ' + clicked + rate(clicked, sent), 'admin-engage-click')
+      );
+    }
+    if (row.source === 'queue' && m.action_type === 'email' && row.status === 'completed') {
+      var openParts = [];
+      openParts.push(
+        m.opened_at
+          ? engagePill('Opened' + (m.open_count > 1 ? ' ×' + m.open_count : ''), 'admin-engage-open')
+          : engagePill('Not opened', 'admin-engage-none')
+      );
+      if (m.clicked_at) {
+        openParts.push(
+          engagePill('Clicked' + (m.click_count > 1 ? ' ×' + m.click_count : ''), 'admin-engage-click')
+        );
+      }
+      return openParts.join(' ');
+    }
+    return '<span class="admin-muted">—</span>';
+  }
+
   function fetchJson(url, options) {
     return fetch(url, options || {}).then(function (res) {
       return res.json().then(function (body) {
@@ -1141,7 +1183,7 @@ window.renderAdminmarketing = function (container) {
       var rows = r.body.history || [];
       host.innerHTML =
         '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-        '<thead><tr><th>When</th><th>Source</th><th>Lead</th><th>Journey</th><th>Message</th><th>Status</th></tr></thead><tbody>' +
+        '<thead><tr><th>When</th><th>Source</th><th>Lead</th><th>Journey</th><th>Message</th><th>Engagement</th><th>Status</th></tr></thead><tbody>' +
         (rows
           .map(function (row) {
             return (
@@ -1156,12 +1198,14 @@ window.renderAdminmarketing = function (container) {
               '</td><td>' +
               esc(row.message) +
               '</td><td>' +
+              engagementCell(row) +
+              '</td><td>' +
               statusPill(row.status) +
               '</td></tr>'
             );
           })
           .join('') ||
-          '<tr><td colspan="6" class="admin-cell-empty">No history yet.</td></tr>') +
+          '<tr><td colspan="7" class="admin-cell-empty">No history yet.</td></tr>') +
         '</tbody></table></div></div>';
     });
   }
