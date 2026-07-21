@@ -1386,12 +1386,35 @@ app.get('/api/admin/email-leads', async (req, res) => {
     const JourneyEngine = require('./lib/journey-engine.js');
     const data = await JourneyEngine.listEmailLeadsCrm(supabase, {
       status: req.query && req.query.status,
-      limit: req.query && req.query.limit
+      limit: req.query && req.query.limit,
+      include_test: req.query && req.query.include_test === '1'
     });
     return res.json(data);
   } catch (err) {
     console.error('GET /api/admin/email-leads error:', err);
     return res.status(500).json({ error: (err && err.message) || 'Failed to load email leads.' });
+  }
+});
+
+// Convert a lead between test and real (test leads are excluded from campaigns).
+app.post('/api/admin/email-leads/set-test', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  const leadId = String((req.body && req.body.lead_id) || '').trim();
+  const isTest = !!(req.body && req.body.is_test);
+  if (!leadId) return res.status(400).json({ error: 'lead_id is required.' });
+  try {
+    const result = await supabase
+      .from('newsletter_subscribers')
+      .update({ is_test: isTest })
+      .eq('id', leadId)
+      .select('id, email, is_test')
+      .maybeSingle();
+    if (result.error) throw result.error;
+    if (!result.data) return res.status(404).json({ error: 'Lead not found.' });
+    return res.json({ success: true, lead: result.data });
+  } catch (err) {
+    console.error('POST /api/admin/email-leads/set-test error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to update lead.' });
   }
 });
 

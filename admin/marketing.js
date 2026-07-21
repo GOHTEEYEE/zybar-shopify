@@ -687,9 +687,12 @@ window.renderAdminmarketing = function (container) {
   /* ========== Email Leads CRM ========== */
   function renderEmailLeads() {
     var leadStatus = '';
+    var showTest = false;
     try {
       var q = hashRaw.indexOf('?') >= 0 ? hashRaw.split('?')[1] : '';
-      leadStatus = String(new URLSearchParams(q).get('status') || '').toLowerCase();
+      var qp = new URLSearchParams(q);
+      leadStatus = String(qp.get('status') || '').toLowerCase();
+      showTest = qp.get('test') === '1';
     } catch (e) {}
 
     container.innerHTML =
@@ -700,8 +703,19 @@ window.renderAdminmarketing = function (container) {
       '<div id="adminEmailLeadsBar" class="admin-leads-status-bar"><div class="admin-loading">Loading…</div></div>' +
       '<div id="adminEmailLeadsHost"><div class="admin-loading">Loading leads…</div></div>';
 
+    function leadsHash(withTest) {
+      var base = '#marketing/email-leads';
+      var params = [];
+      if (leadStatus) params.push('status=' + encodeURIComponent(leadStatus));
+      if (withTest) params.push('test=1');
+      return params.length ? base + '?' + params.join('&') : base;
+    }
+
     var url = '/api/admin/email-leads';
-    if (leadStatus) url += '?status=' + encodeURIComponent(leadStatus);
+    var urlParams = [];
+    if (leadStatus) urlParams.push('status=' + encodeURIComponent(leadStatus));
+    if (showTest) urlParams.push('include_test=1');
+    if (urlParams.length) url += '?' + urlParams.join('&');
 
     fetchJson(url).then(function (result) {
       var bar = document.getElementById('adminEmailLeadsBar');
@@ -721,9 +735,10 @@ window.renderAdminmarketing = function (container) {
           '<div class="admin-leads-status-tabs">' +
           tabs
             .map(function (t) {
-              var href = t.key
-                ? '#marketing/email-leads?status=' + encodeURIComponent(t.key)
-                : '#marketing/email-leads';
+              var params = [];
+              if (t.key) params.push('status=' + encodeURIComponent(t.key));
+              if (showTest) params.push('test=1');
+              var href = '#marketing/email-leads' + (params.length ? '?' + params.join('&') : '');
               return (
                 '<a class="admin-leads-status-tab' +
                 ((leadStatus || '') === (t.key || '') ? ' is-active' : '') +
@@ -738,23 +753,33 @@ window.renderAdminmarketing = function (container) {
             })
             .join('') +
           '</div>' +
+          '<label class="admin-leads-test-toggle"><input type="checkbox" id="leadsShowTest"' +
+          (showTest ? ' checked' : '') +
+          ' /> Show test leads</label>' +
           (leadStatus
             ? '<a class="admin-btn-primary" href="#marketing/campaigns/' +
               encodeURIComponent(leadStatus) +
               '">Send Campaign</a>'
             : '');
+        var testToggle = document.getElementById('leadsShowTest');
+        if (testToggle) {
+          testToggle.addEventListener('change', function () {
+            window.location.hash = leadsHash(testToggle.checked).slice(1);
+          });
+        }
       }
 
       var leads = result.body.leads || [];
       if (host) {
         host.innerHTML =
           '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table">' +
-          '<thead><tr><th>Email</th><th>Status</th><th>Journey</th><th>Current Step</th><th>Next Ready</th><th>Last Activity</th></tr></thead><tbody>' +
+          '<thead><tr><th>Email</th><th>Status</th><th>Journey</th><th>Current Step</th><th>Next Ready</th><th>Last Activity</th><th>Actions</th></tr></thead><tbody>' +
           (leads
             .map(function (l) {
               return (
                 '<tr><td>' +
                 esc(l.email) +
+                (l.is_test ? ' <span class="admin-test-badge">TEST</span>' : '') +
                 '</td><td>' +
                 statusPill(l.status) +
                 '</td><td>' +
@@ -776,12 +801,47 @@ window.renderAdminmarketing = function (container) {
                   : '') +
                 '</td><td>' +
                 esc(when(l.last_activity_at)) +
+                '</td><td>' +
+                (l.is_test
+                  ? '<button type="button" class="admin-btn-secondary admin-lead-test-btn" data-lead-id="' +
+                    esc(l.id) +
+                    '" data-make-test="0">Convert to Real Lead</button>'
+                  : '<button type="button" class="admin-lead-test-link" data-lead-id="' +
+                    esc(l.id) +
+                    '" data-make-test="1">Mark as Test</button>') +
                 '</td></tr>'
               );
             })
             .join('') ||
-            '<tr><td colspan="6" class="admin-cell-empty">No leads.</td></tr>') +
+            '<tr><td colspan="7" class="admin-cell-empty">No leads.</td></tr>') +
           '</tbody></table></div></div>';
+
+        host.addEventListener('click', function (event) {
+          var btn = event.target && event.target.closest('[data-lead-id][data-make-test]');
+          if (!btn) return;
+          var makeTest = btn.getAttribute('data-make-test') === '1';
+          if (
+            makeTest &&
+            !window.confirm('Mark this lead as a test? It will be excluded from all campaigns and journeys.')
+          ) {
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = 'Saving\u2026';
+          fetchJson('/api/admin/email-leads/set-test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_id: btn.getAttribute('data-lead-id'), is_test: makeTest })
+          }).then(function (r) {
+            if (!r.ok || !r.body.success) {
+              btn.disabled = false;
+              btn.textContent = makeTest ? 'Mark as Test' : 'Convert to Real Lead';
+              alert((r.body && r.body.error) || 'Failed to update lead.');
+              return;
+            }
+            renderEmailLeads();
+          });
+        });
       }
     });
   }
