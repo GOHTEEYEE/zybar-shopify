@@ -89,7 +89,8 @@ window.renderAdminactivity = function (container) {
   }
 
   function fetchJson(path) {
-    return fetch(window.location.origin + path)
+    // Use relative paths so admin auth fetch wrapper can attach the bearer token.
+    return fetch(path)
       .then(function (r) {
         return r.json().then(function (body) {
           return { ok: r.ok, body: body };
@@ -687,31 +688,116 @@ window.renderAdminactivity = function (container) {
   }
 
   if (tab === 'custom-leads') {
-    renderSimpleTable('Custom Made Leads', 'custom-leads', '/api/admin/custom-leads', [
-      'Photo', 'Status', 'Car Model', 'Lighting', 'Size / Power', 'Cart', 'Visitor', 'Last Activity'
-    ], function (body) {
-      return (body.rows || []).map(function (lead) {
-        var photos = Array.isArray(lead.uploaded_photos) ? lead.uploaded_photos : [];
-        var photo = photos[0] || null;
-        var photoHtml = photo && (photo.url || photo.path)
-          ? '<a href="' + esc(photo.url || photo.path) + '" target="_blank" rel="noopener"><img src="' + esc(photo.url || photo.path) + '" alt="" class="admin-custom-photo" loading="lazy" /></a>'
-          : '—';
-        var variant = [lead.size, lead.power_type].filter(Boolean).join(' / ') || '—';
-        var visitorCell = lead.visitor_id
-          ? '<a href="#activity/' + encodeURIComponent(lead.visitor_id) + '"><code>' + esc(String(lead.visitor_id).slice(0, 10)) + '…</code></a>'
-          : '—';
-        return [
-          photoHtml,
-          leadStatusBadge(lead.display_status || lead.status),
-          esc(lead.vehicle_model || '—'),
-          esc(lead.lighting_preference || '—'),
-          esc(variant),
-          money(lead.cart_value_cents || 0),
-          visitorCell,
-          esc(when(lead.last_event_at))
-        ];
+    container.innerHTML =
+      '<div class="admin-page-header"><h2 class="admin-page-title">Custom Made Leads</h2></div>' +
+      shellTabs('custom-leads') +
+      '<div class="admin-analytics-toolbar ca-filters">' +
+      (U.renderDateFilter ? U.renderDateFilter(state.preset, { extra: '' }) : '') +
+      '<select id="caStatus" class="admin-search-input" style="width:auto;min-width:160px">' +
+      '<option value="">All statuses</option>' +
+      ['uploaded', 'configured', 'added_to_cart', 'checkout_started', 'purchased', 'abandoned']
+        .map(function (s) {
+          return (
+            '<option value="' +
+            s +
+            '"' +
+            (state.status === s ? ' selected' : '') +
+            '>' +
+            s.replace(/_/g, ' ') +
+            '</option>'
+          );
+        })
+        .join('') +
+      '</select>' +
+      '<input type="search" id="caSearch" class="admin-search-input" placeholder="Search car model, email, visitor…" value="' +
+      esc(state.search) +
+      '" />' +
+      '</div>' +
+      '<p class="admin-muted" style="margin:0 0 1rem">Shows Custom Made uploads and cart attempts even before payment. Abandoned = cart/checkout with no purchase after 24h.</p>' +
+      '<div id="caHost">' +
+      (U.skeletonTable ? U.skeletonTable(6) : '<div class="admin-loading">Loading…</div>') +
+      '</div>';
+
+    function loadCustomLeads() {
+      var host = document.getElementById('caHost');
+      if (!host) return;
+      host.innerHTML = U.skeletonTable ? U.skeletonTable(6) : '<div class="admin-loading">Loading…</div>';
+      fetchJson('/api/customer-activity/custom-leads?' + apiQuery()).then(function (res) {
+        if (!res.ok) {
+          host.innerHTML =
+            '<p class="admin-error">' +
+            esc((res.body && res.body.error) || 'Failed to load custom leads') +
+            '</p>';
+          return;
+        }
+        var rows = res.body.rows || [];
+        var body =
+          rows
+            .map(function (lead) {
+              var photos = Array.isArray(lead.uploaded_photos) ? lead.uploaded_photos : [];
+              var photo = photos[0] || null;
+              var photoHtml =
+                photo && (photo.url || photo.path)
+                  ? '<a href="' +
+                    esc(photo.url || photo.path) +
+                    '" target="_blank" rel="noopener"><img src="' +
+                    esc(photo.url || photo.path) +
+                    '" alt="" class="admin-custom-photo" loading="lazy" /></a>'
+                  : '—';
+              var variant = [lead.size, lead.power_type].filter(Boolean).join(' / ') || '—';
+              var visitorCell = lead.visitor_id
+                ? '<a href="#activity/' +
+                  encodeURIComponent(lead.visitor_id) +
+                  '"><code>' +
+                  esc(String(lead.visitor_id).slice(0, 10)) +
+                  '…</code></a>'
+                : '—';
+              return (
+                '<tr>' +
+                '<td>' +
+                photoHtml +
+                '</td>' +
+                '<td>' +
+                leadStatusBadge(lead.display_status || lead.status) +
+                '</td>' +
+                '<td>' +
+                esc(lead.vehicle_model || '—') +
+                '</td>' +
+                '<td>' +
+                esc(lead.lighting_preference || '—') +
+                '</td>' +
+                '<td>' +
+                esc(variant) +
+                '</td>' +
+                '<td>' +
+                money(lead.cart_value_cents || 0) +
+                '</td>' +
+                '<td>' +
+                visitorCell +
+                '</td>' +
+                '<td>' +
+                esc(when(lead.last_event_at)) +
+                '</td>' +
+                '</tr>'
+              );
+            })
+            .join('') ||
+          '<tr><td colspan="8" class="admin-cell-empty">No custom leads in this range yet.</td></tr>';
+        host.innerHTML =
+          '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+          ['Photo', 'Status', 'Car Model', 'Lighting', 'Size / Power', 'Cart', 'Visitor', 'Last Activity']
+            .map(function (c) {
+              return '<th>' + c + '</th>';
+            })
+            .join('') +
+          '</tr></thead><tbody>' +
+          body +
+          '</tbody></table></div></div>';
       });
-    });
+    }
+
+    bindFilters(loadCustomLeads);
+    loadCustomLeads();
     return;
   }
 

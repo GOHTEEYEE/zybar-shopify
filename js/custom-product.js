@@ -26,22 +26,28 @@
     };
   }
 
-  function syncCustomLead(status) {
-    if (!isCustomPage()) return;
+  function syncCustomLead(status, overrides) {
+    overrides = overrides || {};
+    // Allow sync after add-to-cart even if this helper is called from cart flows.
     syncFormState();
     var ctx = getAnalyticsContext();
+    var config = getConfig();
     var payload = {
       uploadSessionId: getUploadSessionId(),
       visitorId: ctx.visitorId,
       sessionId: ctx.sessionId,
       cartId: ctx.cartId,
       status: status || 'configured',
-      vehicleModel: state.vehicleModel,
-      lightingPreference: state.lightingPreference,
-      photos: getConfig().photos,
-      size: getSelectedSize(),
-      powerType: getSelectedPowerType(),
-      cartValueCents: Math.round(getTotalUnitPrice() * 100),
+      vehicleModel: overrides.vehicleModel != null ? overrides.vehicleModel : state.vehicleModel,
+      lightingPreference:
+        overrides.lightingPreference != null ? overrides.lightingPreference : state.lightingPreference,
+      photos: overrides.photos || config.photos,
+      size: overrides.size || getSelectedSize(),
+      powerType: overrides.powerType || getSelectedPowerType(),
+      cartValueCents:
+        overrides.cartValueCents != null
+          ? overrides.cartValueCents
+          : Math.round(getTotalUnitPrice() * 100),
       pageUrl: window.location.pathname
     };
     fetch('/api/custom-leads/sync', {

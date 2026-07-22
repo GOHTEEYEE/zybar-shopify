@@ -2263,6 +2263,18 @@ app.post('/api/custom-leads/sync', express.json({ limit: '256kb' }), async (req,
   }
 });
 
+app.get('/api/customer-activity/custom-leads', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Custom leads not configured' });
+  try {
+    const data = await CustomLeads.list(supabase, req.query || {});
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/customer-activity/custom-leads error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load custom leads' });
+  }
+});
+
+// Keep legacy admin path working for older admin tabs.
 app.get('/api/admin/custom-leads', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Custom leads not configured' });
   try {
