@@ -15,6 +15,49 @@
   };
 
   var fieldsMounted = false;
+  var leadSyncTimer = null;
+
+  function getAnalyticsContext() {
+    var analytics = window.ZYBAR && window.ZYBAR.Analytics;
+    return {
+      visitorId: analytics && analytics.getVisitorId ? analytics.getVisitorId() : null,
+      sessionId: analytics && analytics.getSessionId ? analytics.getSessionId() : null,
+      cartId: analytics && analytics.getCartId ? analytics.getCartId() : null
+    };
+  }
+
+  function syncCustomLead(status) {
+    if (!isCustomPage()) return;
+    syncFormState();
+    var ctx = getAnalyticsContext();
+    var payload = {
+      uploadSessionId: getUploadSessionId(),
+      visitorId: ctx.visitorId,
+      sessionId: ctx.sessionId,
+      cartId: ctx.cartId,
+      status: status || 'configured',
+      vehicleModel: state.vehicleModel,
+      lightingPreference: state.lightingPreference,
+      photos: getConfig().photos,
+      size: getSelectedSize(),
+      powerType: getSelectedPowerType(),
+      cartValueCents: Math.round(getTotalUnitPrice() * 100),
+      pageUrl: window.location.pathname
+    };
+    fetch('/api/custom-leads/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(function () {});
+  }
+
+  function scheduleCustomLeadSync(status) {
+    if (leadSyncTimer) window.clearTimeout(leadSyncTimer);
+    leadSyncTimer = window.setTimeout(function () {
+      leadSyncTimer = null;
+      syncCustomLead(status);
+    }, 350);
+  }
 
   function isCustomPage() {
     var path = window.location && window.location.pathname ? window.location.pathname : '';
@@ -310,6 +353,7 @@
     uploadPhoto(file)
       .then(function (photo) {
         state.photos = [photo];
+        syncCustomLead('uploaded');
       })
       .catch(function (err) {
         state.photos = [];
@@ -370,6 +414,7 @@
         state.photos = [];
         renderPhotoPreviews();
         setUploadMessage('');
+        scheduleCustomLeadSync('configured');
         return;
       }
       input.click();
@@ -402,13 +447,19 @@
     var model = document.getElementById('customVehicleModel');
     if (model && model.dataset.bound !== '1') {
       model.dataset.bound = '1';
-      model.addEventListener('input', syncFormState);
+      model.addEventListener('input', function () {
+        syncFormState();
+        scheduleCustomLeadSync('configured');
+      });
     }
 
     var lighting = document.getElementById('customLightingPreference');
     if (lighting && lighting.dataset.bound !== '1') {
       lighting.dataset.bound = '1';
-      lighting.addEventListener('input', syncFormState);
+      lighting.addEventListener('input', function () {
+        syncFormState();
+        scheduleCustomLeadSync('configured');
+      });
       updateLightingCharCount();
     }
 
@@ -578,13 +629,15 @@
   window.ZYBAR.CustomProduct = {
     SLUG: SLUG,
     isActive: isCustomPage,
+    getUploadSessionId: getUploadSessionId,
     getConfig: getConfig,
     validate: validate,
     getCustomFee: getCustomFee,
     getBasePrice: getBasePrice,
     getTotalUnitPrice: getTotalUnitPrice,
     renderPriceBreakdown: renderPriceBreakdown,
-    mountPdpFields: mountPdpFields
+    mountPdpFields: mountPdpFields,
+    syncLead: syncCustomLead
   };
 
   if (document.readyState === 'loading') {

@@ -333,6 +333,16 @@
     if (window.ZYBAR && window.ZYBAR.Analytics) {
       window.ZYBAR.Analytics.trackBeginCheckout(items, cartValue);
     }
+    var customApi = window.ZYBAR && window.ZYBAR.CustomProduct;
+    if (
+      customApi &&
+      typeof customApi.syncLead === 'function' &&
+      validItems.some(function (item) {
+        return isCustomProductSlug(item.productSlug || item.slug);
+      })
+    ) {
+      customApi.syncLead('checkout_started');
+    }
 
     goToPremiumCheckout({
       lineItems: validItems,
@@ -1136,6 +1146,10 @@
       payload.sessionId = attr.sessionId;
       payload.cartId = attr.cartId;
     }
+    var customApi = window.ZYBAR && window.ZYBAR.CustomProduct;
+    if (customApi && typeof customApi.getUploadSessionId === 'function') {
+      payload.uploadSessionId = customApi.getUploadSessionId();
+    }
     try {
       window.sessionStorage.setItem(CHECKOUT_PENDING_KEY, JSON.stringify(payload));
     } catch (err) {
@@ -1407,6 +1421,12 @@
 
     if (window.ZYBAR && window.ZYBAR.Analytics) {
       window.ZYBAR.Analytics.trackAddToCart(existing, items);
+    }
+    if (isCustomProductSlug(slug)) {
+      var customApi = window.ZYBAR && window.ZYBAR.CustomProduct;
+      if (customApi && typeof customApi.syncLead === 'function') {
+        customApi.syncLead('added_to_cart');
+      }
     }
 
     return existing;

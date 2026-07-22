@@ -22,6 +22,7 @@ const CustomerActivity = require('./lib/customer-activity.js');
 const MemberPricing = require('./lib/member-pricing.js');
 const ProductTypes = require('./lib/product-types.js');
 const CustomOrders = require('./lib/custom-orders.js');
+const CustomLeads = require('./lib/custom-leads.js');
 const SearchIndexBuilder = require('./lib/search-index-builder.js');
 
 const app = express();
@@ -1956,7 +1957,29 @@ async function persistPaidCheckoutSession(session) {
       .maybeSingle();
     if (!orderLookup.error && orderLookup.data) {
       persistedOrder = orderLookup.data;
-      await CustomOrders.syncFromPaidSession(supabase, session, persistedOrder);
+      const createdCustom = await CustomOrders.syncFromPaidSession(supabase, session, persistedOrder);
+      try {
+        const uploadSessionId =
+          session.metadata && session.metadata.uploadSessionId
+            ? String(session.metadata.uploadSessionId)
+            : '';
+        const customerEmail =
+          (customer && customer.email) ||
+          (session.customer_details && session.customer_details.email) ||
+          session.customer_email ||
+          persistedOrder.customer_email ||
+          '';
+        await CustomLeads.markPurchased(supabase, {
+          uploadSessionId: uploadSessionId,
+          stripeSessionId: session.id,
+          visitorId: session.metadata && session.metadata.visitorId,
+          customerEmail: customerEmail,
+          orderId: persistedOrder.id,
+          customOrderId: createdCustom && createdCustom[0] ? createdCustom[0].id : null
+        });
+      } catch (leadErr) {
+        console.warn('custom lead purchase sync:', leadErr && leadErr.message);
+      }
     }
   } catch (customErr) {
     console.warn('Custom order sync:', customErr && customErr.message);
@@ -2189,6 +2212,16 @@ app.post('/api/custom-orders/upload-photo', express.json({ limit: '12mb' }), asy
       .upload(objectPath, buffer, { contentType: contentType, upsert: false });
     if (upload.error) throw upload.error;
     const pub = supabase.storage.from('custom-order-photos').getPublicUrl(objectPath);
+    try {
+      await CustomLeads.upsert(supabase, {
+        uploadSessionId: sessionId,
+        status: 'uploaded',
+        photos: [{ id: objectPath, path: objectPath, url: pub.data.publicUrl, name: fileName }],
+        pageUrl: req.headers.referer || null
+      });
+    } catch (leadErr) {
+      console.warn('custom lead upload sync:', leadErr && leadErr.message);
+    }
     return res.json({
       ok: true,
       id: objectPath,
@@ -2199,6 +2232,45 @@ app.post('/api/custom-orders/upload-photo', express.json({ limit: '12mb' }), asy
   } catch (err) {
     console.error('POST /api/custom-orders/upload-photo error:', err);
     return res.status(500).json({ error: err.message || 'Upload failed' });
+  }
+});
+
+app.post('/api/custom-leads/sync', express.json({ limit: '256kb' }), async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Custom leads not configured' });
+  try {
+    const body = req.body || {};
+    const row = await CustomLeads.upsert(supabase, {
+      uploadSessionId: body.uploadSessionId || body.upload_session_id,
+      visitorId: body.visitorId || body.visitor_id,
+      sessionId: body.sessionId || body.session_id,
+      cartId: body.cartId || body.cart_id,
+      status: body.status,
+      vehicleModel: body.vehicleModel || body.vehicle_model,
+      lightingPreference: body.lightingPreference || body.lighting_preference,
+      photos: body.photos || body.uploaded_photos,
+      size: body.size,
+      powerType: body.powerType || body.power_type,
+      cartValueCents: body.cartValueCents || body.cart_value_cents,
+      country: body.country,
+      deviceType: body.deviceType || body.device_type,
+      referrer: body.referrer,
+      pageUrl: body.pageUrl || body.page_url
+    });
+    return res.json({ ok: true, lead: row });
+  } catch (err) {
+    console.error('POST /api/custom-leads/sync error:', err);
+    return res.status(400).json({ error: err.message || 'Failed to save custom lead' });
+  }
+});
+
+app.get('/api/admin/custom-leads', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Custom leads not configured' });
+  try {
+    const data = await CustomLeads.list(supabase, req.query || {});
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/custom-leads error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load custom leads' });
   }
 });
 
@@ -2430,6 +2502,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     visitorId,
     sessionId,
     cartId,
+    uploadSessionId,
     fbp,
     fbc,
     clientUserAgent
@@ -2636,6 +2709,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (visitorId) metadata.visitorId = String(visitorId);
   if (sessionId) metadata.analyticsSessionId = String(sessionId);
   if (cartId) metadata.cartId = String(cartId);
+  if (uploadSessionId) metadata.uploadSessionId = String(uploadSessionId);
   if (fbp) metadata.fbp = String(fbp).slice(0, 200);
   if (fbc) metadata.fbc = String(fbc).slice(0, 200);
   if (clientUserAgent) metadata.clientUserAgent = String(clientUserAgent).slice(0, 500);
@@ -2647,6 +2721,37 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (forwarded) metadata.clientIp = String(forwarded).slice(0, 64);
   const storeUrl = String(process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '');
   metadata.eventSourceUrl = storeUrl + '/purchase-confirmation.html';
+
+  if (supabase && uploadSessionId) {
+    try {
+      const customLine =
+        Array.isArray(lineItems) &&
+        lineItems.find(function (item) {
+          if (!item) return false;
+          const slug = item.productSlug || item.slug || '';
+          return ProductTypes.isCustomSlug(slug) || item.productType === 'custom';
+        });
+      const customConfig =
+        customLine && customLine.customConfig && typeof customLine.customConfig === 'object'
+          ? ProductTypes.normalizeCustomConfig(customLine.customConfig)
+          : null;
+      await CustomLeads.upsert(supabase, {
+        uploadSessionId: String(uploadSessionId),
+        visitorId: visitorId,
+        sessionId: sessionId,
+        cartId: cartId,
+        status: 'checkout_started',
+        vehicleModel: customConfig ? customConfig.vehicleModel : null,
+        lightingPreference: customConfig ? customConfig.specialRequests : null,
+        photos: customConfig ? customConfig.photos : [],
+        size: customLine ? customLine.size : size,
+        powerType: customLine ? customLine.powerType : powerType,
+        stripeSessionId: null
+      });
+    } catch (leadErr) {
+      console.warn('custom lead checkout sync:', leadErr && leadErr.message);
+    }
+  }
 
   function buildReturnUrl() {
     if (returnUrl) return String(returnUrl);
@@ -2700,6 +2805,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
             ui_mode: 'custom',
             return_url: buildReturnUrl()
           }));
+          if (supabase && uploadSessionId) {
+            await supabase
+              .from('custom_leads')
+              .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })
+              .eq('upload_session_id', String(uploadSessionId));
+          }
           return res.json({
             clientSecret: session.client_secret,
             sessionId: session.id,
@@ -2713,6 +2824,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
         ui_mode: 'embedded',
         return_url: buildReturnUrl()
       }));
+      if (supabase && uploadSessionId) {
+        await supabase
+          .from('custom_leads')
+          .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })
+          .eq('upload_session_id', String(uploadSessionId));
+      }
       return res.json({
         clientSecret: session.client_secret,
         sessionId: session.id,
@@ -2725,6 +2842,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
       success_url: successUrl,
       cancel_url: cancelUrl
     }));
+    if (supabase && uploadSessionId) {
+      await supabase
+        .from('custom_leads')
+        .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })
+        .eq('upload_session_id', String(uploadSessionId));
+    }
     return res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
     console.error('Checkout session creation failed:', err);

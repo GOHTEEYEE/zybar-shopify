@@ -718,6 +718,7 @@
         visitorId: pending.visitorId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getVisitorId() : null),
         sessionId: pending.sessionId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getSessionId() : null),
         cartId: pending.cartId || (window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics.getCartId() : null),
+        uploadSessionId: pending.uploadSessionId || null,
         fbp: (function () {
           try {
             var m = document.cookie.match(/(?:^|;\s*)_fbp=([^;]+)/);

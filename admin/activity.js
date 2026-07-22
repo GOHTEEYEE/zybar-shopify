@@ -9,7 +9,7 @@ window.renderAdminactivity = function (container) {
   var parts = hash.split('/');
   var visitorId = parts[1] ? decodeURIComponent(parts[1]) : null;
   var tab = parts[1] && !visitorId ? parts[1] : 'list';
-  if (parts[1] === 'leads' || parts[1] === 'abandoned' || parts[1] === 'countries' || parts[1] === 'traffic') {
+  if (parts[1] === 'leads' || parts[1] === 'abandoned' || parts[1] === 'countries' || parts[1] === 'traffic' || parts[1] === 'custom-leads') {
     tab = parts[1];
     visitorId = null;
   } else if (parts[1] && parts[1] !== 'list') {
@@ -105,6 +105,7 @@ window.renderAdminactivity = function (container) {
       { id: 'list', href: '#activity', label: 'Activity' },
       { id: 'leads', href: '#activity/leads', label: 'Email Leads' },
       { id: 'abandoned', href: '#activity/abandoned', label: 'Abandoned Carts' },
+      { id: 'custom-leads', href: '#activity/custom-leads', label: 'Custom Leads' },
       { id: 'countries', href: '#activity/countries', label: 'Countries' },
       { id: 'traffic', href: '#activity/traffic', label: 'Traffic Sources' }
     ];
@@ -671,6 +672,49 @@ window.renderAdminactivity = function (container) {
     });
     return;
   }
+  function leadStatusBadge(status) {
+    var map = {
+      started: 'ca-badge-anonymous',
+      uploaded: 'ca-badge-product',
+      configured: 'ca-badge-product',
+      added_to_cart: 'ca-badge-cart',
+      checkout_started: 'ca-badge-checkout',
+      purchased: 'ca-badge-purchased',
+      abandoned: 'ca-badge-abandoned'
+    };
+    var label = String(status || 'started').replace(/_/g, ' ');
+    return '<span class="ca-badge ' + (map[status] || 'ca-badge-anonymous') + '">' + esc(label) + '</span>';
+  }
+
+  if (tab === 'custom-leads') {
+    renderSimpleTable('Custom Made Leads', 'custom-leads', '/api/admin/custom-leads', [
+      'Photo', 'Status', 'Car Model', 'Lighting', 'Size / Power', 'Cart', 'Visitor', 'Last Activity'
+    ], function (body) {
+      return (body.rows || []).map(function (lead) {
+        var photos = Array.isArray(lead.uploaded_photos) ? lead.uploaded_photos : [];
+        var photo = photos[0] || null;
+        var photoHtml = photo && (photo.url || photo.path)
+          ? '<a href="' + esc(photo.url || photo.path) + '" target="_blank" rel="noopener"><img src="' + esc(photo.url || photo.path) + '" alt="" class="admin-custom-photo" loading="lazy" /></a>'
+          : '—';
+        var variant = [lead.size, lead.power_type].filter(Boolean).join(' / ') || '—';
+        var visitorCell = lead.visitor_id
+          ? '<a href="#activity/' + encodeURIComponent(lead.visitor_id) + '"><code>' + esc(String(lead.visitor_id).slice(0, 10)) + '…</code></a>'
+          : '—';
+        return [
+          photoHtml,
+          leadStatusBadge(lead.display_status || lead.status),
+          esc(lead.vehicle_model || '—'),
+          esc(lead.lighting_preference || '—'),
+          esc(variant),
+          money(lead.cart_value_cents || 0),
+          visitorCell,
+          esc(when(lead.last_event_at))
+        ];
+      });
+    });
+    return;
+  }
+
   if (tab === 'abandoned') {
     renderSimpleTable('Abandoned Carts', 'abandoned', '/api/customer-activity/abandoned', [
       'Visitor', 'Email', 'Country', 'Products', 'Cart Value', 'Hours Idle', 'Last Activity'
