@@ -1,28 +1,17 @@
 (function () {
   'use strict';
 
-  var SHOWCASE_IMAGES = [
-    { src: '/Image/custom-led-car-wall-art-1.jpg', alt: 'Maybach custom LED wall art on a garage pegboard' },
-    { src: '/Image/custom-led-car-wall-art-2.jpg', alt: 'BMW M3 custom LED wall art with red taillights' },
-    { src: '/Image/custom-led-car-wall-art-3.jpg', alt: 'Porsche GT3 custom LED rear wall art' },
-    { src: '/Image/custom-led-car-wall-art-4.jpg', alt: 'Mercedes-AMG GT custom LED wall art' },
-    { src: '/Image/custom-led-car-wall-art-5.jpg', alt: 'Rolls-Royce custom LED wall art' },
-    { src: '/Image/custom-led-car-wall-art-6.jpg', alt: 'Mercedes CLS custom LED art styled on a sideboard' },
-    { src: '/Image/custom-led-car-wall-art-7.jpg', alt: 'Nissan GT-R and BMW custom LED art display' },
-    { src: '/Image/custom-led-car-wall-art-8.jpg', alt: 'Mercedes custom LED art with cherry blossom street scene' }
-  ];
+  var HERO_IMAGE = {
+    src: '/Image/custom-led-car-wall-art-1.jpg',
+    alt: 'Maybach custom LED wall art glowing on a garage pegboard'
+  };
 
   var CARD_HTML =
     '<a class="lifestyle-custom-card-link" href="/products/custom-led-car-wall-art/" aria-label="Custom Made — turn your dream car into LED wall art">' +
     '<div class="lifestyle-custom-card-media">' +
-    '<img src="/Image/custom-led-car-wall-art-1.jpg" alt="Maybach custom LED wall art glowing on a garage pegboard" loading="lazy" width="990" height="990" />' +
+    '<img src="' + HERO_IMAGE.src + '" alt="' + HERO_IMAGE.alt + '" loading="lazy" width="990" height="990" />' +
     '<div class="lifestyle-custom-card-media-glow" aria-hidden="true"></div>' +
     '<span class="lifestyle-custom-card-badge">Bespoke</span>' +
-    '<div class="lifestyle-custom-card-samples" aria-label="Recent custom LED artwork examples">' +
-    SHOWCASE_IMAGES.slice(1, 5).map(function (photo) {
-      return '<img src="' + photo.src + '" alt="" loading="lazy" width="240" height="240" />';
-    }).join('') +
-    '</div>' +
     '</div>' +
     '<div class="lifestyle-custom-card-body">' +
     '<p class="lifestyle-custom-card-kicker">Custom Made</p>' +
