@@ -9,12 +9,11 @@
 
   var state = {
     photos: [],
-    vehicleBrand: '',
     vehicleModel: '',
-    vehicleYear: '',
-    specialRequests: '',
     uploading: 0
   };
+
+  var fieldsMounted = false;
 
   function isCustomPage() {
     var path = window.location && window.location.pathname ? window.location.pathname : '';
@@ -41,12 +40,6 @@
       .replace(/"/g, '&quot;');
   }
 
-  function formatUsd(amount) {
-    var pricing = window.ZYBAR && window.ZYBAR.Pricing;
-    if (pricing && pricing.formatUsd) return pricing.formatUsd(amount);
-    return '$' + (Number(amount) || 0).toFixed(2);
-  }
-
   function getPricing() {
     return window.ZYBAR && window.ZYBAR.Pricing ? window.ZYBAR.Pricing : null;
   }
@@ -57,10 +50,7 @@
   }
 
   function syncFormState() {
-    state.vehicleBrand = readField('customVehicleBrand');
     state.vehicleModel = readField('customVehicleModel');
-    state.vehicleYear = readField('customVehicleYear');
-    state.specialRequests = readField('customSpecialRequests');
   }
 
   function getSelectedSize() {
@@ -114,49 +104,32 @@
     });
   }
 
-  function renderPriceBreakdown() {
-    var box = document.getElementById('customPriceBreakdown');
-    if (!box) return;
-    var base = getBasePrice();
-    var fee = getCustomFee();
-    var total = getTotalUnitPrice();
-    box.innerHTML =
-      '<div class="custom-price-row"><span>Base Product</span><span>' + esc(formatUsd(base)) + '</span></div>' +
-      '<div class="custom-price-row custom-price-row--fee"><span>Custom Design Fee</span><span>+' + esc(formatUsd(fee)) + '</span></div>' +
-      '<div class="custom-price-divider" aria-hidden="true"></div>' +
-      '<div class="custom-price-row custom-price-row--total"><span>Total</span><span>' + esc(formatUsd(total)) + '</span></div>';
-    var priceEl = document.querySelector('.product-price, [data-pdp-price]');
-    if (priceEl) priceEl.textContent = formatUsd(total);
-  }
-
   function renderPhotoPreviews() {
     var grid = document.getElementById('customUploadPreview');
-    var countEl = document.getElementById('customUploadCount');
     if (!grid) return;
     if (!state.photos.length) {
-      grid.innerHTML = '<p class="custom-upload-empty">No photos uploaded yet.</p>';
-    } else {
-      grid.innerHTML = state.photos
-        .map(function (photo, index) {
-          return (
-            '<figure class="custom-upload-thumb" data-photo-index="' +
-            index +
-            '">' +
-            '<img src="' +
-            esc(photo.preview || photo.url) +
-            '" alt="" loading="lazy" />' +
-            '<button type="button" class="custom-upload-remove" data-remove-photo="' +
-            index +
-            '" aria-label="Remove photo">×</button>' +
-            (photo.uploading ? '<span class="custom-upload-progress">Uploading…</span>' : '') +
-            '</figure>'
-          );
-        })
-        .join('');
+      grid.innerHTML = '';
+      grid.hidden = true;
+      return;
     }
-    if (countEl) {
-      countEl.textContent = state.photos.length + ' / ' + MAX_PHOTOS + ' photos';
-    }
+    grid.hidden = false;
+    grid.innerHTML = state.photos
+      .map(function (photo, index) {
+        return (
+          '<figure class="pdp-custom-upload-thumb" data-photo-index="' +
+          index +
+          '">' +
+          '<img src="' +
+          esc(photo.preview || photo.url) +
+          '" alt="" loading="lazy" />' +
+          '<button type="button" class="pdp-custom-upload-remove" data-remove-photo="' +
+          index +
+          '" aria-label="Remove photo">×</button>' +
+          (photo.uploading ? '<span class="pdp-custom-upload-progress">…</span>' : '') +
+          '</figure>'
+        );
+      })
+      .join('');
   }
 
   function compressImage(file) {
@@ -229,7 +202,8 @@
     var el = document.getElementById('customUploadMessage');
     if (!el) return;
     el.textContent = message || '';
-    el.className = 'custom-upload-message' + (isError ? ' is-error' : message ? ' is-ok' : '');
+    el.hidden = !message;
+    el.className = 'pdp-custom-upload-message' + (isError ? ' is-error' : message ? ' is-ok' : '');
   }
 
   function handleFiles(fileList) {
@@ -266,10 +240,10 @@
   function getConfig() {
     syncFormState();
     return {
-      vehicleBrand: state.vehicleBrand,
+      vehicleBrand: '',
       vehicleModel: state.vehicleModel,
-      vehicleYear: state.vehicleYear,
-      specialRequests: state.specialRequests,
+      vehicleYear: '',
+      specialRequests: '',
       photos: state.photos
         .filter(function (p) {
           return p && !p.uploading && (p.url || p.path);
@@ -291,9 +265,6 @@
     if (readyPhotos.length < MIN_PHOTOS) {
       return { ok: false, message: 'Please upload at least ' + MIN_PHOTOS + ' clear photos of your vehicle.' };
     }
-    if (!state.vehicleBrand) {
-      return { ok: false, message: 'Please enter your car brand.' };
-    }
     if (!state.vehicleModel) {
       return { ok: false, message: 'Please enter your car model.' };
     }
@@ -303,10 +274,18 @@
   function bindUploadZone() {
     var zone = document.getElementById('customUploadZone');
     var input = document.getElementById('customUploadInput');
-    if (!zone || !input) return;
+    if (!zone || !input || zone.dataset.bound === '1') return;
+    zone.dataset.bound = '1';
 
-    zone.addEventListener('click', function () {
+    zone.addEventListener('click', function (e) {
+      if (e.target && e.target.closest('[data-remove-photo]')) return;
       input.click();
+    });
+    zone.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        input.click();
+      }
     });
     zone.addEventListener('dragover', function (e) {
       e.preventDefault();
@@ -326,85 +305,76 @@
     });
 
     var preview = document.getElementById('customUploadPreview');
-    if (preview) {
+    if (preview && preview.dataset.bound !== '1') {
+      preview.dataset.bound = '1';
       preview.addEventListener('click', function (e) {
         var btn = e.target && e.target.closest('[data-remove-photo]');
         if (!btn) return;
+        e.stopPropagation();
         var index = Number(btn.getAttribute('data-remove-photo'));
         if (!Number.isFinite(index)) return;
         state.photos.splice(index, 1);
         renderPhotoPreviews();
+        setUploadMessage('');
       });
     }
   }
 
   function bindForm() {
-    ['customVehicleBrand', 'customVehicleModel', 'customVehicleYear', 'customSpecialRequests'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('input', syncFormState);
-    });
-    document.addEventListener('click', function (e) {
-      if (e.target && e.target.closest('.size-option, .power-type-option, .power-option')) {
-        window.setTimeout(renderPriceBreakdown, 0);
-      }
-    });
+    var model = document.getElementById('customVehicleModel');
+    if (model && model.dataset.bound !== '1') {
+      model.dataset.bound = '1';
+      model.addEventListener('input', syncFormState);
+    }
   }
 
-  function initGallery() {
-    var main = document.querySelector('.product-showcase-image img');
-    var thumbs = document.querySelectorAll('[data-custom-gallery-thumb]');
-    if (!main || !thumbs.length) return;
-    thumbs.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var src = btn.getAttribute('data-src');
-        if (!src) return;
-        main.src = src;
-        thumbs.forEach(function (t) {
-          t.classList.toggle('is-active', t === btn);
-        });
-      });
-    });
-  }
+  function mountPdpFields() {
+    if (!isCustomPage() || fieldsMounted) return false;
+    var host = document.querySelector('.pdp-luxury-options');
+    if (!host) return false;
 
-  function initFaq() {
-    document.querySelectorAll('[data-custom-faq]').forEach(function (item) {
-      var btn = item.querySelector('[data-custom-faq-toggle]');
-      if (!btn) return;
-      btn.addEventListener('click', function () {
-        var open = item.classList.toggle('is-open');
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      });
-    });
-  }
+    var block = document.createElement('div');
+    block.id = 'pdpCustomConfig';
+    block.className = 'pdp-custom-config';
+    block.innerHTML =
+      '<div class="pdp-custom-field">' +
+      '<span class="product-option-label">Car Model</span>' +
+      '<input type="text" id="customVehicleModel" class="pdp-custom-input" placeholder="e.g. BMW E36 M3" autocomplete="off" />' +
+      '</div>' +
+      '<div class="pdp-custom-field pdp-custom-field--upload">' +
+      '<span class="product-option-label">Upload Photos</span>' +
+      '<div class="pdp-custom-upload">' +
+      '<div id="customUploadZone" class="pdp-custom-upload-trigger" tabindex="0" role="button" aria-label="Upload vehicle photos">' +
+      '<span class="pdp-custom-upload-trigger-label">Add photos</span>' +
+      '<span class="pdp-custom-upload-trigger-meta">JPG or PNG · 3–5 images</span>' +
+      '<input id="customUploadInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png" multiple hidden />' +
+      '</div>' +
+      '<div id="customUploadPreview" class="pdp-custom-upload-thumbs" hidden></div>' +
+      '<p id="customUploadMessage" class="pdp-custom-upload-message" role="status" hidden></p>' +
+      '</div>' +
+      '</div>';
 
-  function waitForPricing() {
-    return new Promise(function (resolve) {
-      var pricing = getPricing();
-      if (pricing && pricing.getCatalog && pricing.getCatalog().products) {
-        resolve();
-        return;
-      }
-      if (pricing && typeof pricing.load === 'function') {
-        pricing.load().then(resolve).catch(resolve);
-        return;
-      }
-      resolve();
-    });
+    host.appendChild(block);
+    fieldsMounted = true;
+
+    var lowStock = document.querySelector('.pdp-low-stock');
+    if (lowStock) lowStock.hidden = true;
+
+    bindForm();
+    bindUploadZone();
+    renderPhotoPreviews();
+    document.body.classList.add('custom-product-page');
+    return true;
   }
 
   function init() {
     if (!isCustomPage()) return;
-    document.body.classList.add('custom-product-page');
-    bindUploadZone();
-    bindForm();
-    initGallery();
-    initFaq();
-    renderPhotoPreviews();
-    waitForPricing().then(function () {
-      renderPriceBreakdown();
-    });
-    window.addEventListener('zybar:pricing-ready', renderPriceBreakdown);
+    if (!mountPdpFields()) {
+      document.addEventListener('zybar:pdp-luxury-ready', function onReady() {
+        document.removeEventListener('zybar:pdp-luxury-ready', onReady);
+        mountPdpFields();
+      });
+    }
   }
 
   window.ZYBAR = window.ZYBAR || {};
@@ -416,7 +386,7 @@
     getCustomFee: getCustomFee,
     getBasePrice: getBasePrice,
     getTotalUnitPrice: getTotalUnitPrice,
-    renderPriceBreakdown: renderPriceBreakdown
+    mountPdpFields: mountPdpFields
   };
 
   if (document.readyState === 'loading') {

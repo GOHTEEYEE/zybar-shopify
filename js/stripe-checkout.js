@@ -1631,9 +1631,15 @@
     if (window.ZYBAR && typeof window.ZYBAR.initPdpLuxuryUi === "function") {
       window.ZYBAR.initPdpLuxuryUi();
     }
+    if (typeof document.dispatchEvent === "function") {
+      document.dispatchEvent(new CustomEvent("zybar:pdp-luxury-ready"));
+    }
     repairCartItemsFromConfig();
     var config = getConfig();
     refreshPricingUi(config);
+    if (window.ZYBAR && window.ZYBAR.CustomProduct && typeof window.ZYBAR.CustomProduct.mountPdpFields === "function") {
+      window.ZYBAR.CustomProduct.mountPdpFields();
+    }
     initProductThumbnailGallery();
     refreshCartBadge();
     wireCartClick();

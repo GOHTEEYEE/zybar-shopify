@@ -141,16 +141,68 @@
     );
   }
 
-  function noResultsHtml() {
+  function customizeHtml() {
     return (
-      '<div class="zybar-search-empty">' +
-      '<p class="zybar-search-empty-title">Can\'t find your car?</p>' +
-      '<p class="zybar-search-empty-copy">We\'ll build it for you. Turn your own car into handcrafted LED wall art.</p>' +
-      '<a class="zybar-search-empty-cta" href="' +
+      '<div class="zybar-search-custom-offer">' +
+      '<p class="zybar-search-custom-title">Can\'t find your car?</p>' +
+      '<p class="zybar-search-custom-copy">We\'ll build it for you.</p>' +
+      '<a class="zybar-search-custom-cta" href="' +
       CUSTOM_HREF +
-      '">Customize Yours</a>' +
+      '" data-search-custom-cta="1">Customize Yours</a>' +
       '</div>'
     );
+  }
+
+  function collectionCardHtml(collection) {
+    if (!collection) return '';
+    var countLabel = collection.count + ' Product' + (collection.count === 1 ? '' : 's');
+    return (
+      '<a class="zybar-search-collection" href="' +
+      esc(collection.href) +
+      '" data-search-collection="1">' +
+      '<div class="zybar-search-collection-media">' +
+      (collection.imageUrl
+        ? '<img src="' + esc(collection.imageUrl) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=this.src.replace(/-on\\.webp$/i,\'.webp\').replace(/\\.webp$/i,\'.jpg\');" />'
+        : '') +
+      '<span class="zybar-search-collection-glow" aria-hidden="true"></span>' +
+      '</div>' +
+      '<div class="zybar-search-collection-body">' +
+      '<p class="zybar-search-collection-kicker">Collection</p>' +
+      '<h3 class="zybar-search-collection-title">' +
+      esc(collection.label) +
+      ' Collection</h3>' +
+      '<p class="zybar-search-collection-count">' +
+      esc(countLabel) +
+      '</p>' +
+      '<p class="zybar-search-collection-copy">Explore all ' +
+      esc(collection.label) +
+      ' artwork.</p>' +
+      '<span class="zybar-search-collection-cta">View Collection</span>' +
+      '</div>' +
+      '</a>'
+    );
+  }
+
+  function resultsSectionHtml(results, title) {
+    if (!results.length) return '';
+    return (
+      '<div class="zybar-search-section zybar-search-section--results">' +
+      (title
+        ? '<p class="zybar-search-section-title">' + esc(title) + '</p>'
+        : '') +
+      '<div class="zybar-search-results">' +
+      results.map(resultCard).join('') +
+      '</div></div>'
+    );
+  }
+
+  function renderDefault(engine) {
+    var recent = engine.readRecent();
+    var popular = engine.POPULAR || [];
+    bodyEl.innerHTML =
+      chipsHtml('Popular Searches', popular, 'data-popular-search') +
+      (recent.length ? chipsHtml('Recent Searches', recent, 'data-recent-search') : '');
+    wireChips();
   }
 
   function render(query) {
@@ -159,44 +211,38 @@
     var q = String(query || '').trim();
 
     if (!q) {
-      var recent = engine.readRecent();
-      var popular = engine.POPULAR || [];
-      bodyEl.innerHTML =
-        chipsHtml('Popular searches', popular, 'data-popular-search') +
-        (recent.length ? chipsHtml('Recent searches', recent, 'data-recent-search') : '') +
-        '<div class="zybar-search-section"><p class="zybar-search-section-title">Browse the garage</p><div class="zybar-search-results">' +
-        engine
-          .getItems()
-          .slice(0, 8)
-          .map(resultCard)
-          .join('') +
-        '</div></div>';
-      wireChips();
+      renderDefault(engine);
       return;
     }
 
+    var intent = engine.analyzeQuery(q);
     var results = engine.search(q, 24);
-    if (!results.length) {
-      bodyEl.innerHTML = noResultsHtml();
-      return;
+    var parts = [];
+
+    if (intent.type === 'brand' && intent.brand) {
+      var collection = engine.getBrandCollection(intent.brand);
+      if (collection) {
+        parts.push('<div class="zybar-search-section zybar-search-section--collection">' + collectionCardHtml(collection) + '</div>');
+      }
+      if (results.length) {
+        parts.push(resultsSectionHtml(results, 'Matching Artwork'));
+      }
+    } else if (results.length) {
+      parts.push(resultsSectionHtml(results, 'Matching Artwork'));
     }
 
-    bodyEl.innerHTML =
-      '<div class="zybar-search-section"><p class="zybar-search-section-title">' +
-      results.length +
-      ' result' +
-      (results.length === 1 ? '' : 's') +
-      '</p><div class="zybar-search-results">' +
-      results.map(resultCard).join('') +
-      '</div></div>';
-    bodyEl.querySelectorAll('[data-search-result]').forEach(function (link) {
-      link.addEventListener('click', function () {
-        engine.rememberRecent(q);
-        if (window.ZYBAR && window.ZYBAR.Analytics && window.ZYBAR.Analytics.trackSearch) {
-          window.ZYBAR.Analytics.trackSearch(q);
-        }
-      });
-    });
+    if (!results.length) {
+      parts.push('<div class="zybar-search-section zybar-search-section--custom">' + customizeHtml() + '</div>');
+    }
+
+    bodyEl.innerHTML = parts.join('');
+    wireInteractions(q);
+  }
+
+  function trackSearch(query) {
+    if (window.ZYBAR && window.ZYBAR.Analytics && window.ZYBAR.Analytics.trackSearch) {
+      window.ZYBAR.Analytics.trackSearch(query);
+    }
   }
 
   function wireChips() {
@@ -211,12 +257,34 @@
         inputEl.focus();
       });
     });
+  }
+
+  function wireInteractions(query) {
+    if (!bodyEl) return;
+    var engine = getEngine();
+
     bodyEl.querySelectorAll('[data-search-result]').forEach(function (link) {
       link.addEventListener('click', function () {
-        var engine = getEngine();
-        if (engine && inputEl && inputEl.value.trim()) engine.rememberRecent(inputEl.value.trim());
+        if (engine && query) engine.rememberRecent(query);
+        trackSearch(query);
       });
     });
+
+    bodyEl.querySelectorAll('[data-search-collection]').forEach(function (link) {
+      link.addEventListener('click', function () {
+        if (engine && query) engine.rememberRecent(query);
+        trackSearch(query);
+      });
+    });
+
+    bodyEl.querySelectorAll('[data-search-custom-cta]').forEach(function (link) {
+      link.addEventListener('click', function () {
+        if (engine && query) engine.rememberRecent(query);
+        trackSearch(query);
+      });
+    });
+
+    wireChips();
   }
 
   function open() {
@@ -228,12 +296,12 @@
       overlay.hidden = false;
       overlay.setAttribute('aria-hidden', 'false');
       document.body.classList.add('zybar-search-open');
-      render(inputEl.value || '');
+      if (inputEl) inputEl.value = '';
+      render('');
       toggleClear();
       window.requestAnimationFrame(function () {
         overlay.classList.add('is-visible');
         inputEl.focus();
-        inputEl.select();
       });
     });
   }
