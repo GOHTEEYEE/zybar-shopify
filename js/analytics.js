@@ -577,7 +577,40 @@
     return {
       visitorId: getVisitorId(),
       sessionId: getOrCreateSessionId(),
-      cartId: getCartId()
+      cartId: getCartId(),
+      country: getCountry(),
+      deviceType: getDeviceType(),
+      browser: (function () {
+        try {
+          var ua = navigator.userAgent || '';
+          if (/edg/i.test(ua)) return 'edge';
+          if (/chrome|crios/i.test(ua)) return 'chrome';
+          if (/safari/i.test(ua) && !/chrome|crios|android/i.test(ua)) return 'safari';
+          if (/firefox|fxios/i.test(ua)) return 'firefox';
+          return 'other';
+        } catch (e) {
+          return null;
+        }
+      })(),
+      trafficSource: (function () {
+        try {
+          var params = new URLSearchParams(window.location.search || '');
+          var utm = params.get('utm_source');
+          if (utm) return utm;
+          var ref = document.referrer || '';
+          if (!ref) return 'direct';
+          var host = '';
+          try {
+            host = new URL(ref).hostname || '';
+          } catch (e2) {
+            host = ref;
+          }
+          return host || 'referral';
+        } catch (e) {
+          return null;
+        }
+      })(),
+      referrer: typeof document !== 'undefined' ? document.referrer || null : null
     };
   }
 

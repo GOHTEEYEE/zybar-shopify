@@ -1974,6 +1974,11 @@ async function persistPaidCheckoutSession(session) {
           stripeSessionId: session.id,
           visitorId: session.metadata && session.metadata.visitorId,
           customerEmail: customerEmail,
+          customerName:
+            (customer && customer.name) ||
+            (session.customer_details && session.customer_details.name) ||
+            persistedOrder.customer_name ||
+            '',
           orderId: persistedOrder.id,
           customOrderId: createdCustom && createdCustom[0] ? createdCustom[0].id : null
         });
@@ -2251,9 +2256,13 @@ app.post('/api/custom-leads/sync', express.json({ limit: '256kb' }), async (req,
       size: body.size,
       powerType: body.powerType || body.power_type,
       cartValueCents: body.cartValueCents || body.cart_value_cents,
-      country: body.country,
+      customerEmail: body.customerEmail || body.customer_email,
+      customerName: body.customerName || body.customer_name,
+      country: body.country || AnalyticsFallback.geoCountryFromRequest(req),
       deviceType: body.deviceType || body.device_type,
-      referrer: body.referrer,
+      browser: body.browser,
+      trafficSource: body.trafficSource || body.traffic_source,
+      referrer: body.referrer || req.headers.referer || null,
       pageUrl: body.pageUrl || body.page_url
     });
     return res.json({ ok: true, lead: row });

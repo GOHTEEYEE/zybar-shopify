@@ -713,7 +713,7 @@ window.renderAdminactivity = function (container) {
       esc(state.search) +
       '" />' +
       '</div>' +
-      '<p class="admin-muted" style="margin:0 0 1rem">Shows Custom Made uploads and cart attempts even before payment. Abandoned = cart/checkout with no purchase after 24h.</p>' +
+      '<p class="admin-muted" style="margin:0 0 1rem">Each row shows the client (email/country/device when known), their car details, uploaded photo, and funnel status. Email/name appear after popup signup or checkout.</p>' +
       '<div id="caHost">' +
       (U.skeletonTable ? U.skeletonTable(6) : '<div class="admin-loading">Loading…</div>') +
       '</div>';
@@ -744,36 +744,48 @@ window.renderAdminactivity = function (container) {
                     esc(photo.url || photo.path) +
                     '" alt="" class="admin-custom-photo" loading="lazy" /></a>'
                   : '—';
-              var variant = [lead.size, lead.power_type].filter(Boolean).join(' / ') || '—';
-              var visitorCell = lead.visitor_id
-                ? '<a href="#activity/' +
+              var variant = [lead.size, lead.power_type].filter(Boolean).join(' · ') || '—';
+              var clientName = lead.customer_name || lead.customer_email || 'Anonymous visitor';
+              var clientMeta = [
+                lead.customer_email && lead.customer_name ? lead.customer_email : null,
+                lead.country,
+                [lead.device_type, lead.browser].filter(Boolean).join(' / ') || null,
+                lead.traffic_source
+              ]
+                .filter(Boolean)
+                .join(' · ');
+              var visitorLink = lead.visitor_id
+                ? '<div style="margin-top:0.35rem"><a href="#activity/' +
                   encodeURIComponent(lead.visitor_id) +
-                  '"><code>' +
-                  esc(String(lead.visitor_id).slice(0, 10)) +
-                  '…</code></a>'
-                : '—';
+                  '">Open activity</a></div>'
+                : '';
+              var orderBits = [
+                lead.vehicle_model ? '<strong>' + esc(lead.vehicle_model) + '</strong>' : '<strong>—</strong>',
+                lead.lighting_preference
+                  ? '<div class="admin-muted">' + esc(lead.lighting_preference) + '</div>'
+                  : '',
+                '<div class="admin-muted">' + esc(variant) + '</div>'
+              ].join('');
               return (
                 '<tr>' +
                 '<td>' +
                 photoHtml +
                 '</td>' +
                 '<td>' +
+                '<div><strong>' +
+                esc(clientName) +
+                '</strong></div>' +
+                (clientMeta ? '<div class="admin-muted">' + esc(clientMeta) + '</div>' : '') +
+                visitorLink +
+                '</td>' +
+                '<td>' +
                 leadStatusBadge(lead.display_status || lead.status) +
                 '</td>' +
                 '<td>' +
-                esc(lead.vehicle_model || '—') +
-                '</td>' +
-                '<td>' +
-                esc(lead.lighting_preference || '—') +
-                '</td>' +
-                '<td>' +
-                esc(variant) +
+                orderBits +
                 '</td>' +
                 '<td>' +
                 money(lead.cart_value_cents || 0) +
-                '</td>' +
-                '<td>' +
-                visitorCell +
                 '</td>' +
                 '<td>' +
                 esc(when(lead.last_event_at)) +
@@ -782,10 +794,10 @@ window.renderAdminactivity = function (container) {
               );
             })
             .join('') ||
-          '<tr><td colspan="8" class="admin-cell-empty">No custom leads in this range yet.</td></tr>';
+          '<tr><td colspan="6" class="admin-cell-empty">No custom leads in this range yet.</td></tr>';
         host.innerHTML =
           '<div class="admin-card"><div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
-          ['Photo', 'Status', 'Car Model', 'Lighting', 'Size / Power', 'Cart', 'Visitor', 'Last Activity']
+          ['Photo', 'Client', 'Status', 'Custom Order', 'Cart', 'Last Activity']
             .map(function (c) {
               return '<th>' + c + '</th>';
             })

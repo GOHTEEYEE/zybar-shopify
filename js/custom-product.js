@@ -19,16 +19,21 @@
 
   function getAnalyticsContext() {
     var analytics = window.ZYBAR && window.ZYBAR.Analytics;
+    var attr = analytics && analytics.getAttribution ? analytics.getAttribution() : {};
     return {
-      visitorId: analytics && analytics.getVisitorId ? analytics.getVisitorId() : null,
-      sessionId: analytics && analytics.getSessionId ? analytics.getSessionId() : null,
-      cartId: analytics && analytics.getCartId ? analytics.getCartId() : null
+      visitorId: attr.visitorId || (analytics && analytics.getVisitorId ? analytics.getVisitorId() : null),
+      sessionId: attr.sessionId || (analytics && analytics.getSessionId ? analytics.getSessionId() : null),
+      cartId: attr.cartId || (analytics && analytics.getCartId ? analytics.getCartId() : null),
+      country: attr.country || null,
+      deviceType: attr.deviceType || null,
+      browser: attr.browser || null,
+      trafficSource: attr.trafficSource || null,
+      referrer: attr.referrer || null
     };
   }
 
   function syncCustomLead(status, overrides) {
     overrides = overrides || {};
-    // Allow sync after add-to-cart even if this helper is called from cart flows.
     syncFormState();
     var ctx = getAnalyticsContext();
     var config = getConfig();
@@ -48,6 +53,11 @@
         overrides.cartValueCents != null
           ? overrides.cartValueCents
           : Math.round(getTotalUnitPrice() * 100),
+      country: ctx.country,
+      deviceType: ctx.deviceType,
+      browser: ctx.browser,
+      trafficSource: ctx.trafficSource,
+      referrer: ctx.referrer || (document.referrer || null),
       pageUrl: window.location.pathname
     };
     fetch('/api/custom-leads/sync', {
