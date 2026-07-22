@@ -59,6 +59,10 @@
   function syncFormState() {
     state.vehicleModel = readField('customVehicleModel');
     state.lightingPreference = readField('customLightingPreference');
+    var lightingValue = state.lightingPreference;
+    document.querySelectorAll('[data-lighting-chip]').forEach(function (btn) {
+      btn.classList.toggle('is-selected', (btn.getAttribute('data-lighting-chip') || '') === lightingValue);
+    });
   }
 
   function getSelectedSize() {
@@ -160,30 +164,51 @@
 
   function renderPhotoPreviews() {
     var grid = document.getElementById('customUploadPreview');
+    var zone = document.getElementById('customUploadZone');
     if (!grid) return;
+
     if (!state.photos.length) {
       grid.innerHTML = '';
       grid.hidden = true;
+      if (zone) {
+        zone.classList.remove('has-photo', 'is-uploading');
+        var empty = zone.querySelector('.pdp-custom-upload-empty');
+        if (empty) empty.hidden = false;
+      }
       return;
     }
+
+    var photo = state.photos[0];
     grid.hidden = false;
-    grid.innerHTML = state.photos
-      .map(function (photo, index) {
-        return (
-          '<figure class="pdp-custom-upload-thumb" data-photo-index="' +
-          index +
-          '">' +
-          '<img src="' +
-          esc(photo.preview || photo.url) +
-          '" alt="" loading="lazy" />' +
-          '<button type="button" class="pdp-custom-upload-remove" data-remove-photo="' +
-          index +
-          '" aria-label="Remove photo">×</button>' +
-          (photo.uploading ? '<span class="pdp-custom-upload-progress">…</span>' : '') +
-          '</figure>'
-        );
-      })
-      .join('');
+
+    if (photo.uploading && !(photo.preview || photo.url || photo.path)) {
+      grid.innerHTML = '<div class="pdp-custom-upload-loading" aria-live="polite">Uploading your photo…</div>';
+    } else {
+      grid.innerHTML =
+        '<figure class="pdp-custom-upload-thumb">' +
+        '<img src="' +
+        esc(photo.preview || photo.url) +
+        '" alt="Your vehicle" loading="lazy" />' +
+        '<button type="button" class="pdp-custom-upload-remove" data-remove-photo="0" aria-label="Remove photo">×</button>' +
+        (photo.uploading
+          ? '<span class="pdp-custom-upload-progress">Uploading…</span>'
+          : '<span class="pdp-custom-upload-change">Tap to change</span>') +
+        '</figure>';
+    }
+
+    if (zone) {
+      zone.classList.toggle('is-uploading', !!photo.uploading);
+      zone.classList.toggle(
+        'has-photo',
+        !photo.uploading && !!(photo.url || photo.path || photo.preview)
+      );
+      var empty = zone.querySelector('.pdp-custom-upload-empty');
+      if (empty) {
+        empty.hidden =
+          zone.classList.contains('has-photo') ||
+          zone.classList.contains('is-uploading');
+      }
+    }
   }
 
   function compressImage(file) {
@@ -333,7 +358,15 @@
     zone.dataset.bound = '1';
 
     zone.addEventListener('click', function (e) {
-      if (e.target && e.target.closest('[data-remove-photo]')) return;
+      var btn = e.target && e.target.closest('[data-remove-photo]');
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        state.photos = [];
+        renderPhotoPreviews();
+        setUploadMessage('');
+        return;
+      }
       input.click();
     });
     zone.addEventListener('keydown', function (e) {
@@ -358,21 +391,6 @@
       handleFiles(input.files);
       input.value = '';
     });
-
-    var preview = document.getElementById('customUploadPreview');
-    if (preview && preview.dataset.bound !== '1') {
-      preview.dataset.bound = '1';
-      preview.addEventListener('click', function (e) {
-        var btn = e.target && e.target.closest('[data-remove-photo]');
-        if (!btn) return;
-        e.stopPropagation();
-        var index = Number(btn.getAttribute('data-remove-photo'));
-        if (!Number.isFinite(index)) return;
-        state.photos.splice(index, 1);
-        renderPhotoPreviews();
-        setUploadMessage('');
-      });
-    }
   }
 
   function bindForm() {
@@ -388,6 +406,22 @@
       lighting.addEventListener('input', syncFormState);
     }
 
+    document.querySelectorAll('[data-lighting-chip]').forEach(function (chip) {
+      if (chip.dataset.bound === '1') return;
+      chip.dataset.bound = '1';
+      chip.addEventListener('click', function () {
+        var value = chip.getAttribute('data-lighting-chip') || '';
+        var field = document.getElementById('customLightingPreference');
+        if (!field || !value) return;
+        field.value = value;
+        syncFormState();
+        document.querySelectorAll('[data-lighting-chip]').forEach(function (btn) {
+          btn.classList.toggle('is-selected', btn === chip);
+        });
+        field.focus();
+      });
+    });
+
     if (!document.body.dataset.customVariantBound) {
       document.body.dataset.customVariantBound = '1';
       document.addEventListener('click', function (e) {
@@ -400,32 +434,56 @@
   function buildConfigHtml() {
     return (
       '<div class="pdp-custom-step pdp-custom-step--photos">' +
-      '<div class="pdp-custom-field pdp-custom-field--upload">' +
+      '<div class="pdp-custom-panel">' +
+      '<div class="pdp-custom-panel-head">' +
+      '<span class="pdp-custom-step-badge">1</span>' +
+      '<div class="pdp-custom-panel-copy">' +
       '<span class="product-option-label">Upload Your Car</span>' +
-      '<p class="pdp-custom-upload-lede">Upload ONE clear photo of your vehicle.<br>Front or 45° angle is recommended.</p>' +
-      '<ul class="pdp-custom-upload-formats" aria-label="Supported formats">' +
-      '<li>JPG</li><li>PNG</li>' +
-      '</ul>' +
-      '<p class="pdp-custom-upload-limit">Maximum 10MB</p>' +
+      '<p class="pdp-custom-upload-lede">One clear photo. Front or 45° angle works best.</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="pdp-custom-field pdp-custom-field--upload">' +
       '<div class="pdp-custom-upload">' +
       '<div id="customUploadZone" class="pdp-custom-upload-trigger" tabindex="0" role="button" aria-label="Upload your car photo">' +
-      '<span class="pdp-custom-upload-trigger-label">Choose photo</span>' +
-      '<span class="pdp-custom-upload-trigger-meta">JPG or PNG · up to 10MB</span>' +
+      '<div class="pdp-custom-upload-empty">' +
+      '<span class="pdp-custom-upload-icon" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/></svg>' +
+      '</span>' +
+      '<span class="pdp-custom-upload-trigger-label">Tap to upload</span>' +
+      '<span class="pdp-custom-upload-trigger-meta">JPG or PNG · max 10MB</span>' +
+      '</div>' +
+      '<div id="customUploadPreview" class="pdp-custom-upload-preview" hidden></div>' +
       '<input id="customUploadInput" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" hidden />' +
       '</div>' +
-      '<div id="customUploadPreview" class="pdp-custom-upload-thumbs pdp-custom-upload-thumbs--single" hidden></div>' +
       '<p id="customUploadMessage" class="pdp-custom-upload-message" role="status" hidden></p>' +
       '</div>' +
       '</div>' +
       '</div>' +
       '<div class="pdp-custom-step pdp-custom-step--vehicle">' +
+      '<div class="pdp-custom-panel">' +
+      '<div class="pdp-custom-panel-head">' +
+      '<span class="pdp-custom-step-badge">2</span>' +
+      '<div class="pdp-custom-panel-copy">' +
+      '<span class="product-option-label">Your Car Details</span>' +
+      '<p class="pdp-custom-panel-lede">Takes about 10 seconds.</p>' +
+      '</div>' +
+      '</div>' +
       '<div class="pdp-custom-field">' +
-      '<span class="product-option-label">Car Model</span>' +
+      '<label class="pdp-custom-sublabel" for="customVehicleModel">Car Model</label>' +
       '<input type="text" id="customVehicleModel" class="pdp-custom-input" placeholder="e.g. BMW E36 M3" autocomplete="off" />' +
       '</div>' +
       '<div class="pdp-custom-field">' +
-      '<span class="product-option-label">Lighting Preference <span class="pdp-custom-optional">(Optional)</span></span>' +
-      '<textarea id="customLightingPreference" class="pdp-custom-textarea" rows="3" placeholder="Tell us your preferred headlight color or any special requests.&#10;&#10;Examples: White LED · Yellow LED · Blue LED · Keep Original Headlights · Red DRL · RGB"></textarea>' +
+      '<label class="pdp-custom-sublabel" for="customLightingPreference">Lighting Preference <span class="pdp-custom-optional">(Optional)</span></label>' +
+      '<div class="pdp-custom-lighting-chips" role="group" aria-label="Quick lighting options">' +
+      '<button type="button" class="pdp-custom-chip" data-lighting-chip="White LED">White LED</button>' +
+      '<button type="button" class="pdp-custom-chip" data-lighting-chip="Yellow LED">Yellow LED</button>' +
+      '<button type="button" class="pdp-custom-chip" data-lighting-chip="Blue LED">Blue LED</button>' +
+      '<button type="button" class="pdp-custom-chip" data-lighting-chip="Keep Original Headlights">Original</button>' +
+      '<button type="button" class="pdp-custom-chip" data-lighting-chip="Red DRL">Red DRL</button>' +
+      '<button type="button" class="pdp-custom-chip" data-lighting-chip="RGB">RGB</button>' +
+      '</div>' +
+      '<textarea id="customLightingPreference" class="pdp-custom-textarea" rows="2" placeholder="Or describe your preferred lighting style…"></textarea>' +
+      '</div>' +
       '</div>' +
       '</div>'
     );
