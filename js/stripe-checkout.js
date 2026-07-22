@@ -449,6 +449,14 @@
   }
 
   function resolveGalleryImages(mainSrc, slug) {
+    if (String(slug || "") === "custom-led-car-wall-art") {
+      var customImages = [];
+      for (var i = 1; i <= 8; i++) {
+        customImages.push(encodeMediaUrl("/Image/custom-led-car-wall-art-" + i + ".jpg"));
+      }
+      return Promise.resolve(customImages);
+    }
+
     if (!slug) {
       var only = normalizeImageUrl(mainSrc);
       return Promise.resolve(only ? [encodeMediaUrl(only)] : []);

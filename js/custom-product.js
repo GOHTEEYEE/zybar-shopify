@@ -59,10 +59,15 @@
   function syncFormState() {
     state.vehicleModel = readField('customVehicleModel');
     state.lightingPreference = readField('customLightingPreference');
-    var lightingValue = state.lightingPreference;
-    document.querySelectorAll('[data-lighting-chip]').forEach(function (btn) {
-      btn.classList.toggle('is-selected', (btn.getAttribute('data-lighting-chip') || '') === lightingValue);
-    });
+    updateLightingCharCount();
+  }
+
+  function updateLightingCharCount() {
+    var field = document.getElementById('customLightingPreference');
+    var counter = document.getElementById('customLightingCount');
+    if (!field || !counter) return;
+    var len = String(field.value || '').length;
+    counter.textContent = len + '/100';
   }
 
   function getSelectedSize() {
@@ -404,23 +409,8 @@
     if (lighting && lighting.dataset.bound !== '1') {
       lighting.dataset.bound = '1';
       lighting.addEventListener('input', syncFormState);
+      updateLightingCharCount();
     }
-
-    document.querySelectorAll('[data-lighting-chip]').forEach(function (chip) {
-      if (chip.dataset.bound === '1') return;
-      chip.dataset.bound = '1';
-      chip.addEventListener('click', function () {
-        var value = chip.getAttribute('data-lighting-chip') || '';
-        var field = document.getElementById('customLightingPreference');
-        if (!field || !value) return;
-        field.value = value;
-        syncFormState();
-        document.querySelectorAll('[data-lighting-chip]').forEach(function (btn) {
-          btn.classList.toggle('is-selected', btn === chip);
-        });
-        field.focus();
-      });
-    });
 
     if (!document.body.dataset.customVariantBound) {
       document.body.dataset.customVariantBound = '1';
@@ -439,7 +429,7 @@
       '<span class="pdp-custom-step-badge">1</span>' +
       '<div class="pdp-custom-panel-copy">' +
       '<span class="product-option-label">Upload Your Car</span>' +
-      '<p class="pdp-custom-upload-lede">One clear photo. Front or 45° angle works best.</p>' +
+      '<p class="pdp-custom-upload-lede">One clear photo is all we need. Front or 45° angle works best.</p>' +
       '</div>' +
       '</div>' +
       '<div class="pdp-custom-field pdp-custom-field--upload">' +
@@ -449,8 +439,8 @@
       '<span class="pdp-custom-upload-icon" aria-hidden="true">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/></svg>' +
       '</span>' +
-      '<span class="pdp-custom-upload-trigger-label">Tap to upload</span>' +
-      '<span class="pdp-custom-upload-trigger-meta">JPG or PNG · max 10MB</span>' +
+      '<span class="pdp-custom-upload-trigger-label">Upload your photo</span>' +
+      '<span class="pdp-custom-upload-trigger-meta">JPG or PNG · Max 10MB</span>' +
       '</div>' +
       '<div id="customUploadPreview" class="pdp-custom-upload-preview" hidden></div>' +
       '<input id="customUploadInput" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" hidden />' +
@@ -464,8 +454,7 @@
       '<div class="pdp-custom-panel-head">' +
       '<span class="pdp-custom-step-badge">2</span>' +
       '<div class="pdp-custom-panel-copy">' +
-      '<span class="product-option-label">Your Car Details</span>' +
-      '<p class="pdp-custom-panel-lede">Takes about 10 seconds.</p>' +
+      '<span class="product-option-label">Tell Us About Your Car</span>' +
       '</div>' +
       '</div>' +
       '<div class="pdp-custom-field">' +
@@ -474,15 +463,10 @@
       '</div>' +
       '<div class="pdp-custom-field">' +
       '<label class="pdp-custom-sublabel" for="customLightingPreference">Lighting Preference <span class="pdp-custom-optional">(Optional)</span></label>' +
-      '<div class="pdp-custom-lighting-chips" role="group" aria-label="Quick lighting options">' +
-      '<button type="button" class="pdp-custom-chip" data-lighting-chip="White LED">White LED</button>' +
-      '<button type="button" class="pdp-custom-chip" data-lighting-chip="Yellow LED">Yellow LED</button>' +
-      '<button type="button" class="pdp-custom-chip" data-lighting-chip="Blue LED">Blue LED</button>' +
-      '<button type="button" class="pdp-custom-chip" data-lighting-chip="Keep Original Headlights">Original</button>' +
-      '<button type="button" class="pdp-custom-chip" data-lighting-chip="Red DRL">Red DRL</button>' +
-      '<button type="button" class="pdp-custom-chip" data-lighting-chip="RGB">RGB</button>' +
+      '<div class="pdp-custom-textarea-wrap">' +
+      '<textarea id="customLightingPreference" class="pdp-custom-textarea" rows="3" maxlength="100" placeholder="Describe your preferred lighting style…"></textarea>' +
+      '<span class="pdp-custom-char-count" id="customLightingCount" aria-live="polite">0/100</span>' +
       '</div>' +
-      '<textarea id="customLightingPreference" class="pdp-custom-textarea" rows="2" placeholder="Or describe your preferred lighting style…"></textarea>' +
       '</div>' +
       '</div>' +
       '</div>'
