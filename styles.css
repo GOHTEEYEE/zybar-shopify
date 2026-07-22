@@ -9143,17 +9143,24 @@ body.cart-page {
 .custom-product-page .pdp-custom-config {
   display: grid;
   gap: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
 }
 
 .custom-product-page .pdp-custom-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  box-sizing: border-box;
 }
 
 .custom-product-page .pdp-custom-panel-head {
@@ -9204,6 +9211,15 @@ body.cart-page {
 .custom-product-page .pdp-custom-step {
   display: grid;
   gap: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  box-sizing: border-box;
 }
 
 .custom-product-page .pdp-custom-step--vehicle {
@@ -9278,12 +9294,27 @@ body.cart-page {
   box-shadow: none;
 }
 
+.custom-product-page .pdp-custom-upload {
+  display: grid;
+  gap: 0.55rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .custom-product-page .pdp-custom-textarea-wrap {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .custom-product-page .pdp-custom-textarea {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 5.5rem;
   margin-top: 0;
   padding: 0.82rem 0.95rem 1.85rem;
@@ -9295,7 +9326,8 @@ body.cart-page {
   font-size: 0.88rem;
   line-height: 1.45;
   resize: vertical;
-  transition: border-color 0.22s ease, background 0.22s ease;
+  box-sizing: border-box;
+  transition: border-color 0.22s ease;
 }
 
 .custom-product-page .pdp-custom-char-count {
@@ -9319,7 +9351,7 @@ body.cart-page {
 .custom-product-page .pdp-custom-textarea:focus-visible {
   outline: none;
   border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
 }
 
 .pdp-custom-optional {
@@ -9335,10 +9367,17 @@ body.cart-page {
   border-radius: 12px;
 }
 
+.custom-product-page .pdp-custom-field {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .custom-product-page .pdp-custom-field + .pdp-custom-field {
   margin-top: 1.25rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 0;
+  border-top: 0;
 }
 
 .home-custom-process-wrap {
@@ -9496,7 +9535,10 @@ body.cart-page {
 }
 
 .custom-product-page .pdp-custom-input {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 48px;
   padding: 0.82rem 0.95rem;
   border-radius: 0;
@@ -9507,7 +9549,8 @@ body.cart-page {
   font-size: 0.88rem;
   font-weight: 500;
   letter-spacing: 0.04em;
-  transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease;
+  box-sizing: border-box;
+  transition: border-color 0.22s ease, color 0.22s ease;
 }
 
 .custom-product-page .pdp-custom-input::placeholder {
@@ -9517,7 +9560,7 @@ body.cart-page {
 .custom-product-page .pdp-custom-input:focus {
   outline: none;
   border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
   box-shadow: none;
 }
 
@@ -9526,6 +9569,9 @@ body.cart-page {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 148px;
   padding: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -9533,7 +9579,8 @@ body.cart-page {
   background: transparent;
   cursor: pointer;
   overflow: hidden;
-  transition: background 0.22s ease, border-color 0.22s ease;
+  box-sizing: border-box;
+  transition: border-color 0.22s ease;
 }
 
 .custom-product-page .pdp-custom-upload-empty {
@@ -9564,7 +9611,7 @@ body.cart-page {
 .custom-product-page .pdp-custom-upload-trigger.is-dragover,
 .custom-product-page .pdp-custom-upload-trigger:focus-visible {
   border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
   box-shadow: none;
   outline: none;
 }
@@ -9625,10 +9672,6 @@ body.cart-page {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.custom-product-page .pdp-luxury-options {
-  gap: 1.5rem;
 }
 
 .pdp-custom-upload-preview {
@@ -9730,6 +9773,9 @@ body.cart-page {
 
 .custom-product-page .pdp-luxury-options {
   gap: 1.1rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .pdp-custom-upload-message {
