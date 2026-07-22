@@ -517,7 +517,7 @@ window.renderAdminorders = function (container) {
               row('Power', co.power_type) +
               '</dl>' +
               (co.special_requests
-                ? '<p><strong>Customer Notes</strong><br>' + escapeHtml(co.special_requests) + '</p>'
+                ? '<p><strong>Lighting Preference</strong><br>' + escapeHtml(co.special_requests) + '</p>'
                 : '') +
               (photoHtml ? '<div class="admin-custom-photos">' + photoHtml + '</div>' : '') +
               '<div class="admin-form-group"><label>Design Status</label>' +

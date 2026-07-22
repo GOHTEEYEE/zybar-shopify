@@ -15,7 +15,7 @@
     </header>
     <main class="container account-wrap">
       <h1>Custom Order Status</h1>
-      <p class="account-lede">Track your custom LED artwork production and view the photos you submitted.</p>
+      <p class="account-lede">Track your custom LED artwork production and view the photo you submitted.</p>
       <form id="accountLookupForm" class="account-lookup">
         <label>Email<input id="accountEmail" type="email" required placeholder="you@email.com" /></label>
         <label>Order Session ID (optional)<input id="accountSession" type="text" placeholder="From your receipt link" /></label>
@@ -52,7 +52,7 @@
               '<p><strong>Status:</strong> ' + esc(statusLabel(co.design_status)) + '</p>' +
               (co.estimated_completion_at ? '<p><strong>Estimated completion:</strong> ' + esc(new Date(co.estimated_completion_at).toLocaleDateString()) + '</p>' : '') +
               (co.tracking_number ? '<p><strong>Tracking:</strong> ' + esc(co.tracking_number) + '</p>' : '') +
-              (co.special_requests ? '<p><strong>Notes:</strong> ' + esc(co.special_requests) + '</p>' : '') +
+              (co.special_requests ? '<p><strong>Lighting Preference:</strong> ' + esc(co.special_requests) + '</p>' : '') +
               (photos.length ? '<div class="account-photos">' + photos.map(function (p) {
                 var src = p && p.url; return src ? '<img src="' + esc(src) + '" alt="" loading="lazy" />' : '';
               }).join('') + '</div>' : '') +

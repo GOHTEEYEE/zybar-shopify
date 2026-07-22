@@ -1,18 +1,19 @@
 /**
- * ZYBAR storefront search engine — reusable across pages.
+ * ZYBAR storefront search engine — live prefix, suggestions, brand collections.
  */
 (function (global) {
   'use strict';
 
-  var DEBOUNCE_MS = 200;
+  var DEBOUNCE_MS = 90;
   var RECENT_KEY = 'zybar.search.recent';
   var MAX_RECENT = 8;
+  var MIN_QUERY_LEN = 1;
   var POPULAR = ['BMW', 'Audi', 'Porsche', 'Mercedes', 'Nissan', 'Toyota'];
 
   var BRAND_CATALOG = [
     { label: 'BMW', slug: 'bmw', aliases: ['bmw'] },
     { label: 'Audi', slug: 'audi', aliases: ['audi'] },
-    { label: 'Mercedes-Benz', slug: 'mercedes-benz', aliases: ['mercedes', 'benz', 'mercedes-benz', 'mercedes benz'] },
+    { label: 'Mercedes-Benz', slug: 'mercedes-benz', aliases: ['mercedes', 'benz', 'mercedes-benz', 'mercedes benz', 'amg'] },
     { label: 'Porsche', slug: 'porsche', aliases: ['porsche'] },
     { label: 'Nissan', slug: 'nissan', aliases: ['nissan'] },
     { label: 'Toyota', slug: 'toyota', aliases: ['toyota'] },
@@ -28,10 +29,12 @@
   ];
 
   var MODEL_SIGNAL_RE =
-    /^(e\d{2}|g\d{2}|fk\d|r35|gt3|rs6|f40|f8|svj|amg|gtr|gt-?r|hellcat|supra|fk8|g80|m[1-9]\d{0,2}|r8|488|mc20|urus|svj|gt350|mustang|challenger|charger|nsx|s2000|rx-?7|rx-?8|silvia|skyline|corvette|camaro|viper|i8|z4|z8|i4|cls|amg63|gt-?r35)$/i;
+    /^(e\d{0,2}|g\d{0,2}|fk\d|r35|gt\d|rs\d|f\d{1,2}|svj|amg|gtr|gt-?r|hellcat|supra|fk8|g80|m[1-9]\d{0,2}|r8|488|mc20|urus|gt350|mustang|challenger|charger|nsx|s2000|rx-?7|rx-?8|silvia|skyline|corvette|camaro|viper|i8|z4|z8|i4|cls|amg63|gt-?r35|911|gt3|rs6)$/i;
 
   var state = {
     items: [],
+    suggestions: [],
+    suggestionsReady: false,
     loaded: false,
     loading: null
   };
@@ -56,12 +59,20 @@
     if (!a || !b) return false;
     if (a === b) return true;
     if (a.indexOf(b) !== -1 || b.indexOf(a) !== -1) return true;
-    var aToken = a.split(/[\s-]+/)[0];
-    var bToken = b.split(/[\s-]+/)[0];
-    return aToken === bToken;
+    return a.split(/[\s-]+/)[0] === b.split(/[\s-]+/)[0];
   }
 
-  function findBrandEntry(query) {
+  function prefixMatch(haystack, needle) {
+    if (!haystack || !needle) return false;
+    return String(haystack).toLowerCase().indexOf(String(needle).toLowerCase()) === 0;
+  }
+
+  function partialMatch(haystack, needle) {
+    if (!haystack || !needle) return false;
+    return String(haystack).toLowerCase().indexOf(String(needle).toLowerCase()) !== -1;
+  }
+
+  function findBrandExact(query) {
     var raw = normalizeQuery(query);
     var tokens = tokenize(query);
     if (!raw) return null;
@@ -88,10 +99,47 @@
     return null;
   }
 
+  function findBrandPartial(query) {
+    var exact = findBrandExact(query);
+    if (exact) return exact;
+
+    var tokens = tokenize(query);
+    if (tokens.length !== 1) return null;
+
+    var token = tokens[0];
+    if (token.length < 2) return null;
+
+    var best = null;
+    var bestScore = 0;
+
+    BRAND_CATALOG.forEach(function (entry) {
+      var candidates = [entry.label, entry.slug].concat(entry.aliases || []);
+      candidates.forEach(function (candidate) {
+        var c = String(candidate).toLowerCase();
+        var score = 0;
+        if (c === token) score = 200;
+        else if (prefixMatch(c, token)) score = 140 - (c.length - token.length);
+        else if (partialMatch(c, token)) score = 60;
+        if (score > bestScore) {
+          bestScore = score;
+          best = entry;
+        }
+      });
+    });
+
+    return bestScore >= 60 ? best : null;
+  }
+
   function hasModelSignal(tokens) {
     if (!tokens.length) return false;
     if (tokens.length > 1) return true;
-    return MODEL_SIGNAL_RE.test(tokens[0]);
+    var t = tokens[0];
+    if (MODEL_SIGNAL_RE.test(t)) return true;
+    if (/^\d/.test(t)) return true;
+    if (t.length <= 3 && !findBrandExact(t) && !findBrandPartial(t)) {
+      return /[a-z]*\d|[a-z]{1,2}\d/i.test(t);
+    }
+    return false;
   }
 
   function analyzeQuery(query) {
@@ -99,49 +147,183 @@
     var tokens = tokenize(query);
     if (!raw) return { type: 'idle' };
 
-    var brandEntry = findBrandEntry(query);
-
-    if (brandEntry && tokens.length === 1 && !hasModelSignal(tokens)) {
-      return { type: 'brand', brand: brandEntry };
+    if (tokens.length === 2 && tokens[0] === 'mercedes' && tokens[1] === 'benz') {
+      return { type: 'brand', brand: findBrandExact('mercedes') || findBrandPartial('mercedes') };
     }
 
-    if (brandEntry && tokens.length === 2 && tokens[1] === 'benz' && tokens[0] === 'mercedes') {
-      return { type: 'brand', brand: brandEntry };
+    if (tokens.length === 1 && !hasModelSignal(tokens)) {
+      var brandOnly = findBrandExact(query) || findBrandPartial(query);
+      if (brandOnly) {
+        return { type: 'brand', brand: brandOnly };
+      }
     }
 
-    return {
-      type: 'model',
-      brand: brandEntry
-    };
+    return { type: 'model', brand: findBrandExact(query) || findBrandPartial(query) };
   }
 
   function scoreItem(item, tokens, rawQuery) {
-    if (!item || !tokens.length) return 0;
-    if (item.productType === 'custom') return 0;
+    if (!item || item.productType === 'custom') return 0;
+    if (!rawQuery || rawQuery.length < MIN_QUERY_LEN) return 0;
+
     var text = item.searchText || '';
     var name = String(item.name || '').toLowerCase();
     var slug = String(item.slug || '').toLowerCase();
+    var brand = String(item.brand || '').toLowerCase();
+    var model = String(item.model || '').toLowerCase();
     var score = 0;
 
-    if (rawQuery && slug === rawQuery) score += 120;
-    if (rawQuery && name === rawQuery) score += 100;
-    if (rawQuery && name.indexOf(rawQuery) === 0) score += 70;
-    if (rawQuery && text.indexOf(rawQuery) !== -1) score += 40;
+    if (slug === rawQuery) score += 140;
+    if (name === rawQuery) score += 130;
+    if (prefixMatch(name, rawQuery)) score += 95;
+    if (prefixMatch(brand, rawQuery)) score += 88;
+    if (prefixMatch(model, rawQuery)) score += 82;
+    if (prefixMatch(slug.replace(/-/g, ' '), rawQuery)) score += 75;
+    if (partialMatch(name, rawQuery)) score += 48;
+    if (partialMatch(text, rawQuery)) score += 36;
+
+    (item.chassisCodes || []).forEach(function (code) {
+      var c = String(code).toLowerCase();
+      if (c === rawQuery) score += 110;
+      else if (prefixMatch(c, rawQuery)) score += 92;
+      else if (partialMatch(c, rawQuery)) score += 55;
+    });
 
     tokens.forEach(function (token) {
       if (!token) return;
-      if (slug.indexOf(token) !== -1) score += 24;
-      if (name.indexOf(token) !== -1) score += 20;
-      if (String(item.brand || '').toLowerCase().indexOf(token) !== -1) score += 18;
-      if (String(item.model || '').toLowerCase().indexOf(token) !== -1) score += 16;
+      if (prefixMatch(name, token)) score += 28;
+      if (prefixMatch(brand, token)) score += 24;
+      if (prefixMatch(model, token)) score += 22;
+      if (slug.indexOf(token) !== -1) score += 18;
+      if (partialMatch(text, token)) score += 10;
       (item.chassisCodes || []).forEach(function (code) {
-        if (String(code).toLowerCase() === token) score += 28;
+        var c = String(code).toLowerCase();
+        if (c === token) score += 32;
+        else if (prefixMatch(c, token)) score += 26;
       });
-      if (String(item.ledColor || '').toLowerCase().indexOf(token) !== -1) score += 10;
-      if (text.indexOf(token) !== -1) score += 8;
+      if (String(item.ledColor || '').toLowerCase().indexOf(token) !== -1) score += 8;
     });
 
     return score;
+  }
+
+  function buildSuggestionsIndex() {
+    if (state.suggestionsReady) return;
+
+    var seen = {};
+    var list = [];
+
+    function add(label, kind, meta) {
+      var key = String(label || '').toLowerCase().trim();
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      list.push({
+        label: String(label).trim(),
+        kind: kind || 'term',
+        meta: meta || null
+      });
+    }
+
+    BRAND_CATALOG.forEach(function (b) {
+      add(b.label, 'brand', b);
+    });
+
+    var modelPairs = {};
+    state.items.forEach(function (item) {
+      if (!item || item.productType === 'custom') return;
+
+      if (item.brand) {
+        add(item.brand, 'brand');
+      }
+
+      if (item.brand && item.model) {
+        var pair = item.brand + ' ' + item.model;
+        if (!modelPairs[pair.toLowerCase()]) {
+          modelPairs[pair.toLowerCase()] = true;
+          add(pair, 'model', item);
+        }
+      }
+
+      if (item.brand && item.chassisCodes && item.chassisCodes.length) {
+        item.chassisCodes.forEach(function (code) {
+          add(item.brand + ' ' + code, 'chassis', item);
+          add(code, 'chassis', item);
+        });
+      }
+
+      if (item.name) {
+        var shortName = String(item.name)
+          .replace(/\s*NEON.*$/i, '')
+          .replace(/\s*Poster.*$/i, '')
+          .trim();
+        if (shortName.length >= 4 && shortName.length <= 42) {
+          add(shortName, 'product', item);
+        }
+      }
+    });
+
+    [
+      'Porsche GT3 RS',
+      'Porsche 911',
+      'BMW M4',
+      'BMW E46',
+      'BMW E36',
+      'Audi RS6',
+      'Audi R8',
+      'Nissan GT-R',
+      'Toyota Supra',
+      'Mercedes AMG'
+    ].forEach(function (seed) {
+      add(seed, 'seed');
+    });
+
+    state.suggestions = list;
+    state.suggestionsReady = true;
+  }
+
+  function scoreSuggestion(suggestion, raw) {
+    var label = String(suggestion.label || '').toLowerCase();
+    if (!label || !raw) return 0;
+
+    if (label === raw) return 220;
+    if (prefixMatch(label, raw)) return 180 - Math.min(40, label.length - raw.length);
+
+    var words = label.split(/\s+/);
+    var wordPrefix = false;
+    for (var i = 0; i < words.length; i++) {
+      if (prefixMatch(words[i], raw)) {
+        wordPrefix = true;
+        break;
+      }
+    }
+    if (wordPrefix) return 130;
+
+    if (partialMatch(label, raw)) return 70;
+    return 0;
+  }
+
+  function getSuggestions(query, limit) {
+    buildSuggestionsIndex();
+    var raw = normalizeQuery(query);
+    if (!raw || raw.length < MIN_QUERY_LEN) return [];
+
+    return state.suggestions
+      .map(function (s) {
+        return { suggestion: s, score: scoreSuggestion(s, raw) };
+      })
+      .filter(function (row) {
+        return row.score > 0;
+      })
+      .sort(function (a, b) {
+        return (
+          b.score - a.score ||
+          String(a.suggestion.label).length - String(b.suggestion.label).length ||
+          String(a.suggestion.label).localeCompare(String(b.suggestion.label))
+        );
+      })
+      .slice(0, limit || 6)
+      .map(function (row) {
+        return row.suggestion;
+      });
   }
 
   function loadIndex(force) {
@@ -156,6 +338,8 @@
         state.items = (data && data.items) || [];
         state.loaded = true;
         state.loading = null;
+        state.suggestionsReady = false;
+        buildSuggestionsIndex();
         return state.items;
       })
       .catch(function () {
@@ -189,11 +373,14 @@
           };
         });
         state.loaded = true;
+        state.suggestionsReady = false;
+        buildSuggestionsIndex();
         return state.items;
       })
       .catch(function () {
         state.items = [];
         state.loaded = true;
+        buildSuggestionsIndex();
         return state.items;
       });
   }
@@ -209,12 +396,14 @@
     }
 
     var max = limit || 24;
-    var ranked = state.items
+    var minScore = raw.length <= 2 ? 8 : 4;
+
+    return state.items
       .map(function (item) {
         return { item: item, score: scoreItem(item, tokens, raw) };
       })
       .filter(function (row) {
-        return row.score > 0 && row.item.productType !== 'custom';
+        return row.score >= minScore && row.item.productType !== 'custom';
       })
       .sort(function (a, b) {
         return b.score - a.score || String(a.item.name).localeCompare(String(b.item.name));
@@ -223,8 +412,6 @@
       .map(function (row) {
         return row.item;
       });
-
-    return ranked;
   }
 
   function searchByBrand(brandLabel, limit) {
@@ -250,6 +437,32 @@
       href: '/collections/all/?brand=' + encodeURIComponent(brandEntry.slug),
       imageUrl: products[0].imageUrl || '',
       sampleName: products[0].name || brandEntry.label
+    };
+  }
+
+  function searchRun(query) {
+    var raw = normalizeQuery(query);
+    if (!raw) {
+      return { suggestions: [], collection: null, results: [], intent: { type: 'idle' } };
+    }
+
+    var intent = analyzeQuery(query);
+    var suggestions = getSuggestions(query, 6);
+    var collection = null;
+    var results = [];
+
+    if (intent.type === 'brand' && intent.brand) {
+      collection = getBrandCollection(intent.brand);
+      results = searchByBrand(intent.brand.label, 24);
+    } else {
+      results = search(query, 24);
+    }
+
+    return {
+      suggestions: suggestions,
+      collection: collection,
+      results: results,
+      intent: intent
     };
   }
 
@@ -297,6 +510,8 @@
     POPULAR: POPULAR,
     loadIndex: loadIndex,
     search: search,
+    searchRun: searchRun,
+    getSuggestions: getSuggestions,
     analyzeQuery: analyzeQuery,
     getBrandCollection: getBrandCollection,
     searchByBrand: searchByBrand,

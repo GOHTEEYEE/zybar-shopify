@@ -439,6 +439,7 @@
       var cfg = item.customConfig || {};
       var vehicle = [cfg.vehicleBrand, cfg.vehicleModel, cfg.vehicleYear].filter(Boolean).join(" ");
       if (vehicle) metaLines.push("Vehicle: " + escapeHtml(vehicle));
+      if (cfg.specialRequests) metaLines.push("Lighting: " + escapeHtml(cfg.specialRequests));
       var fee = Number(item.customDesignFeeUSD);
       if (Number.isFinite(fee) && fee > 0) {
         metaLines.push("Custom Design Fee: +" + formatUsdLuxury(fee));

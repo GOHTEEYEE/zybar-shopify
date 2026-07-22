@@ -308,8 +308,8 @@
       s.onerror = next;
       document.head.appendChild(s);
     }
-    loadScript('/js/search-engine.js?v=search2', function () {
-      loadScript('/js/search-overlay.js?v=search2', function () {
+    loadScript('/js/search-engine.js?v=search3', function () {
+      loadScript('/js/search-overlay.js?v=search3', function () {
         if (window.ZYBAR && window.ZYBAR.SearchOverlay && window.ZYBAR.SearchOverlay.init) {
           window.ZYBAR.SearchOverlay.init();
         }

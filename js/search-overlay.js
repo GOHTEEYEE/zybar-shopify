@@ -42,7 +42,7 @@
       '</div>' +
       '<button type="button" class="zybar-search-close icon-btn" id="zybarSearchClose" aria-label="Close search">×</button>' +
       '</div>' +
-      '<div class="zybar-search-examples" aria-hidden="true">BMW · Audi RS6 · Porsche GT3 RS · E36 · G80 · FK8 · R35</div>' +
+      '<div class="zybar-search-examples" aria-hidden="true">Try: bm · por · gt · e3 · FK8 · M4</div>' +
       '<div class="zybar-search-body" id="zybarSearchBody"></div>' +
       '</div>';
 
@@ -64,7 +64,7 @@
 
     inputEl.addEventListener('input', function () {
       toggleClear();
-      debouncedSearch(inputEl.value);
+      render(inputEl.value);
     });
 
     document.addEventListener('keydown', function (e) {
@@ -117,7 +117,37 @@
     );
   }
 
+  function suggestionsHtml(suggestions) {
+    if (!suggestions.length) return '';
+    return (
+      '<div class="zybar-search-section zybar-search-section--suggestions">' +
+      '<p class="zybar-search-section-title">Suggestions</p>' +
+      '<div class="zybar-search-suggestions">' +
+      suggestions
+        .map(function (s) {
+          return (
+            '<button type="button" class="zybar-search-suggestion" data-search-suggestion="' +
+            esc(s.label) +
+            '">' +
+            '<svg class="zybar-search-suggestion-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>' +
+            '<span>' +
+            esc(s.label) +
+            '</span>' +
+            '</button>'
+          );
+        })
+        .join('') +
+      '</div></div>'
+    );
+  }
+
   function resultCard(item) {
+    var ledLine = item.ledColor ? esc(item.ledColor) + ' LED' : 'LED Wall Art';
+    var priceLine = item.priceLabel || 'From $138.00';
+    if (priceLine.indexOf('From') !== 0) {
+      priceLine = 'From ' + priceLine.replace(/^From\s*/i, '');
+    }
+
     return (
       '<a class="zybar-search-result" href="' +
       esc(item.href) +
@@ -131,21 +161,25 @@
       '<p class="zybar-search-result-name">' +
       esc(item.name) +
       '</p>' +
-      '<p class="zybar-search-result-sub">' +
-      esc(item.ledColor || 'LED') +
-      (item.brand ? ' · ' + esc(item.brand) : '') +
+      '<p class="zybar-search-result-led">' +
+      ledLine +
       '</p>' +
-      (item.priceLabel ? '<p class="zybar-search-result-price">' + esc(item.priceLabel) + '</p>' : '') +
+      '<p class="zybar-search-result-price">' +
+      esc(priceLine) +
+      '</p>' +
       '</div>' +
       '</a>'
     );
   }
 
-  function customizeHtml() {
+  function customPromoHtml() {
     return (
-      '<div class="zybar-search-custom-offer">' +
-      '<p class="zybar-search-custom-title">Can\'t find your car?</p>' +
-      '<p class="zybar-search-custom-copy">We\'ll build it for you.</p>' +
+      '<div class="zybar-search-custom-promo">' +
+      '<div class="zybar-search-custom-promo-copy">' +
+      '<p class="zybar-search-custom-title">Can\'t find your exact car?</p>' +
+      '<p class="zybar-search-custom-lede">We can create a custom LED wall art from your own vehicle.</p>' +
+      '<p class="zybar-search-custom-fee">+$10 Custom Design Fee</p>' +
+      '</div>' +
       '<a class="zybar-search-custom-cta" href="' +
       CUSTOM_HREF +
       '" data-search-custom-cta="1">Customize Yours</a>' +
@@ -162,7 +196,9 @@
       '" data-search-collection="1">' +
       '<div class="zybar-search-collection-media">' +
       (collection.imageUrl
-        ? '<img src="' + esc(collection.imageUrl) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=this.src.replace(/-on\\.webp$/i,\'.webp\').replace(/\\.webp$/i,\'.jpg\');" />'
+        ? '<img src="' +
+          esc(collection.imageUrl) +
+          '" alt="" loading="lazy" onerror="this.onerror=null;this.src=this.src.replace(/-on\\.webp$/i,\'.webp\').replace(/\\.webp$/i,\'.jpg\');" />'
         : '') +
       '<span class="zybar-search-collection-glow" aria-hidden="true"></span>' +
       '</div>' +
@@ -187,9 +223,7 @@
     if (!results.length) return '';
     return (
       '<div class="zybar-search-section zybar-search-section--results">' +
-      (title
-        ? '<p class="zybar-search-section-title">' + esc(title) + '</p>'
-        : '') +
+      (title ? '<p class="zybar-search-section-title">' + esc(title) + '</p>' : '') +
       '<div class="zybar-search-results">' +
       results.map(resultCard).join('') +
       '</div></div>'
@@ -215,25 +249,22 @@
       return;
     }
 
-    var intent = engine.analyzeQuery(q);
-    var results = engine.search(q, 24);
+    var run = engine.searchRun ? engine.searchRun(q) : { suggestions: [], collection: null, results: engine.search(q, 24) };
     var parts = [];
 
-    if (intent.type === 'brand' && intent.brand) {
-      var collection = engine.getBrandCollection(intent.brand);
-      if (collection) {
-        parts.push('<div class="zybar-search-section zybar-search-section--collection">' + collectionCardHtml(collection) + '</div>');
-      }
-      if (results.length) {
-        parts.push(resultsSectionHtml(results, 'Matching Artwork'));
-      }
-    } else if (results.length) {
-      parts.push(resultsSectionHtml(results, 'Matching Artwork'));
+    if (run.suggestions && run.suggestions.length) {
+      parts.push(suggestionsHtml(run.suggestions));
     }
 
-    if (!results.length) {
-      parts.push('<div class="zybar-search-section zybar-search-section--custom">' + customizeHtml() + '</div>');
+    if (run.collection) {
+      parts.push('<div class="zybar-search-section zybar-search-section--collection">' + collectionCardHtml(run.collection) + '</div>');
     }
+
+    if (run.results && run.results.length) {
+      parts.push(resultsSectionHtml(run.results, 'Artwork'));
+    }
+
+    parts.push('<div class="zybar-search-section zybar-search-section--custom">' + customPromoHtml() + '</div>');
 
     bodyEl.innerHTML = parts.join('');
     wireInteractions(q);
@@ -245,16 +276,20 @@
     }
   }
 
+  function applyQuery(value) {
+    if (!inputEl) return;
+    inputEl.value = value;
+    toggleClear();
+    render(value);
+    inputEl.focus();
+  }
+
   function wireChips() {
     if (!bodyEl) return;
     bodyEl.querySelectorAll('[data-popular-search],[data-recent-search]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var value = btn.getAttribute('data-popular-search') || btn.getAttribute('data-recent-search') || '';
-        if (!inputEl) return;
-        inputEl.value = value;
-        toggleClear();
-        render(value);
-        inputEl.focus();
+        applyQuery(value);
       });
     });
   }
@@ -262,6 +297,12 @@
   function wireInteractions(query) {
     if (!bodyEl) return;
     var engine = getEngine();
+
+    bodyEl.querySelectorAll('[data-search-suggestion]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        applyQuery(btn.getAttribute('data-search-suggestion') || '');
+      });
+    });
 
     bodyEl.querySelectorAll('[data-search-result]').forEach(function (link) {
       link.addEventListener('click', function () {
@@ -326,24 +367,18 @@
         next();
         return;
       }
-      if (document.querySelector('script[src="/js/search-engine.js"]')) {
+      if (document.querySelector('script[src*="/js/search-engine.js"]')) {
         next();
         return;
       }
       var s = document.createElement('script');
-      s.src = '/js/search-engine.js';
+      s.src = '/js/search-engine.js?v=search3';
       s.defer = true;
       s.onload = next;
       s.onerror = next;
       document.head.appendChild(s);
     }
-    loadEngine(function () {
-      if (document.querySelector('script[src="/js/search-overlay.js"]')) {
-        done();
-        return;
-      }
-      done();
-    });
+    loadEngine(done);
   }
 
   window.ZYBAR = window.ZYBAR || {};

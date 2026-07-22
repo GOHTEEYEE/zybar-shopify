@@ -1252,6 +1252,14 @@
         ? variantLabel + " · " + priceText
         : variantLabel;
     }
+
+    if (slug === "custom-led-car-wall-art") {
+      var custom = window.ZYBAR && window.ZYBAR.CustomProduct;
+      if (custom && typeof custom.renderPriceBreakdown === "function") {
+        custom.renderPriceBreakdown();
+      }
+      return;
+    }
   }
 
   function makeCheckout(stripe) {
