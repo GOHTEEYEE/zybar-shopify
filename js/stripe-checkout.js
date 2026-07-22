@@ -38,11 +38,28 @@
   }
 
   function getSelectedPowerType() {
-    var selected = document.querySelector(".product-power-options .power-type-option.selected");
-    if (selected && selected.getAttribute("data-power-type")) {
-      return selected.getAttribute("data-power-type");
+    var selected =
+      document.querySelector(".product-power-options .power-type-option.selected") ||
+      document.querySelector(".product-power-options .power-option.selected");
+    if (selected) {
+      return (
+        selected.getAttribute("data-power-type") ||
+        selected.getAttribute("data-power") ||
+        "usb"
+      );
     }
     return "usb";
+  }
+
+  function isCustomProductSlug(slug) {
+    slug = slug || getProductSlug();
+    if (window.ZYBAR && window.ZYBAR.CustomProduct && window.ZYBAR.CustomProduct.isActive()) {
+      return true;
+    }
+    if (window.ZYBAR && window.ZYBAR.ProductTypes && window.ZYBAR.ProductTypes.isCustomSlug) {
+      return window.ZYBAR.ProductTypes.isCustomSlug(slug);
+    }
+    return String(slug || "") === "custom-led-car-wall-art";
   }
 
   function getConfig() {
@@ -282,15 +299,20 @@
         return {
           quantity: qty,
           productSlug: String(item.slug ? item.slug : ""),
+          slug: String(item.slug ? item.slug : ""),
           size: size,
           powerType: powerType,
           name: String(item.name ? item.name : "Product"),
+          productType: item.productType || (isCustomProductSlug(item.slug) ? "custom" : "standard"),
           unitAmountUSD: pricing.calculateProductUnitPrice({
             slug: String(item.slug ? item.slug : ""),
             productSlug: String(item.slug ? item.slug : ""),
             size: size,
             powerType: powerType
-          })
+          }),
+          baseUnitPriceUSD: item.baseUnitPriceUSD,
+          customDesignFeeUSD: item.customDesignFeeUSD,
+          customConfig: item.customConfig || null
         };
       })
       .filter(Boolean);
@@ -1076,6 +1098,10 @@
           item && item.powerTypeLabel ? item.powerTypeLabel : powerTypeToLabel(powerType),
         slug: item && item.slug ? item.slug : "",
         quantity: item && item.quantity ? item.quantity : 1,
+        productType: item && item.productType ? item.productType : (isCustomProductSlug(item && item.slug) ? "custom" : "standard"),
+        customConfig: item && item.customConfig ? item.customConfig : null,
+        customDesignFeeUSD: item && item.customDesignFeeUSD,
+        baseUnitPriceUSD: item && item.baseUnitPriceUSD,
         unitPriceUSD: pricing
           ? pricing.calculateProductUnitPrice({
             slug: item.slug || item.productSlug || "",
@@ -1306,10 +1332,22 @@
         })
       : 0;
     var itemKey = buildVariantKey(slug, size, powerType);
+    if (isCustomProductSlug(slug)) {
+      itemKey = itemKey + "::custom";
+    }
     var items = readCartItems();
     var existing = items.filter(function (item) {
       return item && item.key === itemKey;
     })[0];
+    var customConfig = null;
+    var customDesignFeeUSD = 0;
+    var baseUnitPriceUSD = amount;
+    if (isCustomProductSlug(slug)) {
+      var customApi = window.ZYBAR && window.ZYBAR.CustomProduct;
+      customConfig = customApi && customApi.getConfig ? customApi.getConfig() : null;
+      customDesignFeeUSD = customApi && customApi.getCustomFee ? customApi.getCustomFee() : 10;
+      baseUnitPriceUSD = customApi && customApi.getBasePrice ? customApi.getBasePrice() : Math.max(0, amount - customDesignFeeUSD);
+    }
 
     if (existing) {
       existing.quantity = (Number(existing.quantity) || 0) + quantity;
@@ -1320,6 +1358,13 @@
       existing.powerTypeLabel = powerTypeToLabel(powerType);
       existing.unitPriceUSD = amount;
       existing.finishLabel = existing.finishLabel || "Premium Matte Acrylic";
+      if (isCustomProductSlug(slug)) {
+        existing.productType = "custom";
+        existing.customConfig = customConfig;
+        existing.customDesignFeeUSD = customDesignFeeUSD;
+        existing.baseUnitPriceUSD = baseUnitPriceUSD;
+        existing.name = getProductName();
+      }
     } else {
       items.push({
         key: itemKey,
@@ -1332,7 +1377,11 @@
         powerTypeLabel: powerTypeToLabel(powerType),
         finishLabel: "Premium Matte Acrylic",
         quantity: quantity,
-        unitPriceUSD: amount
+        unitPriceUSD: amount,
+        productType: isCustomProductSlug(slug) ? "custom" : "standard",
+        customConfig: customConfig,
+        customDesignFeeUSD: customDesignFeeUSD,
+        baseUnitPriceUSD: baseUnitPriceUSD
       });
       existing = items[items.length - 1];
     }
@@ -1377,6 +1426,16 @@
   }
 
   function runAddToCart(button) {
+    if (isCustomProductSlug()) {
+      var custom = window.ZYBAR && window.ZYBAR.CustomProduct;
+      if (custom && typeof custom.validate === "function") {
+        var check = custom.validate();
+        if (!check || !check.ok) {
+          alert((check && check.message) || "Please complete your custom order details.");
+          return;
+        }
+      }
+    }
     var addedItem = addCurrentSelectionToCart();
     animateFlyToCart();
     openMiniCartForItem(addedItem);

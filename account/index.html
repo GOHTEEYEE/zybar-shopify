@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Custom Order | ZYBAR</title>
+    <link rel="stylesheet" href="/styles.css?v=account1" />
+  </head>
+  <body class="account-page">
+    <header class="site-header">
+      <div class="container header-wrap">
+        <a class="brand zybar-logo" href="/"><img src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png" alt="ZYBAR" class="logo-img" loading="eager" width="1304" height="287" /></a>
+        <nav class="nav main-nav"><a href="/">Home</a><a href="/collections/all/">Catalog</a><a href="/contact.html">Contact</a></nav>
+      </div>
+    </header>
+    <main class="container account-wrap">
+      <h1>Custom Order Status</h1>
+      <p class="account-lede">Track your custom LED artwork production and view the photos you submitted.</p>
+      <form id="accountLookupForm" class="account-lookup">
+        <label>Email<input id="accountEmail" type="email" required placeholder="you@email.com" /></label>
+        <label>Order Session ID (optional)<input id="accountSession" type="text" placeholder="From your receipt link" /></label>
+        <button type="submit" class="product-add-cart">View Status</button>
+      </form>
+      <div id="accountResults" class="account-results" hidden></div>
+    </main>
+    <script>
+      (function () {
+        var form = document.getElementById('accountLookupForm');
+        var results = document.getElementById('accountResults');
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('email')) document.getElementById('accountEmail').value = params.get('email');
+        if (params.get('session')) document.getElementById('accountSession').value = params.get('session');
+
+        function esc(v) {
+          return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        function statusLabel(s) {
+          return String(s || 'pending_review').replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+        }
+        function render(rows) {
+          if (!rows.length) {
+            results.hidden = false;
+            results.innerHTML = '<p>No custom orders found for this lookup.</p>';
+            return;
+          }
+          results.hidden = false;
+          results.innerHTML = rows.map(function (co) {
+            var photos = Array.isArray(co.uploaded_photos) ? co.uploaded_photos : [];
+            return (
+              '<article class="account-order-card">' +
+              '<h2>' + esc([co.vehicle_brand, co.vehicle_model].filter(Boolean).join(' ') || 'Custom LED Car Wall Art') + '</h2>' +
+              '<p><strong>Status:</strong> ' + esc(statusLabel(co.design_status)) + '</p>' +
+              (co.estimated_completion_at ? '<p><strong>Estimated completion:</strong> ' + esc(new Date(co.estimated_completion_at).toLocaleDateString()) + '</p>' : '') +
+              (co.tracking_number ? '<p><strong>Tracking:</strong> ' + esc(co.tracking_number) + '</p>' : '') +
+              (co.special_requests ? '<p><strong>Notes:</strong> ' + esc(co.special_requests) + '</p>' : '') +
+              (photos.length ? '<div class="account-photos">' + photos.map(function (p) {
+                var src = p && p.url; return src ? '<img src="' + esc(src) + '" alt="" loading="lazy" />' : '';
+              }).join('') + '</div>' : '') +
+              '</article>'
+            );
+          }).join('');
+        }
+        function lookup(e) {
+          if (e) e.preventDefault();
+          var email = document.getElementById('accountEmail').value.trim();
+          var session = document.getElementById('accountSession').value.trim();
+          var q = session ? ('session=' + encodeURIComponent(session)) : ('email=' + encodeURIComponent(email));
+          fetch('/api/custom-orders/status?' + q)
+            .then(function (r) { return r.json(); })
+            .then(function (data) { render((data && data.orders) || []); })
+            .catch(function () {
+              results.hidden = false;
+              results.innerHTML = '<p>Could not load your custom order status.</p>';
+            });
+        }
+        form.addEventListener('submit', lookup);
+        if (params.get('email') || params.get('session')) lookup();
+      })();
+    </script>
+    <script src="/js/site-footer.js" defer></script>
+  </body>
+</html>

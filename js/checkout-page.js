@@ -434,6 +434,32 @@
     if (powerPart) metaLines.push(escapeHtml(powerPart));
     if (!metaLines.length && titles.subtitle) metaLines.push(escapeHtml(titles.subtitle));
 
+    var customHtml = "";
+    if (item.productType === "custom" || (item.customConfig && typeof item.customConfig === "object")) {
+      var cfg = item.customConfig || {};
+      var vehicle = [cfg.vehicleBrand, cfg.vehicleModel, cfg.vehicleYear].filter(Boolean).join(" ");
+      if (vehicle) metaLines.push("Vehicle: " + escapeHtml(vehicle));
+      var fee = Number(item.customDesignFeeUSD);
+      if (Number.isFinite(fee) && fee > 0) {
+        metaLines.push("Custom Design Fee: +" + formatUsdLuxury(fee));
+      }
+      var photos = Array.isArray(cfg.photos) ? cfg.photos : [];
+      if (photos.length) {
+        customHtml =
+          '<div class="checkout-line-custom-photos">' +
+          photos
+            .slice(0, 4)
+            .map(function (photo) {
+              var src = photo && (photo.url || photo.preview);
+              if (!src) return "";
+              return '<img src="' + escapeHtml(src) + '" alt="" width="40" height="40" loading="lazy" />';
+            })
+            .join("") +
+          (photos.length > 4 ? '<span class="checkout-line-custom-more">+' + (photos.length - 4) + "</span>" : "") +
+          "</div>";
+      }
+    }
+
     return [
       '<article class="checkout-line-item">',
       '<div class="checkout-line-thumb-wrap">',
@@ -447,7 +473,8 @@
       '<p class="checkout-line-variant">' +
       metaLines.join("<br>") +
       (safeQty > 1 ? "<br>Qty " + safeQty : "<br>Qty 1") +
-      "</p>",
+      "</p>" +
+      customHtml +
       "</div>",
       '<p class="checkout-line-price">' + formatUsdLuxury(lineTotal) + "</p>",
       "</article>"

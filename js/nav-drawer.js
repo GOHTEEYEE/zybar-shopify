@@ -268,10 +268,11 @@
       var searchBtn = event.target.closest('.header-actions button[aria-label="Search"]');
       if (searchBtn) {
         event.preventDefault();
-        if (window.ZYBAR && window.ZYBAR.Analytics && typeof window.ZYBAR.Analytics.trackSearch === 'function') {
-          window.ZYBAR.Analytics.trackSearch('');
-        }
-        window.location.href = '/collections/all/';
+        ensureSearchReady(function () {
+          if (window.ZYBAR && window.ZYBAR.SearchOverlay && window.ZYBAR.SearchOverlay.open) {
+            window.ZYBAR.SearchOverlay.open();
+          }
+        });
       }
     });
 
@@ -287,6 +288,33 @@
         event.preventDefault();
         closeDrawer();
       }
+    });
+  }
+
+  function ensureSearchReady(callback) {
+    if (window.ZYBAR && window.ZYBAR.SearchOverlay) {
+      callback();
+      return;
+    }
+    function loadScript(src, next) {
+      if (document.querySelector('script[src="' + src + '"]')) {
+        next();
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = src;
+      s.defer = true;
+      s.onload = next;
+      s.onerror = next;
+      document.head.appendChild(s);
+    }
+    loadScript('/js/search-engine.js', function () {
+      loadScript('/js/search-overlay.js', function () {
+        if (window.ZYBAR && window.ZYBAR.SearchOverlay && window.ZYBAR.SearchOverlay.init) {
+          window.ZYBAR.SearchOverlay.init();
+        }
+        callback();
+      });
     });
   }
 
@@ -407,6 +435,7 @@
 
     var drawer = buildDrawer();
     initDrawerBehavior(drawer, headers);
+    ensureSearchReady(function () {});
   }
 
   if (document.readyState === 'loading') {

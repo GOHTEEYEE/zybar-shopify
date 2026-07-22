@@ -20,6 +20,9 @@ const MetaCapi = require('./lib/meta-capi.js');
 const ChatbotKnowledge = require('./lib/chatbot-knowledge.js');
 const CustomerActivity = require('./lib/customer-activity.js');
 const MemberPricing = require('./lib/member-pricing.js');
+const ProductTypes = require('./lib/product-types.js');
+const CustomOrders = require('./lib/custom-orders.js');
+const SearchIndexBuilder = require('./lib/search-index-builder.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -213,17 +216,33 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi) {
           ? 'ZYBAR ' + slug.replace(/-/g, ' ')
           : 'ZYBAR LED Wall Art';
     const variantLabel = api.sizeToLabel(size) + ' · ' + api.powerTypeToLabel(powerType);
+    const isCustom =
+      item.productType === 'custom' || ProductTypes.isCustomSlug(slug);
+    const customFee =
+      isCustom && typeof item.customDesignFeeUSD === 'number'
+        ? api.roundMoney(item.customDesignFeeUSD)
+        : isCustom
+          ? ProductTypes.getCustomDesignFeeUSD(api.getCatalog(), slug)
+          : 0;
+    const displayName =
+      baseName +
+      (isCustom ? ' · Custom' : '') +
+      ' (' +
+      variantLabel +
+      ')';
 
     stripeItems.push({
       price_data: {
         currency: 'usd',
         unit_amount: api.toCents(unitUSD),
         product_data: {
-          name: baseName + ' (' + variantLabel + ')',
+          name: displayName,
           metadata: {
             slug: slug,
             size: size,
-            powerType: powerType
+            powerType: powerType,
+            productType: isCustom ? 'custom' : 'standard',
+            customDesignFeeUsd: customFee > 0 ? String(customFee) : ''
           }
         }
       },
@@ -1928,6 +1947,21 @@ async function persistPaidCheckoutSession(session) {
     return { ok: false, error: error };
   }
 
+  let persistedOrder = null;
+  try {
+    const orderLookup = await supabase
+      .from('orders')
+      .select('id, stripe_session_id, customer_email, customer_name, line_items')
+      .eq('stripe_session_id', session.id)
+      .maybeSingle();
+    if (!orderLookup.error && orderLookup.data) {
+      persistedOrder = orderLookup.data;
+      await CustomOrders.syncFromPaidSession(supabase, session, persistedOrder);
+    }
+  } catch (customErr) {
+    console.warn('Custom order sync:', customErr && customErr.message);
+  }
+
   const cartIdMeta = session.metadata && session.metadata.cartId;
   if (cartIdMeta) {
     await supabase
@@ -2116,6 +2150,126 @@ app.get('/api/checkout-session', async (req, res) => {
   } catch (err) {
     console.error('Checkout session retrieve failed:', err);
     return res.status(500).json({ error: err.message || 'Failed to load order' });
+  }
+});
+
+// ----- Custom product uploads & order status -----
+function sanitizeUploadName(name) {
+  return String(name || 'photo.jpg')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 120);
+}
+
+app.post('/api/custom-orders/upload-photo', express.json({ limit: '12mb' }), async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Uploads not configured' });
+  try {
+    const body = req.body || {};
+    const dataUrl = String(body.dataUrl || body.dataBase64 || '');
+    const fileName = sanitizeUploadName(body.fileName || 'vehicle-photo.jpg');
+    const sessionId = String(body.sessionId || crypto.randomUUID()).replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!dataUrl || dataUrl.length < 32) {
+      return res.status(400).json({ error: 'Image data is required.' });
+    }
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    const contentType = match ? match[1] : String(body.contentType || 'image/jpeg');
+    const base64 = match ? match[2] : dataUrl;
+    const buffer = Buffer.from(base64, 'base64');
+    if (!buffer.length || buffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Image must be under 10MB.' });
+    }
+    const ext = /\.png$/i.test(fileName)
+      ? 'png'
+      : /\.webp$/i.test(fileName)
+        ? 'webp'
+        : 'jpg';
+    const objectPath = sessionId + '/' + Date.now() + '-' + crypto.randomBytes(4).toString('hex') + '.' + ext;
+    const upload = await supabase.storage
+      .from('custom-order-photos')
+      .upload(objectPath, buffer, { contentType: contentType, upsert: false });
+    if (upload.error) throw upload.error;
+    const pub = supabase.storage.from('custom-order-photos').getPublicUrl(objectPath);
+    return res.json({
+      ok: true,
+      id: objectPath,
+      path: objectPath,
+      url: pub.data.publicUrl,
+      name: fileName
+    });
+  } catch (err) {
+    console.error('POST /api/custom-orders/upload-photo error:', err);
+    return res.status(500).json({ error: err.message || 'Upload failed' });
+  }
+});
+
+app.get('/api/custom-orders/status', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Custom orders not configured' });
+  try {
+    const email = String(req.query.email || '').trim();
+    const sessionId = String(req.query.session || req.query.session_id || '').trim();
+    if (sessionId) {
+      const rows = await CustomOrders.getByStripeSession(supabase, sessionId);
+      return res.json({ orders: rows });
+    }
+    if (email) {
+      const rows = await CustomOrders.getByEmail(supabase, email);
+      return res.json({ orders: rows });
+    }
+    return res.status(400).json({ error: 'email or session is required' });
+  } catch (err) {
+    console.error('GET /api/custom-orders/status error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load custom orders' });
+  }
+});
+
+app.get('/api/admin/custom-orders', requireAdminSession, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Custom orders not configured' });
+  try {
+    const sessionId = String(req.query.stripe_session_id || req.query.session || '').trim();
+    const orderId = String(req.query.order_id || '').trim();
+    if (sessionId) {
+      const rows = await CustomOrders.getByStripeSession(supabase, sessionId);
+      return res.json({ orders: rows });
+    }
+    if (orderId) {
+      const result = await supabase.from('custom_orders').select('*').eq('order_id', orderId);
+      if (result.error) throw result.error;
+      return res.json({ orders: result.data || [] });
+    }
+    return res.status(400).json({ error: 'stripe_session_id or order_id required' });
+  } catch (err) {
+    console.error('GET /api/admin/custom-orders error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load custom orders' });
+  }
+});
+
+app.patch('/api/admin/custom-orders/:id', requireAdminSession, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Custom orders not configured' });
+  try {
+    const id = String(req.params.id || '').trim();
+    const body = req.body || {};
+    const row = await CustomOrders.updateDesignStatus(supabase, id, {
+      designStatus: body.designStatus || body.design_status,
+      trackingNumber: body.trackingNumber || body.tracking_number,
+      adminNotes: body.adminNotes || body.admin_notes,
+      estimatedCompletionAt: body.estimatedCompletionAt || body.estimated_completion_at
+    });
+    return res.json({ ok: true, order: row });
+  } catch (err) {
+    console.error('PATCH /api/admin/custom-orders/:id error:', err);
+    return res.status(500).json({ error: err.message || 'Update failed' });
+  }
+});
+
+// ----- Store search index -----
+app.get('/api/search-index', async (req, res) => {
+  try {
+    const index = await SearchIndexBuilder.buildSearchIndex(supabase);
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    return res.json(index);
+  } catch (err) {
+    console.error('GET /api/search-index error:', err);
+    return res.status(500).json({ error: err.message || 'Search index failed' });
   }
 });
 
@@ -2315,22 +2469,49 @@ app.post('/api/create-checkout-session', async (req, res) => {
     const itemSize = typeof item.size === 'string' ? item.size.trim() : '';
     const itemPowerType = typeof item.powerType === 'string' ? item.powerType.trim() : '';
     const itemName = typeof item.name === 'string' ? item.name.trim() : '';
+    const itemProductType = typeof item.productType === 'string' ? item.productType.trim() : '';
     if (!Number.isFinite(itemQty) || itemQty < 1) return null;
     const size = pricingApi.normalizeSize(itemSize);
     const powerType = pricingApi.normalizePowerType(itemPowerType || 'usb');
+    const isCustom =
+      itemProductType === 'custom' || ProductTypes.isCustomSlug(itemProductSlug);
     const unitAmountUSD = pricingApi.calculateProductUnitPrice({
       slug: itemProductSlug,
       productSlug: itemProductSlug,
       size: size,
       powerType: powerType
     });
+    const customDesignFeeUSD = isCustom
+      ? pricingApi.getCustomDesignFeeUSD
+        ? pricingApi.getCustomDesignFeeUSD(itemProductSlug)
+        : ProductTypes.getCustomDesignFeeUSD(catalog, itemProductSlug)
+      : 0;
+    const baseUnitPriceUSD =
+      pricingApi.getProductBaseUnitPriceUSD &&
+      typeof pricingApi.getProductBaseUnitPriceUSD === 'function'
+        ? pricingApi.getProductBaseUnitPriceUSD({
+            slug: itemProductSlug,
+            productSlug: itemProductSlug,
+            size: size,
+            powerType: powerType
+          })
+        : Math.max(0, unitAmountUSD - customDesignFeeUSD);
+    var customConfig = null;
+    if (item.customConfig && typeof item.customConfig === 'object') {
+      customConfig = ProductTypes.normalizeCustomConfig(item.customConfig);
+    }
     return {
       quantity: Math.floor(itemQty),
       productSlug: itemProductSlug,
+      slug: itemProductSlug,
       size: size,
       powerType: powerType,
       name: itemName,
-      unitAmountUSD: unitAmountUSD
+      productType: isCustom ? 'custom' : 'standard',
+      unitAmountUSD: unitAmountUSD,
+      baseUnitPriceUSD: baseUnitPriceUSD,
+      customDesignFeeUSD: customDesignFeeUSD,
+      customConfig: customConfig
     };
   }
 
@@ -2415,15 +2596,32 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (size) metadata.size = String(size);
   if (powerType) metadata.powerType = String(powerType);
   metadata.shippingMethod = resolvedShippingMethod;
-  if (Array.isArray(lineItems) && lineItems.length > 1) {
+  if (Array.isArray(lineItems) && lineItems.length) {
     const variantDetails = lineItems
       .map(function (item) {
         if (!item || typeof item !== 'object') return null;
-        const slug = typeof item.productSlug === 'string' ? item.productSlug.trim() : '';
+        const slug =
+          typeof item.productSlug === 'string'
+            ? item.productSlug.trim()
+            : typeof item.slug === 'string'
+              ? item.slug.trim()
+              : '';
         const itemSize = typeof item.size === 'string' ? item.size.trim() : '';
         const itemPower = typeof item.powerType === 'string' ? item.powerType.trim() : 'usb';
         if (!slug && !itemSize) return null;
-        return { productSlug: slug, size: itemSize, powerType: itemPower || 'usb' };
+        return {
+          productSlug: slug,
+          slug: slug,
+          size: itemSize,
+          powerType: itemPower || 'usb',
+          name: typeof item.name === 'string' ? item.name.trim() : '',
+          quantity: Number(item.quantity) || 1,
+          productType: item.productType || (ProductTypes.isCustomSlug(slug) ? 'custom' : 'standard'),
+          unitAmountUSD: item.unitAmountUSD,
+          baseUnitPriceUSD: item.baseUnitPriceUSD,
+          customDesignFeeUSD: item.customDesignFeeUSD,
+          customConfig: item.customConfig || null
+        };
       })
       .filter(Boolean);
     if (variantDetails.length) metadata.variantDetails = JSON.stringify(variantDetails);

@@ -184,6 +184,13 @@
       "slug": "xd-bmw-headlights-motorcycle",
       "name": "Xd Bmw Headlights Motorcycle",
       "ledColor": "Yellow"
+    },
+    {
+      "slug": "custom-led-car-wall-art",
+      "name": "Custom LED Car Wall Art",
+      "productType": "custom",
+      "customDesignFeeUsd": 10,
+      "ledColor": "Custom"
     }
   ]
 }

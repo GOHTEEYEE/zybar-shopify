@@ -416,7 +416,10 @@ window.renderAdminorders = function (container) {
           '<button type="button" class="admin-btn-primary" id="orderSaveBtn" style="margin-top:0.75rem">Save changes</button>' +
           '<p id="orderSaveMsg" class="admin-muted" style="margin-top:0.5rem"></p>'
       ) +
+      '<div id="customOrderSection" class="admin-card admin-detail-card" hidden><h3>Custom Order</h3><div id="customOrderBody"></div></div>' +
       '</div>';
+
+    loadCustomOrderSection(order);
 
     var saveBtn = document.getElementById('orderSaveBtn');
     if (saveBtn) {
@@ -449,6 +452,112 @@ window.renderAdminorders = function (container) {
           });
       });
     }
+  }
+
+  function loadCustomOrderSection(order) {
+    var wrap = document.getElementById('customOrderSection');
+    var body = document.getElementById('customOrderBody');
+    if (!wrap || !body || !order || !order.stripe_session_id) return;
+    fetch(
+      '/api/admin/custom-orders?stripe_session_id=' + encodeURIComponent(order.stripe_session_id)
+    )
+      .then(function (r) {
+        return r.ok ? r.json() : { orders: [] };
+      })
+      .then(function (data) {
+        var rows = (data && data.orders) || [];
+        if (!rows.length) return;
+        wrap.hidden = false;
+        body.innerHTML = rows
+          .map(function (co) {
+            var photos = Array.isArray(co.uploaded_photos) ? co.uploaded_photos : [];
+            var photoHtml = photos
+              .map(function (p) {
+                var src = p && (p.url || p.preview);
+                if (!src) return '';
+                return (
+                  '<a href="' +
+                  escapeHtml(src) +
+                  '" target="_blank" rel="noopener"><img src="' +
+                  escapeHtml(src) +
+                  '" alt="" class="admin-custom-photo" loading="lazy" /></a>'
+                );
+              })
+              .join('');
+            var statuses = [
+              'pending_review',
+              'designing',
+              'waiting_for_approval',
+              'approved',
+              'producing',
+              'quality_check',
+              'shipped'
+            ];
+            var options = statuses
+              .map(function (s) {
+                return (
+                  '<option value="' +
+                  s +
+                  '"' +
+                  (co.design_status === s ? ' selected' : '') +
+                  '>' +
+                  s.replace(/_/g, ' ') +
+                  '</option>'
+                );
+              })
+              .join('');
+            return (
+              '<div class="admin-custom-order" data-custom-order-id="' +
+              escapeHtml(co.id) +
+              '">' +
+              '<dl class="admin-dl">' +
+              row('Vehicle', [co.vehicle_brand, co.vehicle_model, co.vehicle_year].filter(Boolean).join(' ')) +
+              row('Custom Fee', '$' + Number(co.custom_design_fee_usd || 0).toFixed(2)) +
+              row('Size', co.size) +
+              row('Power', co.power_type) +
+              '</dl>' +
+              (co.special_requests
+                ? '<p><strong>Customer Notes</strong><br>' + escapeHtml(co.special_requests) + '</p>'
+                : '') +
+              (photoHtml ? '<div class="admin-custom-photos">' + photoHtml + '</div>' : '') +
+              '<div class="admin-form-group"><label>Design Status</label>' +
+              '<select class="admin-custom-status">' +
+              options +
+              '</select></div>' +
+              '<button type="button" class="admin-btn-secondary admin-custom-save">Update Custom Order</button>' +
+              '<p class="admin-muted admin-custom-msg"></p>' +
+              '</div>'
+            );
+          })
+          .join('');
+        body.querySelectorAll('.admin-custom-save').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var block = btn.closest('.admin-custom-order');
+            if (!block) return;
+            var id = block.getAttribute('data-custom-order-id');
+            var statusEl = block.querySelector('.admin-custom-status');
+            var msgEl = block.querySelector('.admin-custom-msg');
+            btn.disabled = true;
+            fetch('/api/admin/custom-orders/' + encodeURIComponent(id), {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ designStatus: statusEl ? statusEl.value : '' })
+            })
+              .then(function (r) {
+                return r.json();
+              })
+              .then(function (res) {
+                btn.disabled = false;
+                if (msgEl) msgEl.textContent = res.ok ? 'Custom order updated.' : res.error || 'Update failed.';
+              })
+              .catch(function (err) {
+                btn.disabled = false;
+                if (msgEl) msgEl.textContent = (err && err.message) || 'Update failed.';
+              });
+          });
+        });
+      })
+      .catch(function () {});
   }
 
   function section(title, body) {
