@@ -1212,10 +1212,20 @@
             });
           }
           paymentElement.mount("#checkout-payment-element");
-          // Safety: if ready never fires, unlock after a short wait so checkout isn't stuck.
+          // Safety: if ready never fires but the element iframe did mount, unlock so
+          // checkout isn't stuck. If nothing mounted, confirm() would throw the
+          // "Payment Element must be mounted" error — ask for a refresh instead.
           setTimeout(function () {
             if (token !== state.mountToken) return;
-            if (!state.paymentElementReady) markPaymentElementReady();
+            if (state.paymentElementReady) return;
+            var mountedFrame = document.querySelector("#checkout-payment-element iframe");
+            if (mountedFrame) {
+              markPaymentElementReady();
+            } else {
+              showError(
+                "The payment form could not load. Please refresh the page and try again."
+              );
+            }
           }, 8000);
         } else {
           markPaymentElementReady();
@@ -1446,14 +1456,12 @@
         }
         return Promise.all(updates).then(function () {
           // Do not pass returnUrl — server already set return_url on session create.
-          var confirmOpts = {
+          // Email is already on the session (updateEmail above, or server-side
+          // customer_email) — passing it again to confirm() is redundant.
+          return checkout.confirm({
             phoneNumber: values.phone || undefined,
             shippingAddress: shippingAddress
-          };
-          if (!emailAlreadySet && values.email) {
-            confirmOpts.email = values.email;
-          }
-          return checkout.confirm(confirmOpts);
+          });
         });
       })
       .then(function (confirmResult) {

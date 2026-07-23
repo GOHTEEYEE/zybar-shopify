@@ -581,14 +581,21 @@ app.post(
       return res.status(400).json({ error: `Webhook Error: ${err.message}` });
     }
 
-    if (event.type === 'checkout.session.completed') {
+    if (
+      event.type === 'checkout.session.completed' ||
+      event.type === 'checkout.session.async_payment_succeeded'
+    ) {
       const session = event.data.object;
       console.log(
         'Checkout completed:',
+        event.type,
         session.id,
         session.customer_details && session.customer_details.email,
         session.metadata
       );
+      const isPaid =
+        session.payment_status === 'paid' ||
+        session.payment_status === 'no_payment_required';
 
       let customer = extractOrderCustomerFields(session);
       if (supabase) {
@@ -602,26 +609,30 @@ app.post(
         console.warn('Supabase client not configured; skipping order persistence.');
       }
 
-      // Meta Conversions API — server Purchase (deduped with browser via event_id)
-      try {
-        let capiLineItems = [];
-        if (supabase) {
-          try {
-            const resolved = await CheckoutSnapshots.resolveLineItemsForSession(supabase, session);
-            capiLineItems = (resolved && resolved.lineItems) || [];
-          } catch (_) {}
+      // Meta Conversions API — server Purchase (deduped with browser via event_id).
+      // Only when actually paid: delayed methods fire "completed" while unpaid,
+      // then "async_payment_succeeded" once the money clears.
+      if (isPaid) {
+        try {
+          let capiLineItems = [];
+          if (supabase) {
+            try {
+              const resolved = await CheckoutSnapshots.resolveLineItemsForSession(supabase, session);
+              capiLineItems = (resolved && resolved.lineItems) || [];
+            } catch (_) {}
+          }
+          await MetaCapi.sendPurchaseFromCheckoutSession(session, {
+            customer: customer,
+            amount_cents: typeof session.amount_total === 'number' ? session.amount_total : 0,
+            lineItems: capiLineItems,
+            event_source_url:
+              (process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '') +
+              '/purchase-confirmation.html?session_id=' +
+              encodeURIComponent(session.id)
+          });
+        } catch (capiErr) {
+          console.error('Meta CAPI error:', capiErr && capiErr.message ? capiErr.message : capiErr);
         }
-        await MetaCapi.sendPurchaseFromCheckoutSession(session, {
-          customer: customer,
-          amount_cents: typeof session.amount_total === 'number' ? session.amount_total : 0,
-          lineItems: capiLineItems,
-          event_source_url:
-            (process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '') +
-            '/purchase-confirmation.html?session_id=' +
-            encodeURIComponent(session.id)
-        });
-      } catch (capiErr) {
-        console.error('Meta CAPI error:', capiErr && capiErr.message ? capiErr.message : capiErr);
       }
     }
 
@@ -1876,36 +1887,30 @@ function extractOrderCustomerFields(session) {
       : null;
   // Basil stores shipping under collected_information; legacy sessions used shipping_details.
   const shippingDetails = collectedShipping || (session && session.shipping_details) || null;
-  const details =
-    session && session.customer_details
-      ? session.customer_details
-      : shippingDetails;
+  const details = session && session.customer_details ? session.customer_details : null;
   const email =
-    details && details.email
-      ? String(details.email).trim()
-      : session && session.customer_email
-        ? String(session.customer_email).trim()
-        : null;
+    (details && details.email ? String(details.email).trim() : null) ||
+    (session && session.customer_email ? String(session.customer_email).trim() : null) ||
+    null;
   const phone =
     (details && details.phone ? String(details.phone).trim() : null) ||
-    (session &&
-    session.customer_details &&
-    session.customer_details.phone
-      ? String(session.customer_details.phone).trim()
+    (shippingDetails && shippingDetails.phone
+      ? String(shippingDetails.phone).trim()
       : null) ||
     null;
+  // Shipping recipient name/address FIRST — customer_details holds the billing
+  // details from the Payment Element, which for cards is often just
+  // country + postal code. Shipping labels need the collected shipping address.
   const name =
-    details && details.name
-      ? String(details.name).trim()
-      : shippingDetails && shippingDetails.name
-        ? String(shippingDetails.name).trim()
-        : null;
+    (shippingDetails && shippingDetails.name ? String(shippingDetails.name).trim() : null) ||
+    (details && details.name ? String(details.name).trim() : null) ||
+    null;
   const addrSource =
-    (details && details.address && typeof details.address === 'object' && details.address) ||
     (shippingDetails &&
       shippingDetails.address &&
       typeof shippingDetails.address === 'object' &&
       shippingDetails.address) ||
+    (details && details.address && typeof details.address === 'object' && details.address) ||
     {};
   const line1 = addrSource.line1 || addrSource.line_1 || '';
   const line2 = addrSource.line2 || addrSource.line_2 || '';
@@ -2667,6 +2672,14 @@ app.post('/api/create-checkout-session', async (req, res) => {
     const powerType = pricingApi.normalizePowerType(itemPowerType || 'usb');
     const isCustom =
       itemProductType === 'custom' || ProductTypes.isCustomSlug(itemProductSlug);
+    // Reject unknown products instead of pricing them at the catalog fallback.
+    const knownProduct = !!(
+      itemProductSlug &&
+      catalog &&
+      catalog.products &&
+      catalog.products[itemProductSlug]
+    );
+    if (!isCustom && !knownProduct) return null;
     const unitAmountUSD = pricingApi.calculateProductUnitPrice({
       slug: itemProductSlug,
       productSlug: itemProductSlug,
@@ -2710,6 +2723,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (Array.isArray(lineItems) && lineItems.length) {
     const normalizedLineItems = lineItems.map(normalizeCheckoutLineItem).filter(Boolean);
 
+    // Require at least one real product line — otherwise the shipping line alone
+    // would still mint a payable (shipping-only) session.
+    if (!normalizedLineItems.length) {
+      return res.status(400).json({ error: 'Invalid request: lineItems must contain valid quantity and variant data' });
+    }
+
     stripeLineItems = buildDynamicStripeLineItems(normalizedLineItems, resolvedShippingMethod, pricingApi);
 
     if (!stripeLineItems.length) {
@@ -2720,17 +2739,19 @@ app.post('/api/create-checkout-session', async (req, res) => {
     if (!Number.isFinite(itemQty) || itemQty < 1) {
       return res.status(400).json({ error: 'Invalid request: quantity (number >= 1) required' });
     }
+    const normalizedSingle = normalizeCheckoutLineItem({
+      quantity: Math.floor(itemQty),
+      productSlug: typeof productSlug === 'string' ? productSlug.trim() : '',
+      size: typeof size === 'string' ? size.trim() : '',
+      powerType: typeof powerType === 'string' ? powerType.trim() : 'usb',
+      name: typeof name === 'string' ? name.trim() : '',
+      unitAmountUSD: typeof unitAmountUSD === 'number' && Number.isFinite(unitAmountUSD) ? unitAmountUSD : undefined
+    });
+    if (!normalizedSingle) {
+      return res.status(400).json({ error: 'Invalid request: unknown product or invalid quantity' });
+    }
     stripeLineItems = buildDynamicStripeLineItems(
-      [
-        normalizeCheckoutLineItem({
-          quantity: Math.floor(itemQty),
-          productSlug: typeof productSlug === 'string' ? productSlug.trim() : '',
-          size: typeof size === 'string' ? size.trim() : '',
-          powerType: typeof powerType === 'string' ? powerType.trim() : 'usb',
-          name: typeof name === 'string' ? name.trim() : '',
-          unitAmountUSD: typeof unitAmountUSD === 'number' && Number.isFinite(unitAmountUSD) ? unitAmountUSD : undefined
-        })
-      ].filter(Boolean),
+      [normalizedSingle],
       resolvedShippingMethod,
       pricingApi
     );
