@@ -3404,7 +3404,7 @@ app.get('/api/analytics/dashboard', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    const [overview, leads, abandoned] = await Promise.all([
+    const [overview, leads, abandoned, customLeads] = await Promise.all([
       AnalyticsFallback.rpcOrFallback(
         supabase,
         'get_shopify_analytics_overview',
@@ -3426,12 +3426,27 @@ app.get('/api/analytics/dashboard', async (req, res) => {
         end: range.end
       }).catch(function () {
         return [];
+      }),
+      CustomLeads.list(supabase, {
+        preset: 'custom',
+        start: range.start,
+        end: range.end,
+        limit: 200,
+        offset: 0
+      }).catch(function () {
+        return { rows: [], total: 0 };
       })
     ]);
     return res.json({
       overview: overview || {},
       email_leads: Array.isArray(leads) ? leads.length : 0,
       abandoned_carts: Array.isArray(abandoned) ? abandoned.length : 0,
+      custom_made_leads:
+        customLeads && customLeads.total != null
+          ? customLeads.total
+          : customLeads && Array.isArray(customLeads.rows)
+            ? customLeads.rows.length
+            : 0,
       range: range
     });
   } catch (err) {

@@ -267,6 +267,149 @@
     );
   }
 
+  /** Known hash paths → back-link labels (no leading #). */
+  var BACK_LABELS = {
+    activity: 'Customer Activity',
+    'activity/leads': 'Email Leads',
+    'activity/abandoned': 'Abandoned Carts',
+    'activity/custom-leads': 'Custom Leads',
+    'activity/countries': 'Countries',
+    'activity/traffic': 'Traffic Sources',
+    customers: 'Customers',
+    orders: 'Orders',
+    dashboard: 'Dashboard',
+    analytics: 'Analytics',
+    products: 'Products',
+    'marketing/overview': 'Marketing Overview',
+    'marketing/audience': 'Audience',
+    'marketing/journeys': 'Journeys',
+    'marketing/campaigns': 'Campaigns',
+    'marketing/templates': 'Templates',
+    'marketing/analytics': 'Marketing Analytics',
+    'marketing/settings': 'Marketing Settings',
+    settings: 'Settings'
+  };
+
+  var BACK_ROOTS = {
+    activity: 1,
+    customers: 1,
+    orders: 1,
+    dashboard: 1,
+    analytics: 1,
+    products: 1,
+    marketing: 1,
+    settings: 1
+  };
+
+  function parseHashQuery() {
+    var raw = String(window.location.hash || '');
+    var qi = raw.indexOf('?');
+    if (qi === -1) return {};
+    var out = {};
+    String(raw.slice(qi + 1))
+      .split('&')
+      .forEach(function (pair) {
+        if (!pair) return;
+        var parts = pair.split('=');
+        var key = decodeURIComponent(parts[0] || '');
+        if (!key) return;
+        out[key] = decodeURIComponent(parts.slice(1).join('=') || '');
+      });
+    return out;
+  }
+
+  function currentFromPath() {
+    return String(window.location.hash || '')
+      .replace(/^#/, '')
+      .split('?')[0]
+      .replace(/^\/+/, '');
+  }
+
+  function sanitizeFrom(from) {
+    if (from == null || from === '') return null;
+    var path = String(from)
+      .replace(/^#/, '')
+      .split('?')[0]
+      .replace(/^\/+/, '')
+      .trim();
+    if (!path || path.indexOf('..') !== -1 || path.indexOf('//') !== -1) return null;
+    var root = path.split('/')[0];
+    if (!BACK_ROOTS[root]) return null;
+    return path;
+  }
+
+  function backLabelFor(path) {
+    var from = sanitizeFrom(path);
+    if (!from) return 'Back';
+    if (BACK_LABELS[from]) return BACK_LABELS[from];
+    var parts = from.split('/');
+    if (parts[0] === 'dashboard' && parts[1] === 'metric') return 'Dashboard';
+    if (parts[0] === 'marketing') {
+      var mkt = parts.slice(0, 2).join('/');
+      if (BACK_LABELS[mkt]) return BACK_LABELS[mkt];
+      return 'Marketing';
+    }
+    if (BACK_LABELS[parts[0]]) return BACK_LABELS[parts[0]];
+    return 'Back';
+  }
+
+  /**
+   * Append ?from=… so detail pages can return to the originating list.
+   * @param {string} targetHash e.g. '#activity/abc' or 'activity/abc'
+   * @param {string} [fromPath] defaults to current hash path
+   */
+  function withFrom(targetHash, fromPath) {
+    var raw = String(targetHash == null ? '' : targetHash);
+    var hasHash = raw.charAt(0) === '#';
+    var withoutHash = raw.replace(/^#/, '');
+    var base = withoutHash.split('?')[0];
+    var existingQ = withoutHash.indexOf('?') !== -1 ? withoutHash.slice(withoutHash.indexOf('?') + 1) : '';
+    var from = sanitizeFrom(fromPath != null ? fromPath : currentFromPath());
+    if (!base) return hasHash ? '#' : '';
+    if (!from || from === base) {
+      return (hasHash || raw.charAt(0) === '#' ? '#' : '#') + withoutHash;
+    }
+    // Drop any existing from= to avoid stacking
+    var kept = existingQ
+      .split('&')
+      .filter(function (p) {
+        return p && p.split('=')[0] !== 'from';
+      })
+      .join('&');
+    var q = (kept ? kept + '&' : '') + 'from=' + encodeURIComponent(from);
+    return '#' + base + '?' + q;
+  }
+
+  function resolveBackNav(defaultHref, defaultLabel) {
+    var fallbackPath = String(defaultHref || '')
+      .replace(/^#/, '')
+      .split('?')[0];
+    var from = sanitizeFrom(parseHashQuery().from);
+    if (!from) {
+      return {
+        href: '#' + fallbackPath,
+        label: '← ' + (defaultLabel || backLabelFor(fallbackPath) || 'Back')
+      };
+    }
+    return {
+      href: '#' + from,
+      label: '← ' + backLabelFor(from)
+    };
+  }
+
+  function backLinkHtml(defaultHref, defaultLabel, className) {
+    var nav = resolveBackNav(defaultHref, defaultLabel);
+    return (
+      '<a href="' +
+      escapeHtml(nav.href) +
+      '" class="' +
+      escapeHtml(className || 'admin-back-link') +
+      '">' +
+      escapeHtml(nav.label) +
+      '</a>'
+    );
+  }
+
   window.AdminUtils = {
     RANGE_PRESETS: RANGE_PRESETS,
     resolveRange: resolveRange,
@@ -282,6 +425,13 @@
     renderDateFilter: renderDateFilter,
     bindDateFilter: bindDateFilter,
     downloadCsv: downloadCsv,
-    apiQuery: apiQuery
+    apiQuery: apiQuery,
+    parseHashQuery: parseHashQuery,
+    currentFromPath: currentFromPath,
+    sanitizeFrom: sanitizeFrom,
+    withFrom: withFrom,
+    resolveBackNav: resolveBackNav,
+    backLinkHtml: backLinkHtml,
+    backLabelFor: backLabelFor
   };
 })();

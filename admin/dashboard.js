@@ -332,6 +332,7 @@ window.renderAdmindashboard = function (container) {
       kpi('Add To Cart', num(overview.add_to_cart), 'add_to_cart') +
       kpi('Checkout Started', num(overview.checkout_started), 'checkout') +
       kpi('Email Leads', num(extras.email_leads), 'email_leads', '#marketing/audience') +
+      kpi('Custom Made Leads', num(extras.custom_made_leads), 'custom_made_leads', '#activity/custom-leads') +
       kpi('Abandoned Carts', num(extras.abandoned_carts), 'abandoned') +
       '</div>' +
       '<div class="admin-grid-2">' +
@@ -394,7 +395,8 @@ window.renderAdmindashboard = function (container) {
         overview = dash.overview || dash;
         extras = {
           email_leads: dash.email_leads || 0,
-          abandoned_carts: dash.abandoned_carts || 0
+          abandoned_carts: dash.abandoned_carts || 0,
+          custom_made_leads: dash.custom_made_leads || 0
         };
         finish(overview, extras);
         return;
@@ -403,11 +405,16 @@ window.renderAdmindashboard = function (container) {
       Promise.all([
         fetchJson('/api/analytics/overview'),
         fetchJson('/api/customer-activity/leads'),
-        fetchJson('/api/customer-activity/abandoned')
+        fetchJson('/api/customer-activity/abandoned'),
+        fetchJson('/api/customer-activity/custom-leads')
       ]).then(function (parts) {
         finish(parts[0] || {}, {
           email_leads: (parts[1] && parts[1].leads && parts[1].leads.length) || 0,
-          abandoned_carts: (parts[2] && parts[2].carts && parts[2].carts.length) || 0
+          abandoned_carts: (parts[2] && parts[2].carts && parts[2].carts.length) || 0,
+          custom_made_leads:
+            (parts[3] && parts[3].total != null
+              ? parts[3].total
+              : parts[3] && parts[3].rows && parts[3].rows.length) || 0
         });
       });
     });

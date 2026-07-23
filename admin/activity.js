@@ -40,6 +40,20 @@ window.renderAdminactivity = function (container) {
     return U.formatDateTime ? U.formatDateTime(iso) : String(iso || '—');
   }
 
+  function withFrom(target) {
+    return U.withFrom ? U.withFrom(target) : String(target || '');
+  }
+
+  function backLink(defaultHref, defaultLabel) {
+    return U.backLinkHtml
+      ? U.backLinkHtml(defaultHref, defaultLabel)
+      : '<a href="#' +
+          esc(String(defaultHref || 'activity').replace(/^#/, '')) +
+          '" class="admin-back-link">← ' +
+          esc(defaultLabel || 'Back') +
+          '</a>';
+  }
+
   function statusBadge(status) {
     var map = {
       anonymous: 'ca-badge-anonymous',
@@ -270,8 +284,8 @@ window.renderAdminactivity = function (container) {
                 '<td>' +
                 esc(when(r.created_at)) +
                 '</td>' +
-                '<td><a class="admin-btn-view" href="#activity/' +
-                encodeURIComponent(r.visitor_id) +
+                '<td><a class="admin-btn-view" href="' +
+                esc(withFrom('#activity/' + encodeURIComponent(r.visitor_id))) +
                 '">View</a></td>' +
                 '</tr>'
               );
@@ -302,7 +316,9 @@ window.renderAdminactivity = function (container) {
         host.querySelectorAll('[data-vid]').forEach(function (tr) {
           tr.addEventListener('click', function (e) {
             if (e.target && e.target.closest && e.target.closest('a')) return;
-            window.location.hash = 'activity/' + encodeURIComponent(tr.getAttribute('data-vid'));
+            window.location.hash = withFrom(
+              '#activity/' + encodeURIComponent(tr.getAttribute('data-vid'))
+            ).replace(/^#/, '');
           });
         });
         var prev = document.getElementById('caPrev');
@@ -328,7 +344,8 @@ window.renderAdminactivity = function (container) {
 
   function renderDetail() {
     container.innerHTML =
-      '<div class="admin-page-header"><div><a href="#activity" class="admin-back-link">← Customer Activity</a>' +
+      '<div class="admin-page-header"><div>' +
+      backLink('activity', 'Customer Activity') +
       '<h2 class="admin-page-title">Customer Journey</h2></div></div>' +
       '<div id="caDetailHost"><div class="admin-loading">Loading…</div></div>';
 
@@ -762,8 +779,8 @@ window.renderAdminactivity = function (container) {
                 .filter(Boolean)
                 .join(' · ');
               var visitorLink = lead.visitor_id
-                ? '<div class="ca-custom-row-actions"><a href="#activity/' +
-                  encodeURIComponent(lead.visitor_id) +
+                ? '<div class="ca-custom-row-actions"><a href="' +
+                  esc(withFrom('#activity/' + encodeURIComponent(lead.visitor_id))) +
                   '">Activity →</a></div>'
                 : '';
 
@@ -833,7 +850,11 @@ window.renderAdminactivity = function (container) {
           : '—';
         return [
           c.visitor_id
-            ? '<a href="#activity/' + encodeURIComponent(c.visitor_id) + '"><code>' + esc(String(c.visitor_id).slice(0, 10)) + '…</code></a>'
+            ? '<a href="' +
+              esc(withFrom('#activity/' + encodeURIComponent(c.visitor_id))) +
+              '"><code>' +
+              esc(String(c.visitor_id).slice(0, 10)) +
+              '…</code></a>'
             : '—',
           esc(c.email || '—'),
           esc(c.country || '—'),

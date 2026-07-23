@@ -58,6 +58,12 @@ window.AdminMetricDetail = (function () {
       money: false,
       filters: ['country', 'source']
     },
+    custom_made_leads: {
+      title: 'Custom Made Leads',
+      trendKey: 'custom_made_leads',
+      money: false,
+      filters: ['country', 'status']
+    },
     abandoned: {
       title: 'Abandoned Cart',
       trendKey: 'abandoned',
@@ -71,7 +77,7 @@ window.AdminMetricDetail = (function () {
     device: 'Device',
     source: 'Traffic source',
     product: 'Product',
-    status: 'Order status'
+    status: 'Status'
   };
 
   function parseMetricKeyFromHash() {
@@ -278,7 +284,18 @@ window.AdminMetricDetail = (function () {
       container.innerHTML =
         '<div class="admin-metric-page">' +
         '<div class="admin-page-header admin-metric-header">' +
-        '<div><a class="admin-metric-back" href="#dashboard">← Dashboard</a>' +
+        (function () {
+          var back = U.resolveBackNav
+            ? U.resolveBackNav('dashboard', 'Dashboard')
+            : { href: '#dashboard', label: '← Dashboard' };
+          return (
+            '<div><a class="admin-metric-back" href="' +
+            esc(back.href) +
+            '">' +
+            esc(back.label) +
+            '</a>'
+          );
+        })() +
         '<h2 class="admin-page-title">' +
         esc(meta.title) +
         '</h2>' +
@@ -532,7 +549,14 @@ window.AdminMetricDetail = (function () {
         '<tbody>' +
         (rows
           .map(function (r) {
-            var href = r.href || r.email_href || r.customer_href || null;
+            var hrefRaw = r.href || r.email_href || r.customer_href || null;
+            var href = hrefRaw && U.withFrom ? U.withFrom(hrefRaw) : hrefRaw;
+            var emailHref =
+              r.email_href && U.withFrom ? U.withFrom(r.email_href) : r.email_href;
+            var customerHref =
+              r.customer_href && U.withFrom ? U.withFrom(r.customer_href) : r.customer_href;
+            var productHref =
+              r.product_href && U.withFrom ? U.withFrom(r.product_href) : r.product_href;
             var trClass = href ? ' class="admin-row-link" data-href="' + esc(href) + '"' : '';
             return (
               '<tr' +
@@ -542,28 +566,28 @@ window.AdminMetricDetail = (function () {
                 .map(function (c) {
                   var val = r[c.key];
                   if (c.key === 'time' || c.key === 'created') val = when(val);
-                  if (c.key === 'email' && r.email_href) {
+                  if (c.key === 'email' && emailHref) {
                     return (
                       '<td><a href="' +
-                      esc(r.email_href) +
+                      esc(emailHref) +
                       '">' +
                       esc(val) +
                       '</a></td>'
                     );
                   }
-                  if (c.key === 'customer' && r.customer_href) {
+                  if (c.key === 'customer' && customerHref) {
                     return (
                       '<td><a href="' +
-                      esc(r.customer_href) +
+                      esc(customerHref) +
                       '">' +
                       esc(val) +
                       '</a></td>'
                     );
                   }
-                  if (c.key === 'product' && r.product_href) {
+                  if (c.key === 'product' && productHref) {
                     return (
                       '<td><a href="' +
-                      esc(r.product_href) +
+                      esc(productHref) +
                       '">' +
                       esc(val) +
                       '</a></td>'

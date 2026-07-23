@@ -323,12 +323,13 @@ async function fetchAllRows(env, path) {
 async function trendsFallback(env, range, granularity) {
   const start = encodeURIComponent(range.start);
   const end = encodeURIComponent(range.end);
-  const [events, sessions, orders, leads, carts] = await Promise.all([
+  const [events, sessions, orders, leads, carts, customLeads] = await Promise.all([
     fetchAllRows(env, '/rest/v1/events?created_at=gte.' + start + '&created_at=lt.' + end + '&select=event_type,created_at&limit=10000'),
     fetchAllRows(env, '/rest/v1/sessions?started_at=gte.' + start + '&started_at=lt.' + end + '&select=visitor_id,started_at&limit=10000'),
     fetchAllRows(env, '/rest/v1/orders?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at,amount_total_cents&limit=10000'),
     fetchAllRows(env, '/rest/v1/newsletter_subscribers?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at&limit=10000'),
-    fetchAllRows(env, '/rest/v1/cart_sessions?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at,abandoned_at,last_activity_at,status,recovery_status,purchased_at&limit=10000')
+    fetchAllRows(env, '/rest/v1/cart_sessions?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at,abandoned_at,last_activity_at,status,recovery_status,purchased_at&limit=10000'),
+    fetchAllRows(env, '/rest/v1/custom_leads?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at&limit=10000')
   ]);
 
   const addToCart = {};
@@ -364,6 +365,12 @@ async function trendsFallback(env, range, granularity) {
     emailLeads[d] = (emailLeads[d] || 0) + 1;
   });
 
+  const customMadeLeads = {};
+  customLeads.forEach(function (l) {
+    const d = bucketDate(l.created_at, granularity);
+    customMadeLeads[d] = (customMadeLeads[d] || 0) + 1;
+  });
+
   const abandoned = {};
   carts.forEach(function (c) {
     const isAbandoned =
@@ -392,6 +399,7 @@ async function trendsFallback(env, range, granularity) {
     visitors: toSeries(visitors, true),
     sessions: toSeries(sessionCounts, false),
     email_leads: toSeries(emailLeads, false),
+    custom_made_leads: toSeries(customMadeLeads, false),
     abandoned: toSeries(abandoned, false)
   };
 }

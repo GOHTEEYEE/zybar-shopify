@@ -5,7 +5,7 @@ window.renderAdmincustomers = function (container) {
   if (!container) return;
 
   var U = window.AdminUtils || {};
-  var hash = (window.location.hash || '#customers').slice(1);
+  var hash = (window.location.hash || '#customers').slice(1).split('?')[0];
   var parts = hash.split('/');
   var detailKey = parts[1] ? decodeURIComponent(parts[1]) : null;
   var customers = [];
@@ -13,6 +13,20 @@ window.renderAdmincustomers = function (container) {
 
   function escapeHtml(v) {
     return U.escapeHtml ? U.escapeHtml(v) : String(v == null ? '' : v);
+  }
+
+  function withFrom(target) {
+    return U.withFrom ? U.withFrom(target) : String(target || '');
+  }
+
+  function backLink(defaultHref, defaultLabel) {
+    return U.backLinkHtml
+      ? U.backLinkHtml(defaultHref, defaultLabel)
+      : '<a href="#' +
+          escapeHtml(String(defaultHref || 'customers').replace(/^#/, '')) +
+          '" class="admin-back-link">← ' +
+          escapeHtml(defaultLabel || 'Back') +
+          '</a>';
   }
 
   function formatUsdCents(cents) {
@@ -288,7 +302,9 @@ window.renderAdmincustomers = function (container) {
 
     tbody.querySelectorAll('[data-customer-key]').forEach(function (tr) {
       tr.addEventListener('click', function () {
-        window.location.hash = 'customers/' + tr.getAttribute('data-customer-key');
+        window.location.hash = withFrom(
+          '#customers/' + tr.getAttribute('data-customer-key')
+        ).replace(/^#/, '');
       });
     });
   }
@@ -296,7 +312,9 @@ window.renderAdmincustomers = function (container) {
   function renderDetail(customer) {
     if (!customer) {
       container.innerHTML =
-        '<p class="admin-error">Customer not found.</p><p><a href="#customers">← Back to customers</a></p>';
+        '<p class="admin-error">Customer not found.</p><p>' +
+        backLink('customers', 'Customers') +
+        '</p>';
       return;
     }
 
@@ -307,8 +325,8 @@ window.renderAdmincustomers = function (container) {
         .map(function (o) {
           return (
             '<tr>' +
-            '<td><a href="#orders/' +
-            escapeHtml(o.id) +
+            '<td><a href="' +
+            escapeHtml(withFrom('#orders/' + o.id)) +
             '">' +
             escapeHtml(String(o.stripe_session_id || o.id).slice(0, 14)) +
             '</a></td>' +
@@ -343,13 +361,14 @@ window.renderAdmincustomers = function (container) {
 
     container.innerHTML =
       '<div class="admin-page-header">' +
-      '<div><a href="#customers" class="admin-back-link">← Customers</a>' +
+      '<div>' +
+      backLink('customers', 'Customers') +
       '<h2 class="admin-page-title">' +
       escapeHtml(customer.name) +
       '</h2>' +
       (customer.visitor_id
-        ? '<p class="admin-muted"><a href="#activity/' +
-          encodeURIComponent(customer.visitor_id) +
+        ? '<p class="admin-muted"><a href="' +
+          escapeHtml(withFrom('#activity/' + encodeURIComponent(customer.visitor_id))) +
           '">View activity timeline →</a></p>'
         : '') +
       '</div></div>' +

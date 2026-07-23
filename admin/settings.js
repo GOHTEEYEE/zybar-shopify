@@ -4,9 +4,10 @@
 window.renderAdminsettings = function (container) {
   if (!container) return;
 
-  var hash = (window.location.hash || '#settings').slice(1);
+  var hash = (window.location.hash || '#settings').slice(1).split('?')[0];
   var parts = hash.split('/');
   var section = parts[1] || 'home';
+  var U = window.AdminUtils || {};
 
   var sections = [
     { id: 'pricing', label: 'Pricing & Shipping', desc: 'Product size prices and shipping methods', render: 'renderAdminpricing' },
@@ -23,8 +24,8 @@ window.renderAdminsettings = function (container) {
       sections
         .map(function (s) {
           return (
-            '<a class="admin-settings-card" href="#settings/' +
-            s.id +
+            '<a class="admin-settings-card" href="' +
+            (U.withFrom ? U.withFrom('#settings/' + s.id) : '#settings/' + s.id) +
             '">' +
             '<h3>' +
             s.label +
@@ -44,12 +45,16 @@ window.renderAdminsettings = function (container) {
   })[0];
   if (!match || !window[match.render]) {
     container.innerHTML =
-      '<p class="admin-error">Unknown settings section.</p><p><a href="#settings">← Settings</a></p>';
+      '<p class="admin-error">Unknown settings section.</p><p>' +
+      (U.backLinkHtml ? U.backLinkHtml('settings', 'Settings') : '<a href="#settings">← Settings</a>') +
+      '</p>';
     return;
   }
 
   container.innerHTML =
-    '<div class="admin-page-header"><div><a href="#settings" class="admin-back-link">← Settings</a></div></div>' +
+    '<div class="admin-page-header"><div>' +
+    (U.backLinkHtml ? U.backLinkHtml('settings', 'Settings') : '<a href="#settings" class="admin-back-link">← Settings</a>') +
+    '</div></div>' +
     '<div id="adminSettingsHost"></div>';
   window[match.render](document.getElementById('adminSettingsHost'));
 };

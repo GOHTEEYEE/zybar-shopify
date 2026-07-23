@@ -22,6 +22,7 @@ const METRIC_META = {
   add_to_cart: { title: 'Add To Cart', filters: ['country', 'product', 'q'] },
   checkout: { title: 'Checkout Started', filters: ['country', 'q'] },
   email_leads: { title: 'Email Leads', filters: ['country', 'source', 'q'] },
+  custom_made_leads: { title: 'Custom Made Leads', filters: ['country', 'status', 'q'] },
   abandoned: { title: 'Abandoned Cart', filters: ['country', 'q'] }
 };
 
@@ -202,6 +203,26 @@ async function getSummary(env, key, range) {
     return {
       cards: [
         { label: 'New leads', value: String(overview.email_leads || overview.newsletter_signups || 0) },
+        { label: 'Visitors', value: String(visitors) }
+      ],
+      breakdowns: {}
+    };
+  }
+
+  if (key === 'custom_made_leads') {
+    const start = encodeURIComponent(range.start);
+    const end = encodeURIComponent(range.end);
+    const { total } = await restRows(
+      env,
+      '/rest/v1/custom_leads?created_at=gte.' +
+        start +
+        '&created_at=lt.' +
+        end +
+        '&select=id&limit=1'
+    );
+    return {
+      cards: [
+        { label: 'Custom Made Leads', value: String(total || 0) },
         { label: 'Visitors', value: String(visitors) }
       ],
       breakdowns: {}
@@ -422,6 +443,46 @@ async function getRows(env, key, range, filters) {
           source: r.source || '—',
           country: r.country || '—',
           status: r.status || '—'
+        };
+      }),
+      total: total,
+      limit: limit,
+      offset: offset
+    };
+  }
+
+  if (key === 'custom_made_leads') {
+    let path =
+      '/rest/v1/custom_leads?created_at=gte.' +
+      start +
+      '&created_at=lt.' +
+      end +
+      '&select=id,customer_email,customer_name,vehicle_model,status,country,last_event_at,created_at' +
+      '&order=last_event_at.desc&limit=' +
+      limit +
+      '&offset=' +
+      offset;
+    if (filters.status) path += '&status=eq.' + encodeURIComponent(filters.status);
+    const { rows, total } = await restRows(env, path);
+    return {
+      columns: [
+        { key: 'time', label: 'Last activity' },
+        { key: 'client', label: 'Client' },
+        { key: 'email', label: 'Email' },
+        { key: 'vehicle', label: 'Vehicle' },
+        { key: 'status', label: 'Status' },
+        { key: 'country', label: 'Country' }
+      ],
+      rows: rows.map(function (r) {
+        return {
+          href: '#activity/custom-leads',
+          email_href: r.customer_email ? '#customers/' + emailKey(r.customer_email) : null,
+          time: r.last_event_at || r.created_at,
+          client: r.customer_name || r.customer_email || 'Anonymous',
+          email: r.customer_email || '—',
+          vehicle: r.vehicle_model || '—',
+          status: r.status || '—',
+          country: r.country || '—'
         };
       }),
       total: total,

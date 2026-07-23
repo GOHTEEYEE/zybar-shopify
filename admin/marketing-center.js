@@ -36,6 +36,22 @@ window.AdminMarketingCenter = (function () {
     return d.toLocaleString();
   }
 
+  function withFrom(target) {
+    var U = window.AdminUtils || {};
+    return U.withFrom ? U.withFrom(target) : String(target || '');
+  }
+
+  function backLink(defaultHref, defaultLabel) {
+    var U = window.AdminUtils || {};
+    return U.backLinkHtml
+      ? U.backLinkHtml(defaultHref, defaultLabel)
+      : '<a href="#' +
+          esc(String(defaultHref || '').replace(/^#/, '')) +
+          '" class="admin-back-link">← ' +
+          esc(defaultLabel || 'Back') +
+          '</a>';
+  }
+
   function fetchJson(url, opts) {
     // Use relative /api/... paths so admin/auth.js can attach the Bearer token.
     var path = String(url || '');
@@ -375,7 +391,7 @@ window.AdminMarketingCenter = (function () {
             .map(function (row) {
               return (
                 '<tr><td><a href="' +
-                esc(row.profile_href) +
+                esc(withFrom(row.profile_href || '#marketing/audience/' + row.id)) +
                 '">' +
                 esc(row.email) +
                 '</a></td><td>' +
@@ -396,7 +412,7 @@ window.AdminMarketingCenter = (function () {
                 money(row.ltv_cents) +
                 '</td><td>' +
                 (row.activity_href
-                  ? '<a href="' + esc(row.activity_href) + '">Activity</a>'
+                  ? '<a href="' + esc(withFrom(row.activity_href)) + '">Activity</a>'
                   : '') +
                 '</td></tr>'
               );
@@ -457,7 +473,7 @@ window.AdminMarketingCenter = (function () {
       'Subscriber',
       '',
       '<div class="admin-loading">Loading profile…</div>',
-      '<a class="admin-btn-secondary" href="#marketing/audience">← Audience</a>'
+      backLink('marketing/audience', 'Audience')
     );
     fetchJson('/api/admin/marketing/audience/' + encodeURIComponent(id)).then(function (r) {
       var host = container.querySelector('.mkt-center');
@@ -495,15 +511,15 @@ window.AdminMarketingCenter = (function () {
           esc(lead.current_step != null ? lead.current_step : '—') +
           '</dd></div></dl>' +
           (r.body.activity_href
-            ? '<p><a href="' + esc(r.body.activity_href) + '">Open activity timeline →</a></p>'
+            ? '<p><a href="' + esc(withFrom(r.body.activity_href)) + '">Open activity timeline →</a></p>'
             : '') +
           '</section>' +
           '<section class="admin-card"><h3>Orders</h3><ul class="mkt-order-list">' +
           (orders
             .map(function (o) {
               return (
-                '<li><a href="#orders/' +
-                esc(o.id) +
+                '<li><a href="' +
+                esc(withFrom('#orders/' + o.id)) +
                 '">' +
                 money(o.amount_total_cents) +
                 '</a> · ' +
@@ -522,7 +538,9 @@ window.AdminMarketingCenter = (function () {
                 esc(when(t.at)) +
                 '</div><div class="mkt-tl-label">' +
                 esc(t.label) +
-                (t.href ? ' <a href="' + esc(t.href) + '">View</a>' : '') +
+                (t.href
+                  ? ' <a href="' + esc(withFrom(t.href)) + '">View</a>'
+                  : '') +
                 '</div></li>'
               );
             })

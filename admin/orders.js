@@ -5,7 +5,7 @@ window.renderAdminorders = function (container) {
   if (!container) return;
 
   var U = window.AdminUtils || {};
-  var hash = (window.location.hash || '#orders').slice(1);
+  var hash = (window.location.hash || '#orders').slice(1).split('?')[0];
   var parts = hash.split('/');
   var detailId = parts[1] || null;
   var allOrders = [];
@@ -13,6 +13,20 @@ window.renderAdminorders = function (container) {
 
   function escapeHtml(v) {
     return U.escapeHtml ? U.escapeHtml(v) : String(v == null ? '' : v);
+  }
+
+  function withFrom(target) {
+    return U.withFrom ? U.withFrom(target) : String(target || '');
+  }
+
+  function backLink(defaultHref, defaultLabel) {
+    return U.backLinkHtml
+      ? U.backLinkHtml(defaultHref, defaultLabel)
+      : '<a href="#' +
+          escapeHtml(String(defaultHref || 'orders').replace(/^#/, '')) +
+          '" class="admin-back-link">← ' +
+          escapeHtml(defaultLabel || 'Back') +
+          '</a>';
   }
 
   function formatUsdCents(cents) {
@@ -250,8 +264,8 @@ window.renderAdminorders = function (container) {
           '<td>' +
           escapeHtml(formatDateTime(o.created_at)) +
           '</td>' +
-          '<td><a class="admin-btn-view" href="#orders/' +
-          escapeHtml(o.id) +
+          '<td><a class="admin-btn-view" href="' +
+          escapeHtml(withFrom('#orders/' + o.id)) +
           '">View</a></td>' +
           '</tr>'
         );
@@ -261,7 +275,9 @@ window.renderAdminorders = function (container) {
     tbody.querySelectorAll('[data-order-id]').forEach(function (tr) {
       tr.addEventListener('click', function (e) {
         if (e.target && e.target.closest && e.target.closest('a')) return;
-        window.location.hash = 'orders/' + tr.getAttribute('data-order-id');
+        window.location.hash = withFrom(
+          '#orders/' + tr.getAttribute('data-order-id')
+        ).replace(/^#/, '');
       });
     });
   }
@@ -269,7 +285,9 @@ window.renderAdminorders = function (container) {
   function renderDetail(order) {
     if (!order) {
       container.innerHTML =
-        '<p class="admin-error">Order not found.</p><p><a href="#orders">← Back to orders</a></p>';
+        '<p class="admin-error">Order not found.</p><p>' +
+        backLink('orders', 'Orders') +
+        '</p>';
       return;
     }
 
@@ -330,7 +348,8 @@ window.renderAdminorders = function (container) {
 
     container.innerHTML =
       '<div class="admin-page-header">' +
-      '<div><a href="#orders" class="admin-back-link">← Orders</a>' +
+      '<div>' +
+      backLink('orders', 'Orders') +
       '<h2 class="admin-page-title">Order ' +
       escapeHtml(orderNumber(order)) +
       '</h2></div>' +
