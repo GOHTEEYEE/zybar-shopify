@@ -2045,18 +2045,20 @@ async function persistPaidCheckoutSession(session) {
       .eq('id', cartIdMeta);
   }
 
-  await supabase.from('events').insert({
-    event_type: 'payment_success',
-    visitor_id: (session.metadata && session.metadata.visitorId) || 'server',
-    session_id: (session.metadata && session.metadata.analyticsSessionId) || null,
-    cart_id: cartIdMeta || null,
-    metadata: {
-      stripe_session_id: session.id,
-      amount_cents: amount
-    },
-    dedup_key: 'payment_success:' + session.id,
-    created_at: new Date().toISOString()
-  }).catch(function () {});
+  try {
+    await supabase.from('events').insert({
+      event_type: 'payment_success',
+      visitor_id: (session.metadata && session.metadata.visitorId) || 'server',
+      session_id: (session.metadata && session.metadata.analyticsSessionId) || null,
+      cart_id: cartIdMeta || null,
+      metadata: {
+        stripe_session_id: session.id,
+        amount_cents: amount
+      },
+      dedup_key: 'payment_success:' + session.id,
+      created_at: new Date().toISOString()
+    });
+  } catch (_) {}
 
   try {
     await CustomerActivity.upsertProfileFromOrder(supabase, session, customer);
