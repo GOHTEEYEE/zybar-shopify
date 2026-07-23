@@ -713,17 +713,15 @@ window.renderAdminactivity = function (container) {
       esc(state.search) +
       '" />' +
       '</div>' +
-      '<p class="admin-muted ca-custom-lede">Client details, car config, and photo for each custom-made lead. Email/name appear after signup or checkout.</p>' +
+      '<p class="admin-muted ca-custom-lede">One row per lead — photo, client, status, car details, cart, and last activity.</p>' +
       '<div id="caHost">' +
-      (U.skeletonCards ? U.skeletonCards(6) : '<div class="admin-loading">Loading…</div>') +
+      (U.skeletonTable ? U.skeletonTable(6) : '<div class="admin-loading">Loading…</div>') +
       '</div>';
 
     function loadCustomLeads() {
       var host = document.getElementById('caHost');
       if (!host) return;
-      host.innerHTML = U.skeletonCards
-        ? U.skeletonCards(6)
-        : '<div class="admin-loading">Loading…</div>';
+      host.innerHTML = U.skeletonTable ? U.skeletonTable(6) : '<div class="admin-loading">Loading…</div>';
       fetchJson('/api/customer-activity/custom-leads?' + apiQuery()).then(function (res) {
         if (!res.ok) {
           host.innerHTML =
@@ -733,14 +731,7 @@ window.renderAdminactivity = function (container) {
           return;
         }
         var rows = res.body.rows || [];
-        if (!rows.length) {
-          host.innerHTML =
-            '<div class="admin-card ca-custom-empty"><p class="admin-cell-empty">No custom leads in this range yet.</p></div>';
-          return;
-        }
-
-        host.innerHTML =
-          '<div class="ca-custom-grid">' +
+        var body =
           rows
             .map(function (lead) {
               var photos = Array.isArray(lead.uploaded_photos) ? lead.uploaded_photos : [];
@@ -748,7 +739,7 @@ window.renderAdminactivity = function (container) {
               var photoUrl = photo && (photo.url || photo.path) ? photo.url || photo.path : '';
               var moreCount = Math.max(0, photos.length - 1);
               var photoHtml = photoUrl
-                ? '<a class="ca-custom-thumb" href="' +
+                ? '<a class="ca-custom-row-thumb" href="' +
                   esc(photoUrl) +
                   '" target="_blank" rel="noopener" title="Open full photo">' +
                   '<img src="' +
@@ -756,66 +747,74 @@ window.renderAdminactivity = function (container) {
                   '" alt="' +
                   esc(lead.vehicle_model || 'Car photo') +
                   '" loading="lazy" />' +
-                  (moreCount
-                    ? '<span class="ca-custom-more">+' + moreCount + '</span>'
-                    : '') +
+                  (moreCount ? '<span class="ca-custom-row-more">+' + moreCount + '</span>' : '') +
                   '</a>'
-                : '<div class="ca-custom-thumb ca-custom-thumb--empty" aria-hidden="true"><span>No photo</span></div>';
+                : '<span class="ca-custom-row-thumb ca-custom-row-thumb--empty">—</span>';
 
               var variant = [lead.size, lead.power_type].filter(Boolean).join(' · ') || '—';
               var clientName = lead.customer_name || lead.customer_email || 'Anonymous visitor';
-              var metaBits = [lead.country, lead.device_type, lead.traffic_source]
+              var clientMeta = [
+                lead.customer_email && lead.customer_name ? lead.customer_email : null,
+                lead.country,
+                [lead.device_type, lead.browser].filter(Boolean).join(' / ') || null,
+                lead.traffic_source
+              ]
                 .filter(Boolean)
                 .join(' · ');
-              var emailLine =
-                lead.customer_email && lead.customer_name
-                  ? '<div class="ca-custom-email">' + esc(lead.customer_email) + '</div>'
-                  : lead.customer_email
-                    ? ''
-                    : '<div class="ca-custom-email admin-muted">Email pending signup</div>';
+              var visitorLink = lead.visitor_id
+                ? '<div class="ca-custom-row-actions"><a href="#activity/' +
+                  encodeURIComponent(lead.visitor_id) +
+                  '">Activity →</a></div>'
+                : '';
 
               return (
-                '<article class="ca-custom-card">' +
+                '<tr class="ca-custom-row">' +
+                '<td class="ca-custom-col-photo">' +
                 photoHtml +
-                '<div class="ca-custom-body">' +
-                '<div class="ca-custom-top">' +
-                '<div class="ca-custom-client">' +
-                '<div class="ca-custom-name">' +
+                '</td>' +
+                '<td class="ca-custom-col-client">' +
+                '<div class="ca-custom-row-name">' +
                 esc(clientName) +
                 '</div>' +
-                emailLine +
-                (metaBits ? '<div class="admin-muted ca-custom-meta">' + esc(metaBits) + '</div>' : '') +
-                '</div>' +
+                (clientMeta ? '<div class="admin-muted ca-custom-row-meta">' + esc(clientMeta) + '</div>' : '') +
+                visitorLink +
+                '</td>' +
+                '<td>' +
                 leadStatusBadge(lead.display_status || lead.status) +
-                '</div>' +
-                '<dl class="ca-custom-dl">' +
-                '<div><dt>Vehicle</dt><dd>' +
+                '</td>' +
+                '<td class="ca-custom-col-order">' +
+                '<div class="ca-custom-row-name">' +
                 esc(lead.vehicle_model || '—') +
-                '</dd></div>' +
-                '<div><dt>Lighting</dt><dd>' +
-                esc(lead.lighting_preference || '—') +
-                '</dd></div>' +
-                '<div><dt>Config</dt><dd>' +
-                esc(variant) +
-                '</dd></div>' +
-                '<div><dt>Cart</dt><dd>' +
-                money(lead.cart_value_cents || 0) +
-                '</dd></div>' +
-                '</dl>' +
-                '<div class="ca-custom-foot">' +
-                '<span class="admin-muted">' +
-                esc(when(lead.last_event_at)) +
-                '</span>' +
-                (lead.visitor_id
-                  ? '<a class="ca-custom-link" href="#activity/' +
-                    encodeURIComponent(lead.visitor_id) +
-                    '">Activity →</a>'
+                '</div>' +
+                (lead.lighting_preference
+                  ? '<div class="admin-muted">' + esc(lead.lighting_preference) + '</div>'
                   : '') +
-                '</div></div></article>'
+                '<div class="admin-muted">' +
+                esc(variant) +
+                '</div></td>' +
+                '<td>' +
+                money(lead.cart_value_cents || 0) +
+                '</td>' +
+                '<td>' +
+                esc(when(lead.last_event_at)) +
+                '</td>' +
+                '</tr>'
               );
             })
+            .join('') ||
+          '<tr><td colspan="6" class="admin-cell-empty">No custom leads in this range yet.</td></tr>';
+
+        host.innerHTML =
+          '<div class="admin-card ca-custom-table-card"><div class="admin-table-wrap">' +
+          '<table class="admin-table ca-custom-table"><thead><tr>' +
+          ['Photo', 'Client', 'Status', 'Custom Order', 'Cart', 'Last Activity']
+            .map(function (c) {
+              return '<th>' + c + '</th>';
+            })
             .join('') +
-          '</div>';
+          '</tr></thead><tbody>' +
+          body +
+          '</tbody></table></div></div>';
       });
     }
 
