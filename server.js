@@ -1413,12 +1413,25 @@ app.delete('/api/admin/journeys/:id', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
   try {
     const JourneyEngine = require('./lib/journey-engine.js');
+    const permanent =
+      String((req.query && req.query.permanent) || '').toLowerCase() === '1' ||
+      String((req.query && req.query.permanent) || '').toLowerCase() === 'true' ||
+      !!(req.body && req.body.permanent);
+
+    if (permanent) {
+      const deleted = await JourneyEngine.deleteJourneyPermanently(supabase, req.params.id);
+      if (!deleted) return res.status(404).json({ error: 'Journey not found.' });
+      return res.json({ ok: true, deleted: true, journey: deleted });
+    }
+
     const journey = await JourneyEngine.archiveJourney(supabase, req.params.id);
     if (!journey) return res.status(404).json({ error: 'Journey not found or already archived.' });
     return res.json({ ok: true, journey: journey });
   } catch (err) {
-    console.error('ARCHIVE /api/admin/journeys/:id error:', err);
-    return res.status(500).json({ error: (err && err.message) || 'Failed to archive journey.' });
+    console.error('DELETE /api/admin/journeys/:id error:', err);
+    const message = (err && err.message) || 'Failed to delete journey.';
+    const status = /Cannot permanently delete/i.test(message) ? 400 : 500;
+    return res.status(status).json({ error: message });
   }
 });
 

@@ -248,147 +248,195 @@ window.renderAdminmarketing = function (container) {
         'Multi-step nurturing. Email is one action type among many.',
         '<a class="admin-btn-primary" href="#marketing/journeys/new">New Journey</a>'
       ) +
+      '<div class="admin-journey-toolbar admin-card">' +
+      '<label><input type="checkbox" id="journeyShowArchived" /> Show archived</label>' +
+      '</div>' +
       '<div id="adminJourneyCards"><div class="admin-loading">Loading journeys…</div></div>';
 
-    fetchJson('/api/admin/journeys').then(function (result) {
-      var host = document.getElementById('adminJourneyCards');
-      if (!host) return;
-      if (!result.ok) {
-        host.innerHTML =
-          '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
-        return;
-      }
-      var journeys = (result.body && result.body.journeys) || [];
-      if (!journeys.length) {
-        host.innerHTML =
-          '<div class="admin-card"><p class="admin-cell-empty">No journeys yet. Create your first journey.</p></div>';
-        return;
-      }
+    function loadJourneys() {
+      var showArchived = !!(
+        document.getElementById('journeyShowArchived') &&
+        document.getElementById('journeyShowArchived').checked
+      );
+      fetchJson('/api/admin/journeys').then(function (result) {
+        var host = document.getElementById('adminJourneyCards');
+        if (!host) return;
+        if (!result.ok) {
+          host.innerHTML =
+            '<p class="admin-error">' + esc((result.body && result.body.error) || 'Failed') + '</p>';
+          return;
+        }
+        var journeys = ((result.body && result.body.journeys) || []).filter(function (j) {
+          var journeyStatus = j.status || (j.is_active ? 'published' : 'draft');
+          if (showArchived) return true;
+          return journeyStatus !== 'archived';
+        });
+        if (!journeys.length) {
+          host.innerHTML =
+            '<div class="admin-card"><p class="admin-cell-empty">' +
+            (showArchived
+              ? 'No journeys yet. Create your first journey.'
+              : 'No active journeys. Turn on “Show archived” to see archived ones, or create a new journey.') +
+            '</p></div>';
+          return;
+        }
 
-      host.innerHTML =
-        '<div class="admin-journey-card-grid">' +
-        journeys
-          .map(function (j) {
-            var es = j.enroll_stats || {};
-            var activeLeads = (es.waiting || 0) + (es.ready || 0);
-            var steps = (j.steps || []).length;
-            var journeyStatus = j.status || (j.is_active ? 'published' : 'draft');
-            return (
-              '<article class="admin-card admin-journey-card" data-id="' +
-              esc(j.id) +
-              '">' +
-              '<div class="admin-journey-card-top">' +
-              '<h3>' +
-              esc(j.name) +
-              '</h3>' +
-              statusPill(journeyStatus) +
-              '</div>' +
-              '<dl class="admin-dl admin-journey-card-meta">' +
-              '<div><dt>Trigger</dt><dd>' +
-              esc(j.trigger_type) +
-              '</dd></div>' +
-              '<div><dt>Steps</dt><dd>' +
-              esc(steps) +
-              '</dd></div>' +
-              '<div><dt>Active Leads</dt><dd>' +
-              esc(activeLeads) +
-              '</dd></div>' +
-              '</dl>' +
-              '<p class="admin-muted admin-journey-card-desc">' +
-              esc(j.description || '') +
-              '</p>' +
-              '<div class="admin-journey-card-actions">' +
-              (journeyStatus !== 'archived'
-                ? '<button type="button" class="admin-btn-secondary jc-run">Test Workflow</button>'
-                : '') +
-              '<a class="admin-btn-primary" href="#marketing/journeys/edit/' +
-              esc(j.id) +
-              '">Open</a>' +
-              '<button type="button" class="admin-btn-secondary jc-dup">Duplicate</button>' +
-              '<button type="button" class="admin-btn-secondary jc-toggle" data-status="' +
-              esc(journeyStatus) +
-              '">' +
-              (journeyStatus === 'published'
-                ? 'Move to Draft'
-                : journeyStatus === 'archived'
-                  ? 'Restore Draft'
-                  : 'Publish') +
-              '</button>' +
-              (journeyStatus !== 'archived'
-                ? '<button type="button" class="admin-btn-danger jc-del">Archive</button>'
-                : '') +
-              '</div></article>'
+        host.innerHTML =
+          '<div class="admin-journey-card-grid">' +
+          journeys
+            .map(function (j) {
+              var es = j.enroll_stats || {};
+              var activeLeads = (es.waiting || 0) + (es.ready || 0);
+              var steps = (j.steps || []).length;
+              var journeyStatus = j.status || (j.is_active ? 'published' : 'draft');
+              return (
+                '<article class="admin-card admin-journey-card" data-id="' +
+                esc(j.id) +
+                '">' +
+                '<div class="admin-journey-card-top">' +
+                '<h3>' +
+                esc(j.name) +
+                '</h3>' +
+                statusPill(journeyStatus) +
+                '</div>' +
+                '<dl class="admin-dl admin-journey-card-meta">' +
+                '<div><dt>Trigger</dt><dd>' +
+                esc(j.trigger_type) +
+                '</dd></div>' +
+                '<div><dt>Steps</dt><dd>' +
+                esc(steps) +
+                '</dd></div>' +
+                '<div><dt>Active Leads</dt><dd>' +
+                esc(activeLeads) +
+                '</dd></div>' +
+                '</dl>' +
+                '<p class="admin-muted admin-journey-card-desc">' +
+                esc(j.description || '') +
+                '</p>' +
+                '<div class="admin-journey-card-actions">' +
+                (journeyStatus !== 'archived'
+                  ? '<button type="button" class="admin-btn-secondary jc-run">Test Workflow</button>'
+                  : '') +
+                '<a class="admin-btn-primary" href="#marketing/journeys/edit/' +
+                esc(j.id) +
+                '">Open</a>' +
+                '<button type="button" class="admin-btn-secondary jc-dup">Duplicate</button>' +
+                '<button type="button" class="admin-btn-secondary jc-toggle" data-status="' +
+                esc(journeyStatus) +
+                '">' +
+                (journeyStatus === 'published'
+                  ? 'Move to Draft'
+                  : journeyStatus === 'archived'
+                    ? 'Restore Draft'
+                    : 'Publish') +
+                '</button>' +
+                (journeyStatus !== 'archived'
+                  ? '<button type="button" class="admin-btn-danger jc-del">Archive</button>'
+                  : '') +
+                '<button type="button" class="admin-btn-danger jc-purge">Delete</button>' +
+                '</div></article>'
+              );
+            })
+            .join('') +
+          '</div>';
+
+        host.querySelectorAll('.jc-run').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.closest('[data-id]').getAttribute('data-id');
+            var journey = journeys.filter(function (item) {
+              return item.id === id;
+            })[0];
+            if (journey) openRunWorkflowModal(journey);
+          });
+        });
+
+        host.querySelectorAll('.jc-dup').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.closest('[data-id]').getAttribute('data-id');
+            btn.disabled = true;
+            fetchJson('/api/admin/journeys/' + encodeURIComponent(id) + '/duplicate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: '{}'
+            }).then(function (r) {
+              if (r.ok && r.body.journey) {
+                window.location.hash = '#marketing/journeys/edit/' + r.body.journey.id;
+              } else {
+                alert((r.body && r.body.error) || 'Duplicate failed');
+                btn.disabled = false;
+              }
+            });
+          });
+        });
+
+        host.querySelectorAll('.jc-toggle').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.closest('[data-id]').getAttribute('data-id');
+            var current = btn.getAttribute('data-status');
+            var next = current === 'published' ? 'draft' : 'published';
+            if (current === 'archived') next = 'draft';
+            btn.disabled = true;
+            fetchJson('/api/admin/journeys/' + encodeURIComponent(id), {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: next })
+            }).then(function () {
+              loadJourneys();
+            });
+          });
+        });
+
+        host.querySelectorAll('.jc-del').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            if (
+              !window.confirm(
+                'Archive this journey? Existing history and active customer progress will be preserved.'
+              )
+            ) {
+              return;
+            }
+            var id = btn.closest('[data-id]').getAttribute('data-id');
+            btn.disabled = true;
+            fetchJson('/api/admin/journeys/' + encodeURIComponent(id), { method: 'DELETE' }).then(
+              function (r) {
+                if (!r.ok) alert((r.body && r.body.error) || 'Archive failed');
+                loadJourneys();
+              }
             );
-          })
-          .join('') +
-        '</div>';
-
-      host.querySelectorAll('.jc-run').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var id = btn.closest('[data-id]').getAttribute('data-id');
-          var journey = journeys.filter(function (item) {
-            return item.id === id;
-          })[0];
-          if (journey) openRunWorkflowModal(journey);
+          });
         });
-      });
 
-      host.querySelectorAll('.jc-dup').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var id = btn.closest('[data-id]').getAttribute('data-id');
-          btn.disabled = true;
-          fetchJson('/api/admin/journeys/' + encodeURIComponent(id) + '/duplicate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: '{}'
-          }).then(function (r) {
-            if (r.ok && r.body.journey) {
-              window.location.hash = '#marketing/journeys/edit/' + r.body.journey.id;
-            } else {
-              alert((r.body && r.body.error) || 'Duplicate failed');
-              btn.disabled = false;
+        host.querySelectorAll('.jc-purge').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            if (
+              !window.confirm(
+                'Permanently delete this journey? It will disappear from this screen and cannot be restored. Core Welcome / Cart / Purchase / Win Back journeys cannot be deleted.'
+              )
+            ) {
+              return;
             }
+            var id = btn.closest('[data-id]').getAttribute('data-id');
+            btn.disabled = true;
+            fetchJson('/api/admin/journeys/' + encodeURIComponent(id) + '?permanent=1', {
+              method: 'DELETE'
+            }).then(function (r) {
+              if (!r.ok) {
+                alert((r.body && r.body.error) || 'Delete failed');
+                btn.disabled = false;
+                return;
+              }
+              loadJourneys();
+            });
           });
         });
       });
+    }
 
-      host.querySelectorAll('.jc-toggle').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var id = btn.closest('[data-id]').getAttribute('data-id');
-          var current = btn.getAttribute('data-status');
-          var next = current === 'published' ? 'draft' : 'published';
-          if (current === 'archived') next = 'draft';
-          btn.disabled = true;
-          fetchJson('/api/admin/journeys/' + encodeURIComponent(id), {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: next })
-          }).then(function () {
-            renderJourneysHome();
-          });
-        });
-      });
-
-      host.querySelectorAll('.jc-del').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          if (
-            !window.confirm(
-              'Archive this journey? Existing history and active customer progress will be preserved.'
-            )
-          ) {
-            return;
-          }
-          var id = btn.closest('[data-id]').getAttribute('data-id');
-          btn.disabled = true;
-          fetchJson('/api/admin/journeys/' + encodeURIComponent(id), { method: 'DELETE' }).then(
-            function (r) {
-              if (!r.ok) alert((r.body && r.body.error) || 'Archive failed');
-              renderJourneysHome();
-            }
-          );
-        });
-      });
-    });
+    var showArchivedEl = document.getElementById('journeyShowArchived');
+    if (showArchivedEl) {
+      showArchivedEl.addEventListener('change', loadJourneys);
+    }
+    loadJourneys();
   }
 
   /* ========== Journey Editor ========== */
