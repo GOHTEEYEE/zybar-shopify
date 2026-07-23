@@ -3466,9 +3466,14 @@ app.get('/api/analytics/abandoned', async (req, res) => {
 app.get('/api/analytics/trends', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
-  const granularity = req.query.granularity === 'week' || req.query.granularity === 'month'
-    ? req.query.granularity
-    : 'day';
+  const rawGran = String(req.query.granularity || 'day').toLowerCase();
+  const granularity =
+    rawGran === 'hour' ||
+    rawGran === 'week' ||
+    rawGran === 'month' ||
+    rawGran === 'year'
+      ? rawGran
+      : 'day';
   try {
     const data = await AnalyticsFallback.rpcOrFallback(
       supabase,
@@ -3571,6 +3576,53 @@ app.get('/api/analytics/realtime', async (req, res) => {
     return res.json(data || {});
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/analytics/metric/:key/summary', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const MetricDetail = require('./lib/analytics-metric-detail.js');
+  const key = String(req.params.key || '').toLowerCase();
+  if (!MetricDetail.getMetricMeta(key)) {
+    return res.status(404).json({ error: 'Unknown metric key.' });
+  }
+  const range = parseAnalyticsRange(req);
+  const filters = MetricDetail.parseFilters(req.query || {});
+  try {
+    const summary = await MetricDetail.getMetricSummary(supabase, key, range, filters);
+    return res.json({
+      key: key,
+      meta: MetricDetail.getMetricMeta(key),
+      range: range,
+      summary: summary
+    });
+  } catch (err) {
+    console.error('Metric summary error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load metric summary.' });
+  }
+});
+
+app.get('/api/analytics/metric/:key/rows', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const MetricDetail = require('./lib/analytics-metric-detail.js');
+  const key = String(req.params.key || '').toLowerCase();
+  if (!MetricDetail.getMetricMeta(key)) {
+    return res.status(404).json({ error: 'Unknown metric key.' });
+  }
+  const range = parseAnalyticsRange(req);
+  const filters = MetricDetail.parseFilters(req.query || {});
+  try {
+    const table = await MetricDetail.getMetricRows(supabase, key, range, filters);
+    return res.json({
+      key: key,
+      meta: MetricDetail.getMetricMeta(key),
+      range: range,
+      filters: filters,
+      table: table
+    });
+  } catch (err) {
+    console.error('Metric rows error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load metric rows.' });
   }
 });
 

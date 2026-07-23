@@ -2219,6 +2219,258 @@ body {
   cursor: default;
 }
 
+.admin-kpi-card--link {
+  display: flex;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.admin-kpi-card--link:hover {
+  border-color: #c8ccd2;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.admin-kpi-card--link:focus-visible {
+  outline: 2px solid var(--admin-accent, #111);
+  outline-offset: 2px;
+}
+
+.admin-kpi-chevron {
+  margin-left: auto;
+  font-size: 1.1rem;
+  opacity: 0.35;
+  line-height: 1;
+}
+
+.admin-kpi-card--link:hover .admin-kpi-chevron {
+  opacity: 0.7;
+}
+
+.admin-metric-page {
+  max-width: 1200px;
+}
+
+.admin-metric-header {
+  margin-bottom: 0.5rem;
+}
+
+.admin-metric-back {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--admin-muted, #6b7280);
+  text-decoration: none;
+}
+
+.admin-metric-back:hover {
+  color: var(--admin-text, #111);
+}
+
+.admin-metric-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-metric-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: var(--admin-radius-sm, 8px);
+  background: #fafbfc;
+}
+
+.admin-metric-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--admin-muted, #6b7280);
+}
+
+.admin-metric-filter .admin-input {
+  min-width: 120px;
+}
+
+.admin-btn-ghost {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--admin-muted, #6b7280);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0.4rem 0.5rem;
+}
+
+.admin-btn-ghost:hover {
+  color: var(--admin-text, #111);
+}
+
+.admin-metric-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-metric-chart-head h3 {
+  margin: 0;
+}
+
+.admin-metric-granularity {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: var(--admin-radius-sm, 8px);
+  background: #fff;
+}
+
+.admin-gran-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  border-radius: 6px;
+  color: var(--admin-muted, #6b7280);
+  cursor: pointer;
+}
+
+.admin-gran-btn:hover:not(:disabled) {
+  color: var(--admin-text, #111);
+  background: #f3f4f6;
+}
+
+.admin-gran-btn.is-active {
+  background: #111;
+  color: #fff;
+}
+
+.admin-gran-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.admin-metric-chart-card {
+  margin-bottom: 1rem;
+}
+
+.chart-container--tall {
+  height: 280px;
+}
+
+.admin-metric-summary {
+  margin-bottom: 1rem;
+}
+
+.admin-metric-breaks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.admin-metric-breakdown h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  text-transform: capitalize;
+  color: var(--admin-muted, #6b7280);
+  font-weight: 600;
+}
+
+.admin-metric-break-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-metric-break-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--admin-border, #eee);
+  font-size: 0.875rem;
+}
+
+.admin-metric-break-list li:last-child {
+  border-bottom: 0;
+}
+
+.admin-metric-table-card {
+  margin-bottom: 2rem;
+}
+
+.admin-metric-table-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-metric-table-head h3 {
+  margin: 0;
+}
+
+.admin-metric-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-metric-table-actions .admin-input {
+  min-width: 180px;
+}
+
+.admin-metric-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.admin-metric-pager-btns {
+  display: flex;
+  gap: 0.4rem;
+}
+
+tr.admin-row-link {
+  cursor: pointer;
+}
+
+tr.admin-row-link:hover {
+  background: #f8f9fa;
+}
+
+@media (max-width: 720px) {
+  .admin-metric-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chart-container--tall {
+    height: 220px;
+  }
+}
+
 .admin-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

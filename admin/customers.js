@@ -84,7 +84,7 @@ window.renderAdmincustomers = function (container) {
         'id,stripe_session_id,customer_name,customer_email,customer_phone,' +
           'shipping_address,city,state,postcode,country,' +
           'billing_address,billing_city,billing_state,billing_postcode,billing_country,' +
-          'amount_total_cents,product_slug,size,quantity,status,created_at,internal_notes'
+          'amount_total_cents,product_slug,size,quantity,status,created_at,internal_notes,visitor_id'
       )
       .order('created_at', { ascending: false })
       .limit(1000)
@@ -115,11 +115,13 @@ window.renderAdmincustomers = function (container) {
           last_order: o.created_at,
           notes: o.internal_notes || '',
           shipping: o,
-          billing: o
+          billing: o,
+          visitor_id: o.visitor_id || null
         };
       }
       var c = map[key];
       c.orders.push(o);
+      if (o.visitor_id) c.visitor_id = o.visitor_id;
       c.lifetime_cents += Number(o.amount_total_cents) || 0;
       if (o.customer_name) c.name = o.customer_name;
       if (o.country) c.country = o.country;
@@ -166,7 +168,8 @@ window.renderAdmincustomers = function (container) {
           favorite: favorite,
           notes: c.notes,
           shipping: c.shipping,
-          billing: c.billing
+          billing: c.billing,
+          visitor_id: c.visitor_id || null
         };
       })
       .sort(function (a, b) {
@@ -343,7 +346,13 @@ window.renderAdmincustomers = function (container) {
       '<div><a href="#customers" class="admin-back-link">← Customers</a>' +
       '<h2 class="admin-page-title">' +
       escapeHtml(customer.name) +
-      '</h2></div></div>' +
+      '</h2>' +
+      (customer.visitor_id
+        ? '<p class="admin-muted"><a href="#activity/' +
+          encodeURIComponent(customer.visitor_id) +
+          '">View activity timeline →</a></p>'
+        : '') +
+      '</div></div>' +
       '<div class="admin-detail-grid">' +
       '<div class="admin-card"><h3>Customer Information</h3>' +
       '<div class="admin-customer-hero"><span class="admin-avatar admin-avatar--lg">' +

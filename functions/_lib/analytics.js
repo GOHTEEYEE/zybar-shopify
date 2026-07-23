@@ -285,6 +285,9 @@ async function funnelFallback(env, range) {
 
 function bucketDate(iso, granularity) {
   const d = new Date(iso);
+  if (granularity === 'year') {
+    return String(d.getUTCFullYear()) + '-01-01';
+  }
   if (granularity === 'month') {
     return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-01';
   }
@@ -293,6 +296,9 @@ function bucketDate(iso, granularity) {
     const diff = (day + 6) % 7;
     d.setUTCDate(d.getUTCDate() - diff);
     return d.toISOString().slice(0, 10);
+  }
+  if (granularity === 'hour') {
+    return d.toISOString().slice(0, 13) + ':00:00Z';
   }
   return d.toISOString().slice(0, 10);
 }

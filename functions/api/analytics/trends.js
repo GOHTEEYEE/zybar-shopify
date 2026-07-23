@@ -8,9 +8,13 @@ export async function onRequestGet(context) {
 
   const url = new URL(context.request.url);
   const range = parseRange(url);
-  const granularity = url.searchParams.get('granularity') === 'week' || url.searchParams.get('granularity') === 'month'
-    ? url.searchParams.get('granularity')
-    : 'day';
+  const granularity =
+    url.searchParams.get('granularity') === 'hour' ||
+    url.searchParams.get('granularity') === 'week' ||
+    url.searchParams.get('granularity') === 'month' ||
+    url.searchParams.get('granularity') === 'year'
+      ? url.searchParams.get('granularity')
+      : 'day';
 
   try {
     const data = await rpc(env, 'get_analytics_trends', {

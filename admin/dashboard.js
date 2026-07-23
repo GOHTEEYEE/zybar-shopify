@@ -5,6 +5,15 @@
 window.renderAdmindashboard = function (container) {
   if (!container) return;
 
+  var metricKey =
+    window.AdminMetricDetail && window.AdminMetricDetail.parseMetricKeyFromHash
+      ? window.AdminMetricDetail.parseMetricKeyFromHash()
+      : null;
+  if (metricKey && window.AdminMetricDetail && window.AdminMetricDetail.mount) {
+    window.AdminMetricDetail.mount(container, metricKey, {});
+    return;
+  }
+
   var U = window.AdminUtils || {};
   var rangeState = { preset: '30', customStart: '', customEnd: '' };
   var range = U.resolveRange ? U.resolveRange('30') : { days: 30, start: '', end: '', startDate: '', endDate: '' };
@@ -71,17 +80,34 @@ window.renderAdmindashboard = function (container) {
       });
   }
 
-  function kpi(label, value) {
+  function kpi(label, value, metricKey) {
+    if (!metricKey) {
+      return (
+        '<div class="admin-kpi-card admin-kpi-card--static">' +
+        '<div class="admin-kpi-card-inner">' +
+        '<div class="admin-kpi-card-top"><span class="admin-kpi-label">' +
+        esc(label) +
+        '</span></div>' +
+        '<div class="admin-kpi-value-wrap"><span class="admin-kpi-value">' +
+        value +
+        '</span></div>' +
+        '</div></div>'
+      );
+    }
     return (
-      '<div class="admin-kpi-card admin-kpi-card--static">' +
+      '<a class="admin-kpi-card admin-kpi-card--link" href="#dashboard/metric/' +
+      esc(metricKey) +
+      '" role="link" aria-label="Open ' +
+      esc(label) +
+      ' analytics">' +
       '<div class="admin-kpi-card-inner">' +
       '<div class="admin-kpi-card-top"><span class="admin-kpi-label">' +
       esc(label) +
-      '</span></div>' +
+      '</span><span class="admin-kpi-chevron" aria-hidden="true">›</span></div>' +
       '<div class="admin-kpi-value-wrap"><span class="admin-kpi-value">' +
       value +
       '</span></div>' +
-      '</div></div>'
+      '</div></a>'
     );
   }
 
@@ -296,16 +322,16 @@ window.renderAdmindashboard = function (container) {
 
     return (
       '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
-      kpi('Visitors', num(visitors)) +
-      kpi('Sessions', num(sessions)) +
-      kpi('Orders', num(ordersCount)) +
-      kpi('Revenue', money(revenue)) +
-      kpi('Average Order Value', money(aov)) +
-      kpi('Conversion Rate', conv) +
-      kpi('Add To Cart', num(overview.add_to_cart)) +
-      kpi('Checkout Started', num(overview.checkout_started)) +
-      kpi('Email Leads', num(extras.email_leads)) +
-      kpi('Abandoned Carts', num(extras.abandoned_carts)) +
+      kpi('Visitors', num(visitors), 'visitors') +
+      kpi('Sessions', num(sessions), 'sessions') +
+      kpi('Orders', num(ordersCount), 'orders') +
+      kpi('Revenue', money(revenue), 'revenue') +
+      kpi('Average Order Value', money(aov), 'aov') +
+      kpi('Conversion Rate', conv, 'conversion') +
+      kpi('Add To Cart', num(overview.add_to_cart), 'add_to_cart') +
+      kpi('Checkout Started', num(overview.checkout_started), 'checkout') +
+      kpi('Email Leads', num(extras.email_leads), 'email_leads') +
+      kpi('Abandoned Carts', num(extras.abandoned_carts), 'abandoned') +
       '</div>' +
       '<div class="admin-grid-2">' +
       '<div class="admin-card"><h3>Revenue (' +
