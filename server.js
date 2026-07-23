@@ -3425,6 +3425,8 @@ app.get('/api/analytics/realtime', async (req, res) => {
 
 // Export app for serverless runtimes (e.g. Vercel).
 module.exports = app;
+module.exports.persistPaidCheckoutSession = persistPaidCheckoutSession;
+module.exports.CheckoutSnapshots = CheckoutSnapshots;
 
 // ----- Start -----
 if (require.main === module) {
