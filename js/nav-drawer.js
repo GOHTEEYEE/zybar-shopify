@@ -3,62 +3,17 @@
 
   if (window.location.pathname.indexOf('/admin/') === 0) return;
 
-  var NAV_SECTIONS = [
-    {
-      title: 'Shop',
-      links: [
-        { href: '/', label: 'Home' },
-        { href: '/collections/all/', label: 'Catalog' },
-        { href: '/products/custom-led-car-wall-art/', label: 'Custom Made' }
-      ]
-    },
-    {
-      title: 'Customer area',
-      links: [
-        { href: '/track-order.html', label: 'Track Order' },
-        { href: '/contact.html', label: 'Contact' },
-        { href: '/policies/faq.html', label: 'FAQ' },
-        { href: '/about/about-us.html', label: 'About' }
-      ]
-    }
+  var DRAWER_LINKS = [
+    { href: '/', label: 'Home' },
+    { href: '/collections/all/', label: 'Catalog' },
+    { href: '/products/custom-led-car-wall-art/', label: 'Custom Made' },
+    { href: '/about/about-us.html', label: 'About' },
+    { href: '/policies/faq.html', label: 'FAQ' },
+    { href: '/track-order.html', label: 'Track Order' },
+    { href: '/contact.html#support', label: 'Support' }
   ];
 
   var SOCIAL_LINKS = [
-    {
-      type: 'facebook',
-      label: 'Facebook',
-      href: 'https://www.facebook.com/people/ZY-Bar/61552413785446/'
-    },
-    {
-      type: 'instagram',
-      label: 'Instagram',
-      href: 'https://www.instagram.com/zybar.shop?igsh=ZWtrbzJvMWtheG82'
-    },
-    {
-      type: 'tiktok',
-      label: 'TikTok',
-      href: 'https://www.tiktok.com/@zybar.shop?_r=1&_t=ZS-986wLWv44xA'
-    }
-  ];
-
-  var PAYMENTS = [
-    { name: 'Visa', className: 'is-visa', label: 'VISA' },
-    { name: 'Mastercard', className: 'is-mastercard', label: 'Mastercard' },
-    { name: 'Amex', className: 'is-amex', label: 'AMEX' },
-    { name: 'Apple Pay', className: 'is-applepay', label: 'Pay' },
-    { name: 'Google Pay', className: 'is-gpay', label: 'GPay' },
-    { name: 'PayPal', className: 'is-paypal', label: 'PayPal' },
-    { name: 'Klarna', className: 'is-klarna', label: 'Klarna' },
-    { name: 'Link', className: 'is-link', label: 'Link' }
-  ];
-
-  var POLICY_LINKS = [
-    { href: '/policies/refund-policy.html', label: 'Refund policy' },
-    { href: '/policies/privacy-policy/', label: 'Privacy policy' },
-    { href: '/policies/tos.html', label: 'Terms of service' },
-    { href: '/policies/faq.html', label: 'Shipping & FAQ' },
-    { href: '/contact.html', label: 'Contact' },
-    { href: '/about/about-us.html', label: 'About Us' }
   ];
 
   function normalizePath(path) {
@@ -106,7 +61,7 @@
 
   function socialSvg(type) {
     if (type === 'instagram') {
-      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"></circle></svg>';
+      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"></circle></svg>';
     }
     if (type === 'tiktok') {
       return '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 3a5.2 5.2 0 0 0 1 3.4V9a7.8 7.8 0 0 1-4.5-1.4v6.8a5.4 5.4 0 1 1-5.4-5.4c.3 0 .6 0 .9.1v2.4a3 3 0 1 0 2.1 2.9V3h2.9z"></path></svg>';
@@ -115,22 +70,6 @@
       return '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 8.5V6.8c0-.7.1-1 .9-1H17V3h-2.4C11.8 3 11 4.8 11 7.2V8.5H9v2.7h2V21h3v-9.8h2.6L17 11h-3z"></path></svg>';
     }
     return '';
-  }
-
-  function buildPaymentBadge(item) {
-    var badge = document.createElement('span');
-    badge.className = 'footer-pay-badge ' + item.className;
-    badge.title = item.name;
-    badge.setAttribute('aria-label', item.name);
-    if (item.className === 'is-mastercard') {
-      badge.innerHTML = '<span class="mc-dot mc-red"></span><span class="mc-dot mc-orange"></span>';
-    } else if (item.className === 'is-applepay') {
-      badge.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.4 12.3c0-1.8 1.5-2.7 1.5-2.7-.8-1.2-2.1-1.4-2.6-1.4-1.1-.1-2.1.6-2.7.6-.6 0-1.4-.6-2.4-.6-1.2 0-2.3.7-3 1.9-1.3 2.2-.3 5.5 0.9 7.3.6.9 1.3 1.9 2.2 1.8.9 0 1.2-.6 2.3-.6s1.4.6 2.3.6c1 0 1.6-.9 2.2-1.8.7-1 1-2 1-2.1-.1 0-1.8-.7-1.8-2.6zM14.5 6.8c.5-.6.8-1.4.7-2.2-.7 0-1.6.5-2.1 1.1-.5.5-.9 1.4-.8 2.2.8.1 1.6-.4 2.2-1.1z"/></svg><span>Pay</span>';
-    } else {
-      badge.textContent = item.label;
-    }
-    return badge;
   }
 
   function buildDrawer() {
@@ -170,93 +109,39 @@
     header.appendChild(logo);
     header.appendChild(closeBtn);
 
-    var scroll = document.createElement('div');
-    scroll.className = 'nav-drawer-scroll';
-
     var nav = document.createElement('nav');
     nav.className = 'nav-drawer-nav';
     nav.setAttribute('aria-label', 'Main');
 
-    NAV_SECTIONS.forEach(function (section) {
-      var group = document.createElement('div');
-      group.className = 'nav-drawer-section';
-
-      var heading = document.createElement('h2');
-      heading.className = 'nav-drawer-section-title';
-      heading.textContent = section.title;
-      group.appendChild(heading);
-
-      var list = document.createElement('div');
-      list.className = 'nav-drawer-section-links';
-
-      section.links.forEach(function (item) {
-        var link = document.createElement('a');
-        link.href = item.href;
-        link.textContent = item.label;
-        if (isActiveLink(item.href)) {
-          link.className = 'is-active';
-          link.setAttribute('aria-current', 'page');
-        }
-        list.appendChild(link);
-      });
-
-      group.appendChild(list);
-      nav.appendChild(group);
-    });
-
-    scroll.appendChild(nav);
-
-    var social = document.createElement('div');
-    social.className = 'nav-drawer-social';
-    social.setAttribute('aria-label', 'Social media');
-    SOCIAL_LINKS.forEach(function (item) {
-      var socialLink = document.createElement('a');
-      socialLink.href = item.href;
-      socialLink.className = 'nav-drawer-social-link';
-      socialLink.setAttribute('aria-label', item.label);
-      socialLink.target = '_blank';
-      socialLink.rel = 'noopener noreferrer';
-      socialLink.innerHTML = socialSvg(item.type);
-      social.appendChild(socialLink);
-    });
-    scroll.appendChild(social);
-
-    var payments = document.createElement('div');
-    payments.className = 'nav-drawer-payments footer-payments';
-    payments.setAttribute('aria-label', 'Accepted payment methods');
-    PAYMENTS.forEach(function (item) {
-      payments.appendChild(buildPaymentBadge(item));
-    });
-    scroll.appendChild(payments);
-
-    var legal = document.createElement('div');
-    legal.className = 'nav-drawer-legal';
-    var copy = document.createElement('p');
-    copy.className = 'nav-drawer-copy';
-    copy.innerHTML = '© 2026 <a href="/">ZYBAR</a>';
-    legal.appendChild(copy);
-
-    var policies = document.createElement('nav');
-    policies.className = 'nav-drawer-policies';
-    policies.setAttribute('aria-label', 'Policies');
-    POLICY_LINKS.forEach(function (item, index) {
-      if (index > 0) {
-        var sep = document.createElement('span');
-        sep.className = 'nav-drawer-policy-sep';
-        sep.setAttribute('aria-hidden', 'true');
-        sep.textContent = '·';
-        policies.appendChild(sep);
+    DRAWER_LINKS.forEach(function (item) {
+      var link = document.createElement('a');
+      link.href = item.href;
+      link.textContent = item.label;
+      if (isActiveLink(item.href)) {
+        link.className = 'is-active';
+        link.setAttribute('aria-current', 'page');
       }
-      var policyLink = document.createElement('a');
-      policyLink.href = item.href;
-      policyLink.textContent = item.label;
-      policies.appendChild(policyLink);
+      nav.appendChild(link);
     });
-    legal.appendChild(policies);
-    scroll.appendChild(legal);
 
     panel.appendChild(header);
-    panel.appendChild(scroll);
+    panel.appendChild(nav);
+
+    if (SOCIAL_LINKS.length) {
+      var social = document.createElement('div');
+      social.className = 'nav-drawer-social';
+      SOCIAL_LINKS.forEach(function (item) {
+        var socialLink = document.createElement('a');
+        socialLink.href = item.href;
+        socialLink.className = 'nav-drawer-social-link';
+        socialLink.setAttribute('aria-label', item.label);
+        socialLink.target = '_blank';
+        socialLink.rel = 'noopener noreferrer';
+        socialLink.innerHTML = socialSvg(item.type);
+        social.appendChild(socialLink);
+      });
+      panel.appendChild(social);
+    }
 
     root.appendChild(overlay);
     root.appendChild(panel);
@@ -327,7 +212,7 @@
     }
   }
 
-  function initDrawerBehavior(drawer) {
+  function initDrawerBehavior(drawer, headers) {
     var overlay = drawer.querySelector('.nav-drawer-overlay');
     var panel = drawer.querySelector('.nav-drawer-panel');
     var closeBtn = drawer.querySelector('.nav-drawer-close');
@@ -393,7 +278,7 @@
     overlay.addEventListener('click', closeDrawer);
     closeBtn.addEventListener('click', closeDrawer);
 
-    panel.querySelectorAll('a').forEach(function (link) {
+    panel.querySelectorAll('.nav-drawer-nav a').forEach(function (link) {
       link.addEventListener('click', closeDrawer);
     });
 
@@ -548,7 +433,7 @@
     initHeaderScroll();
 
     var drawer = buildDrawer();
-    initDrawerBehavior(drawer);
+    initDrawerBehavior(drawer, headers);
     ensureSearchReady(function () {});
   }
 
