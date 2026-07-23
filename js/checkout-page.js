@@ -1189,7 +1189,7 @@
         state.stripeCheckout = checkout;
         state.paymentMode = "custom";
         resetPaymentElementReady();
-        setPayButtonBusy(true, "Loading payment…");
+        setPayButtonBusy(true, "Complete Secure Order");
 
         var paymentMount = document.getElementById("checkout-payment-element");
         var paymentElement = null;
