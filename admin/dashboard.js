@@ -80,8 +80,8 @@ window.renderAdmindashboard = function (container) {
       });
   }
 
-  function kpi(label, value, metricKey) {
-    if (!metricKey) {
+  function kpi(label, value, metricKey, customHref) {
+    if (!metricKey && !customHref) {
       return (
         '<div class="admin-kpi-card admin-kpi-card--static">' +
         '<div class="admin-kpi-card-inner">' +
@@ -94,9 +94,10 @@ window.renderAdmindashboard = function (container) {
         '</div></div>'
       );
     }
+    var href = customHref || '#dashboard/metric/' + metricKey;
     return (
-      '<a class="admin-kpi-card admin-kpi-card--link" href="#dashboard/metric/' +
-      esc(metricKey) +
+      '<a class="admin-kpi-card admin-kpi-card--link" href="' +
+      esc(href) +
       '" role="link" aria-label="Open ' +
       esc(label) +
       ' analytics">' +
@@ -330,7 +331,7 @@ window.renderAdmindashboard = function (container) {
       kpi('Conversion Rate', conv, 'conversion') +
       kpi('Add To Cart', num(overview.add_to_cart), 'add_to_cart') +
       kpi('Checkout Started', num(overview.checkout_started), 'checkout') +
-      kpi('Email Leads', num(extras.email_leads), 'email_leads') +
+      kpi('Email Leads', num(extras.email_leads), 'email_leads', '#marketing/audience') +
       kpi('Abandoned Carts', num(extras.abandoned_carts), 'abandoned') +
       '</div>' +
       '<div class="admin-grid-2">' +

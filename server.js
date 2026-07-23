@@ -1765,11 +1765,71 @@ app.get('/api/admin/journey-settings', async (req, res) => {
       from: config.from,
       reply_to: config.replyTo,
       execution_mode: 'manual',
-      note: 'Phase 1: promote ready steps and execute actions manually from Queue. No automatic cron execution.'
+      note: 'Promote ready steps and execute scheduled sends from Marketing → Journeys or Overview.'
     });
   } catch (err) {
     console.error('GET /api/admin/journey-settings error:', err);
     return res.status(500).json({ error: 'Failed to load journey settings.' });
+  }
+});
+
+// ----- Marketing Center (Overview / Audience / Analytics) -----
+app.get('/api/admin/marketing/overview', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Marketing unavailable.' });
+  try {
+    const MarketingCenter = require('./lib/marketing-center.js');
+    const data = await MarketingCenter.getOverview(supabase);
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/marketing/overview error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load overview.' });
+  }
+});
+
+app.get('/api/admin/marketing/audience', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Marketing unavailable.' });
+  try {
+    const MarketingCenter = require('./lib/marketing-center.js');
+    const data = await MarketingCenter.getAudience(supabase, {
+      q: req.query && req.query.q,
+      segment: req.query && req.query.segment,
+      limit: req.query && req.query.limit,
+      offset: req.query && req.query.offset,
+      include_test: String((req.query && req.query.include_test) || '') === '1'
+    });
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/marketing/audience error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load audience.' });
+  }
+});
+
+app.get('/api/admin/marketing/audience/:id', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Marketing unavailable.' });
+  try {
+    const MarketingCenter = require('./lib/marketing-center.js');
+    const data = await MarketingCenter.getAudienceProfile(supabase, req.params.id);
+    if (!data) return res.status(404).json({ error: 'Subscriber not found.' });
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/marketing/audience/:id error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load profile.' });
+  }
+});
+
+app.get('/api/admin/marketing/analytics', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Marketing unavailable.' });
+  try {
+    const MarketingCenter = require('./lib/marketing-center.js');
+    const range = {
+      start: req.query && req.query.start,
+      end: req.query && req.query.end
+    };
+    const data = await MarketingCenter.getAnalytics(supabase, range);
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/marketing/analytics error:', err);
+    return res.status(500).json({ error: (err && err.message) || 'Failed to load analytics.' });
   }
 });
 

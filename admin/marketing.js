@@ -1,25 +1,38 @@
 /**
- * Admin Marketing — Customer Journey platform.
- * Sidebar sections: Customer Journey, Email Templates, Email Leads, Campaigns, Queue, History.
- * No Test Email page. Campaigns are independent one-shot broadcasts.
+ * Admin Marketing — Marketing Automation Center.
+ * Sections: Overview, Journeys, Audience, Campaigns, Templates, Analytics, Settings.
+ * Legacy: Queue → Overview upcoming; Email Leads → Audience.
  */
 window.renderAdminmarketing = function (container) {
   if (!container) return;
 
-  var hashRaw = window.location.hash || '#marketing/journeys';
+  var hashRaw = window.location.hash || '#marketing/overview';
   var hash = hashRaw.slice(1).split('?')[0];
   var parts = hash.split('/');
-  var section = parts[1] || 'journeys';
+  var section = parts[1] || 'overview';
 
-  // Legacy aliases — never show Test Email
-  if (section === 'email' || section === 'workflows' || section === 'settings') section = 'journeys';
-  if (section === 'leads') section = 'email-leads';
+  // Legacy aliases
+  if (section === 'email' || section === 'workflows') section = 'journeys';
+  if (section === 'leads' || section === 'email-leads') section = 'audience';
+  if (section === 'queue') section = 'overview';
   if (section === 'campaign') section = 'campaigns';
+  if (section === 'history') section = 'analytics';
+
+  var MC = window.AdminMarketingCenter;
+
+  var queryParams = {};
+  try {
+    var query = hashRaw.indexOf('?') >= 0 ? hashRaw.split('?')[1] : '';
+    var params = new URLSearchParams(query);
+    params.forEach(function (v, k) {
+      queryParams[k] = v;
+    });
+  } catch (e) {}
 
   var editJourneyId =
     section === 'journeys' && (parts[2] === 'edit' || parts[2] === 'open') && parts[3]
       ? parts[3]
-      : section === 'journeys' && parts[2] && parts[2] !== 'edit' && parts[2] !== 'new'
+      : section === 'journeys' && parts[2] && parts[2] !== 'edit' && parts[2] !== 'new' && parts[2] !== 'scheduled'
         ? parts[2]
         : '';
   if (section === 'journeys' && parts[2] === 'new') editJourneyId = 'new';
@@ -31,16 +44,29 @@ window.renderAdminmarketing = function (container) {
         ? 'new'
         : '';
 
+  var audienceProfileId =
+    section === 'audience' && parts[2] && parts[2] !== 'edit' ? decodeURIComponent(parts[2]) : null;
+
   var prefillAudience = '';
   if (section === 'campaigns' && parts[2]) {
     prefillAudience = decodeURIComponent(parts[2]).toLowerCase();
   }
-  try {
-    var query = hashRaw.indexOf('?') >= 0 ? hashRaw.split('?')[1] : '';
-    var params = new URLSearchParams(query);
-    if (params.get('audience')) prefillAudience = String(params.get('audience')).toLowerCase();
-    if (params.get('status')) prefillAudience = String(params.get('status')).toLowerCase();
-  } catch (e) {}
+  if (queryParams.audience) prefillAudience = String(queryParams.audience).toLowerCase();
+  if (queryParams.status) prefillAudience = String(queryParams.status).toLowerCase();
+
+  // New Marketing Center pages
+  if (MC) {
+    if (section === 'overview') return MC.renderOverview(container);
+    if (section === 'audience') {
+      return MC.renderAudience(container, {
+        segment: queryParams.segment || '',
+        q: queryParams.q || '',
+        profileId: audienceProfileId
+      });
+    }
+    if (section === 'analytics') return MC.renderAnalytics(container);
+    if (section === 'settings') return MC.renderSettings(container);
+  }
 
   function esc(v) {
     return String(v == null ? '' : v)
@@ -122,8 +148,10 @@ window.renderAdminmarketing = function (container) {
   }
 
   function pageHeader(title, subtitle, actionsHtml) {
+    var nav = MC && MC.subnav ? MC.subnav(section) : '';
     return (
-      '<div class="admin-page-header">' +
+      nav +
+      '<div class="admin-page-header mkt-page-head">' +
       '<div class="admin-page-header-row">' +
       '<div><h2 class="admin-page-title">' +
       esc(title) +
@@ -244,14 +272,29 @@ window.renderAdminmarketing = function (container) {
   function renderJourneysHome() {
     container.innerHTML =
       pageHeader(
-        'Customer Journey',
-        'Multi-step nurturing. Email is one action type among many.',
-        '<a class="admin-btn-primary" href="#marketing/journeys/new">New Journey</a>'
+        'Journeys',
+        'Automated lifecycle flows. Scheduled sends live inside each journey — not a separate “queue of leads.”',
+        '<div class="mkt-head-actions">' +
+          '<button type="button" class="admin-btn-secondary" id="mktJourneyExec">Execute Due Sends</button>' +
+          '<a class="admin-btn-primary" href="#marketing/journeys/new">New Journey</a></div>'
       ) +
       '<div class="admin-journey-toolbar admin-card">' +
       '<label><input type="checkbox" id="journeyShowArchived" /> Show archived</label>' +
       '</div>' +
       '<div id="adminJourneyCards"><div class="admin-loading">Loading journeys…</div></div>';
+
+    var execBtn = document.getElementById('mktJourneyExec');
+    if (execBtn) {
+      execBtn.addEventListener('click', function () {
+        if (!window.confirm('Promote due steps and execute pending email actions via Resend?')) return;
+        execBtn.disabled = true;
+        fetchJson('/api/admin/journey-queue/execute', { method: 'POST' }).then(function (r) {
+          execBtn.disabled = false;
+          if (!r.ok) alert((r.body && r.body.error) || 'Execute failed');
+          else loadJourneys();
+        });
+      });
+    }
 
     function loadJourneys() {
       var showArchived = !!(
@@ -306,8 +349,17 @@ window.renderAdminmarketing = function (container) {
                 '<div><dt>Steps</dt><dd>' +
                 esc(steps) +
                 '</dd></div>' +
-                '<div><dt>Active Leads</dt><dd>' +
-                esc(activeLeads) +
+                '<div><dt>Waiting</dt><dd>' +
+                esc(es.waiting || 0) +
+                '</dd></div>' +
+                '<div><dt>Completed</dt><dd>' +
+                esc(es.completed || 0) +
+                '</dd></div>' +
+                '<div><dt>Cancelled</dt><dd>' +
+                esc(es.cancelled || 0) +
+                '</dd></div>' +
+                '<div><dt>Scheduled sends</dt><dd>' +
+                esc((j.queue_stats && j.queue_stats.pending) || 0) +
                 '</dd></div>' +
                 '</dl>' +
                 '<p class="admin-muted admin-journey-card-desc">' +
@@ -513,8 +565,8 @@ window.renderAdminmarketing = function (container) {
   function renderTemplatesHome() {
     container.innerHTML =
       pageHeader(
-        'Email Templates',
-        'Reusable templates for journey steps and campaigns.',
+        'Templates',
+        'Email creative used by journeys and campaigns.',
         '<a class="admin-btn-primary" href="#marketing/templates/edit/new">Create Template</a>'
       ) +
       '<div class="admin-journey-toolbar admin-card"><label><input type="checkbox" id="tplArchived" /> Show archived</label>' +
@@ -1255,7 +1307,7 @@ window.renderAdminmarketing = function (container) {
     container.innerHTML =
       pageHeader(
         'Campaigns',
-        'One-time manual broadcasts. Completely independent from Journeys.'
+        'One-shot broadcast emails. Journeys are always-on; campaigns are manual sends.'
       ) + '<div id="adminCampaignHost"><div class="admin-loading">Loading…</div></div>';
 
     var bootstrap = '/api/admin/campaigns';
@@ -1327,11 +1379,13 @@ window.renderAdminmarketing = function (container) {
     if (editTemplateId) return renderTemplateEditor(editTemplateId);
     return renderTemplatesHome();
   }
+  if (section === 'campaigns') return renderCampaigns();
+  // Legacy pages still available if linked directly
   if (section === 'email-leads') return renderEmailLeads();
   if (section === 'queue') return renderQueue();
-  if (section === 'campaigns') return renderCampaigns();
   if (section === 'history') return renderHistory();
 
+  if (MC) return MC.renderOverview(container);
   container.innerHTML =
-    '<p class="admin-error">Unknown section.</p><p><a href="#marketing/journeys">← Customer Journey</a></p>';
+    '<p class="admin-error">Unknown section.</p><p><a href="#marketing/overview">← Marketing Overview</a></p>';
 };
