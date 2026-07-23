@@ -11,6 +11,7 @@
     photos: [],
     vehicleModel: '',
     lightingPreference: '',
+    customerEmail: '',
     uploading: 0
   };
 
@@ -46,6 +47,8 @@
       vehicleModel: overrides.vehicleModel != null ? overrides.vehicleModel : state.vehicleModel,
       lightingPreference:
         overrides.lightingPreference != null ? overrides.lightingPreference : state.lightingPreference,
+      customerEmail:
+        overrides.customerEmail != null ? overrides.customerEmail : state.customerEmail,
       photos: overrides.photos || config.photos,
       size: overrides.size || getSelectedSize(),
       powerType: overrides.powerType || getSelectedPowerType(),
@@ -115,9 +118,16 @@
     return el ? String(el.value || '').trim() : '';
   }
 
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+  }
+
   function syncFormState() {
     state.vehicleModel = readField('customVehicleModel');
     state.lightingPreference = readField('customLightingPreference');
+    state.customerEmail = String(readField('customCustomerEmail') || '')
+      .trim()
+      .toLowerCase();
     updateLightingCharCount();
   }
 
@@ -389,6 +399,7 @@
       vehicleYear: '',
       specialRequests: state.lightingPreference,
       lightingPreference: state.lightingPreference,
+      customerEmail: state.customerEmail,
       photos: state.photos
         .filter(function (p) {
           return p && !p.uploading && (p.url || p.path);
@@ -412,6 +423,12 @@
     }
     if (!state.vehicleModel) {
       return { ok: false, message: 'Please enter your car model.' };
+    }
+    if (!state.customerEmail) {
+      return { ok: false, message: 'Please enter your email address.' };
+    }
+    if (!isValidEmail(state.customerEmail)) {
+      return { ok: false, message: 'Please enter a valid email address.' };
     }
     return { ok: true };
   }
@@ -479,6 +496,21 @@
       updateLightingCharCount();
     }
 
+    var email = document.getElementById('customCustomerEmail');
+    if (email && email.dataset.bound !== '1') {
+      email.dataset.bound = '1';
+      email.addEventListener('input', function () {
+        syncFormState();
+        scheduleCustomLeadSync('configured');
+      });
+      email.addEventListener('blur', function () {
+        syncFormState();
+        if (state.customerEmail && isValidEmail(state.customerEmail)) {
+          scheduleCustomLeadSync('configured');
+        }
+      });
+    }
+
     if (!document.body.dataset.customVariantBound) {
       document.body.dataset.customVariantBound = '1';
       document.addEventListener('click', function (e) {
@@ -534,6 +566,21 @@
       '<textarea id="customLightingPreference" class="pdp-custom-textarea" rows="3" maxlength="100" placeholder="Describe your preferred lighting style…"></textarea>' +
       '<span class="pdp-custom-char-count" id="customLightingCount" aria-live="polite">0/100</span>' +
       '</div>' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+      '<div class="pdp-custom-step pdp-custom-step--email">' +
+      '<div class="pdp-custom-panel">' +
+      '<div class="pdp-custom-panel-head">' +
+      '<span class="pdp-custom-step-badge">3</span>' +
+      '<div class="pdp-custom-panel-copy">' +
+      '<span class="product-option-label">Your Email</span>' +
+      '<p class="pdp-custom-upload-lede">So we can confirm your order and send design updates.</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="pdp-custom-field">' +
+      '<label class="pdp-custom-sublabel" for="customCustomerEmail">Email Address</label>' +
+      '<input type="email" id="customCustomerEmail" class="pdp-custom-input" placeholder="you@example.com" autocomplete="email" required />' +
       '</div>' +
       '</div>' +
       '</div>'

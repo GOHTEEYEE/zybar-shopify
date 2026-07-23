@@ -1213,6 +1213,105 @@ app.post('/api/contact', async (req, res) => {
   return res.json({ ok: true, id: row.id, supabaseSaved: supabaseSaved });
 });
 
+// ----- Public order tracking (email + tracking number must match) -----
+app.post('/api/track-order', async (req, res) => {
+  const body = req.body || {};
+  const email = String(body.email || '')
+    .trim()
+    .toLowerCase();
+  const trackingNumber = String(body.trackingNumber || body.tracking_number || '').trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email || !trackingNumber || !emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Please provide a valid email and tracking number.' });
+  }
+  if (!supabase) {
+    return res.status(503).json({ error: 'Order tracking is temporarily unavailable.' });
+  }
+
+  const incorrect = () =>
+    res.status(404).json({ ok: false, error: 'Incorrect email or tracking number.' });
+
+  try {
+    const escaped = trackingNumber
+      .replace(/\\/g, '\\\\')
+      .replace(/%/g, '\\%')
+      .replace(/_/g, '\\_');
+    const { data, error } = await supabase
+      .from('orders')
+      .select(
+        'id,customer_email,customer_name,product_slug,size,quantity,line_items,status,fulfillment_status,tracking_number,shipping_method,created_at'
+      )
+      .ilike('tracking_number', escaped)
+      .limit(5);
+
+    if (error) {
+      console.error('track-order lookup error:', error);
+      return incorrect();
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    let match = null;
+    for (let i = 0; i < rows.length; i++) {
+      const rowEmail = String(rows[i].customer_email || '')
+        .trim()
+        .toLowerCase();
+      const rowTrack = String(rows[i].tracking_number || '').trim();
+      if (rowEmail === email && rowTrack.toLowerCase() === trackingNumber.toLowerCase()) {
+        match = rows[i];
+        break;
+      }
+    }
+    if (!match) return incorrect();
+
+    function productLabel(row) {
+      if (Array.isArray(row.line_items) && row.line_items.length) {
+        return row.line_items
+          .map(function (li) {
+            var name = li.name || li.productSlug || li.slug || 'Item';
+            return name + (li.quantity ? ' ×' + li.quantity : '');
+          })
+          .join(', ');
+      }
+      var slug = String(row.product_slug || '')
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, function (c) {
+          return c.toUpperCase();
+        });
+      if (!slug) return 'ZYBAR LED Wall Art';
+      return slug + (row.size ? ' [' + row.size + ']' : '');
+    }
+
+    function itemList(row) {
+      if (Array.isArray(row.line_items) && row.line_items.length) {
+        return row.line_items.map(function (li) {
+          var name = li.name || li.productSlug || li.slug || 'Item';
+          var size = li.size ? ' · ' + li.size : '';
+          var qty = li.quantity ? ' ×' + li.quantity : '';
+          return name + size + qty;
+        });
+      }
+      return [productLabel(row)];
+    }
+
+    return res.json({
+      ok: true,
+      order: {
+        fulfillmentStatus: match.fulfillment_status || 'unfulfilled',
+        trackingNumber: match.tracking_number,
+        shippingMethod: match.shipping_method || null,
+        paymentStatus: match.status || null,
+        createdAt: match.created_at || null,
+        productLabel: productLabel(match),
+        items: itemList(match)
+      }
+    });
+  } catch (e) {
+    console.error('track-order exception:', e);
+    return res.status(500).json({ error: 'Unable to check order right now.' });
+  }
+});
+
 // ----- Admin test email (Resend) -----
 app.post('/api/admin/email/send', async (req, res) => {
   try {

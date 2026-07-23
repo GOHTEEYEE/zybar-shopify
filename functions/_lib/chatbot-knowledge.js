@@ -83,7 +83,7 @@ export function buildSystemPrompt(options) {
     '',
     'Store facts:',
     '- Brand: ZYBAR',
-    '- Ships from: Mantin, Malaysia',
+    '- Ships from: Tokyo, Japan',
     '- Worldwide shipping: yes',
     '- Typical delivery: about 7–21 business days depending on method and destination',
     '- Sizes: 30 x 45 cm and 40 x 60 cm',

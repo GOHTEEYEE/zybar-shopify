@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico?v=5" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=5" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=5" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=5" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=5" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Track Order | ZYBAR</title>
+    <meta
+      name="description"
+      content="Track your ZYBAR LED wall art order. Enter the email used at checkout and your tracking number."
+    />
+    <link rel="canonical" href="https://zybar-ledcar.pages.dev/track-order.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Track Order | ZYBAR" />
+    <meta
+      property="og:description"
+      content="Track your ZYBAR LED wall art order. Enter the email used at checkout and your tracking number."
+    />
+    <meta property="og:url" content="https://zybar-ledcar.pages.dev/track-order.html" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/js/nav-drawer.js" defer></script>
+    <script src="/js/zybar-my-env.js" defer></script>
+  </head>
+  <body>
+    <div class="welcome-bar">Welcome to our store</div>
+    <header class="site-header">
+      <div class="container header-wrap">
+        <a class="brand zybar-logo" href="/">
+          <img
+            src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png"
+            alt="ZYBAR"
+            class="logo-img"
+            loading="eager"
+            width="1304"
+            height="287"
+          />
+        </a>
+        <nav class="nav main-nav">
+          <a href="/">Home</a>
+          <a href="/collections/all/">Catalog</a>
+          <a href="/contact.html">Contact</a>
+        </nav>
+        <div class="header-actions">
+          <span class="currency">USD ▾</span>
+          <a href="/cart/" class="icon-btn" aria-label="Cart">🛒</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="contact-page track-order-page">
+      <section class="contact-hero container">
+        <p class="contact-eyebrow">Orders</p>
+        <h1>Track Order</h1>
+        <p class="contact-subtitle">
+          Enter the email from your order and the tracking number from your shipping confirmation.
+        </p>
+      </section>
+
+      <section class="container contact-section">
+        <div class="contact-glass-card">
+          <form id="trackOrderForm" novalidate>
+            <div class="contact-grid">
+              <label class="contact-field contact-field-full">
+                <span>Email *</span>
+                <input
+                  id="trackEmail"
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  autocomplete="email"
+                />
+              </label>
+              <label class="contact-field contact-field-full">
+                <span>Tracking Number *</span>
+                <input
+                  id="trackNumber"
+                  name="trackingNumber"
+                  type="text"
+                  required
+                  placeholder="Enter your tracking number"
+                  autocomplete="off"
+                />
+              </label>
+            </div>
+            <div class="contact-actions">
+              <button type="submit" class="btn contact-submit-btn">Track Order</button>
+              <a href="/contact.html" class="btn btn-outline">Need help?</a>
+            </div>
+            <p id="trackOrderStatus" class="contact-status" aria-live="polite"></p>
+          </form>
+
+          <div id="trackOrderResult" class="track-order-result" hidden></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-wrap">
+        <div class="footer-copyright">
+          <p>© 2026 <a href="/">ZYBAR</a></p>
+        </div>
+        <nav class="footer-policies" aria-label="Site policies and information">
+          <h3 class="footer-policies-title">Site Policies &amp; Information</h3>
+          <ul class="footer-policies-list">
+            <li><a href="/policies/faq.html">FAQ</a></li>
+            <li><a href="/policies/privacy-statement.html">Privacy Statement</a></li>
+            <li><a href="/policies/tos.html">Terms Of Service</a></li>
+            <li><a href="/policies/refund-policy.html">Refund Policy</a></li>
+            <li><a href="/about/about-us.html">About Us</a></li>
+          </ul>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="/js/track-order.js?v=1" defer></script>
+    <script src="/js/site-footer.js" defer></script>
+  </body>
+</html>

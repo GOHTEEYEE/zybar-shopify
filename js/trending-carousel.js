@@ -115,8 +115,10 @@
     var isPointerDown = false;
     var didDrag = false;
     var startX = 0;
+    var startY = 0;
     var startScrollLeft = 0;
     var scrollTicking = false;
+    var touchAxis = null; // "x" | "y" | null — lock after first clear move
 
     function getCards() {
       return track.querySelectorAll(".trending-card");
@@ -189,13 +191,15 @@
       if (event.button !== 0) return;
       isPointerDown = true;
       didDrag = false;
+      touchAxis = "x";
       startX = event.pageX;
+      startY = event.pageY;
       startScrollLeft = carousel.scrollLeft;
       carousel.classList.add("is-dragging");
     });
 
     carousel.addEventListener("mousemove", function (event) {
-      if (!isPointerDown) return;
+      if (!isPointerDown || touchAxis === "y") return;
       var delta = event.pageX - startX;
       if (Math.abs(delta) > DRAG_THRESHOLD) {
         didDrag = true;
@@ -219,6 +223,7 @@
     function endDrag() {
       if (!isPointerDown) return;
       isPointerDown = false;
+      touchAxis = null;
       carousel.classList.remove("is-dragging");
       if (didDrag) {
         window.setTimeout(function () {
@@ -227,6 +232,62 @@
         }, 0);
       }
     }
+
+    /* Touch: lock to horizontal only after a clear sideways move; let vertical scroll the page */
+    carousel.addEventListener(
+      "touchstart",
+      function (event) {
+        if (!event.touches || event.touches.length !== 1) return;
+        isPointerDown = true;
+        didDrag = false;
+        touchAxis = null;
+        startX = event.touches[0].pageX;
+        startY = event.touches[0].pageY;
+        startScrollLeft = carousel.scrollLeft;
+      },
+      { passive: true }
+    );
+
+    carousel.addEventListener(
+      "touchmove",
+      function (event) {
+        if (!isPointerDown || !event.touches || event.touches.length !== 1) return;
+        var x = event.touches[0].pageX;
+        var y = event.touches[0].pageY;
+        var dx = x - startX;
+        var dy = y - startY;
+
+        if (!touchAxis) {
+          if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+          touchAxis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+        }
+
+        if (touchAxis === "y") {
+          /* Vertical intent — do not hijack; page scrolls normally */
+          return;
+        }
+
+        didDrag = true;
+        carousel.scrollLeft = startScrollLeft - dx;
+        if (event.cancelable) event.preventDefault();
+      },
+      { passive: false }
+    );
+
+    carousel.addEventListener(
+      "touchend",
+      function () {
+        endDrag();
+      },
+      { passive: true }
+    );
+    carousel.addEventListener(
+      "touchcancel",
+      function () {
+        endDrag();
+      },
+      { passive: true }
+    );
 
     carousel.addEventListener("mouseleave", endDrag);
     window.addEventListener("mouseup", endDrag);

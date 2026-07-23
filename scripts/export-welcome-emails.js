@@ -60,7 +60,7 @@ function writeComponentSnippets() {
         { label: 'Instagram', href: 'https://www.instagram.com/zybar.shop' },
         { label: 'TikTok', href: 'https://www.tiktok.com/@zybar.shop' }
       ],
-      identity: 'ZYBAR · Mantin, Negeri Sembilan, Malaysia',
+      identity: 'ZYBAR · Tokyo, Japan',
       reason: 'Component reference — footer used on lifecycle emails.',
       unsubscribeHref: 'mailto:support@zybar.shop?subject=Unsubscribe',
       contactHref: 'mailto:support@zybar.shop'

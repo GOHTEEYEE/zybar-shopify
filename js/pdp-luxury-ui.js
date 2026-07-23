@@ -65,6 +65,21 @@
     return parts.length >= 3 ? parts[2] : "";
   }
 
+  /** Stable random stock count (2–8) per product for the session. */
+  function getLowStockCount(slug) {
+    var key = "zybar.lowStock." + (slug || "default");
+    try {
+      var stored = window.sessionStorage.getItem(key);
+      var n = stored ? parseInt(stored, 10) : NaN;
+      if (n >= 2 && n <= 8) return n;
+      n = 2 + Math.floor(Math.random() * 7);
+      window.sessionStorage.setItem(key, String(n));
+      return n;
+    } catch (_) {
+      return 2 + Math.floor(Math.random() * 7);
+    }
+  }
+
   function loadLocalReviews(slug) {
     if (!slug) return [];
     try {
@@ -485,12 +500,15 @@
     if (sizeOptions) sizeGroup.appendChild(sizeOptions);
     optionsWrap.appendChild(sizeGroup);
 
+    var stockLeft = getLowStockCount(getProductSlug());
     var lowStock = document.createElement("p");
     lowStock.className = "pdp-low-stock";
     lowStock.setAttribute("aria-live", "polite");
     lowStock.innerHTML =
       '<span class="pdp-low-stock-dot" aria-hidden="true"></span>' +
-      '<span class="pdp-low-stock-text">Low Stock: 2 Left</span>';
+      '<span class="pdp-low-stock-text">Low Stock: ' +
+      stockLeft +
+      " Left</span>";
 
     var buy = document.createElement("div");
     buy.className = "pdp-luxury-buy";

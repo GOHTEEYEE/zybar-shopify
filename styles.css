@@ -1075,7 +1075,8 @@ body.pdp-gallery-lightbox-open {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   cursor: grab;
-  touch-action: pan-x;
+  /* Vertical page scroll wins; JS locks sideways swipes to the carousel */
+  touch-action: pan-y;
 }
 
 .trending-carousel::-webkit-scrollbar {
@@ -5242,6 +5243,74 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   color: #86efac;
 }
 
+.track-order-result {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.track-order-result-title {
+  margin: 0 0 1rem;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.track-order-dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1.25rem;
+}
+
+.track-order-dl > div {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.track-order-dl dt {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.track-order-dl dd {
+  margin: 0;
+  color: #fff;
+  word-break: break-word;
+}
+
+.track-order-products h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+}
+
+.track-order-items {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.track-order-items-empty {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+@media (max-width: 520px) {
+  .track-order-dl > div {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
+
 .contact-toast {
   position: fixed;
   right: 16px;
@@ -6545,12 +6614,21 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 }
 
 .pdp-review-write h3 {
-  margin: 0 0 1.25rem;
+  margin: 0 0 0.75rem;
   font-family: "Playfair Display", "DM Serif Display", Georgia, serif;
   font-size: clamp(1.5rem, 3vw, 2rem);
   font-weight: 600;
   text-align: center;
   color: #fff;
+}
+
+.pdp-contact-lede {
+  margin: 0 auto 1.35rem;
+  max-width: 32rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .pdp-review-write-grid {

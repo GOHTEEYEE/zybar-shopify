@@ -6,11 +6,12 @@
   var DRAWER_LINKS = [
     { href: '/', label: 'Home' },
     { href: '/collections/all/', label: 'Catalog' },
+    { href: '/products/custom-led-car-wall-art/', label: 'Custom Made' },
     { href: '/customer-reviews.html', label: 'Reviews' },
     { href: '/contact.html', label: 'Contact' },
     { href: '/about/about-us.html', label: 'About' },
     { href: '/policies/faq.html', label: 'FAQ' },
-    { href: '/purchase-confirmation.html', label: 'Track Order' },
+    { href: '/track-order.html', label: 'Track Order' },
     { href: '/contact.html#support', label: 'Support' }
   ];
 

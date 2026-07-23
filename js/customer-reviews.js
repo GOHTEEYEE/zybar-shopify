@@ -1,6 +1,6 @@
 /**
- * PDP social proof — reuse homepage "Customers are saying" + "In the wild" look exactly.
- * Also keeps a minimal dark write-review form under those sections.
+ * PDP social proof — homepage "Customers are saying" + "In the wild".
+ * Contact / inquiry form under those sections (saved to admin Inquiries).
  */
 (function () {
   var path = window.location && window.location.pathname ? window.location.pathname : "";
@@ -12,22 +12,14 @@
     return parts.length >= 3 ? parts[2] : "";
   }
 
-  function getStorageKey(slug) {
-    return "zybar.reviews.local." + slug;
-  }
-
-  function safeParse(value, fallback) {
-    try {
-      return JSON.parse(value);
-    } catch (_) {
-      return fallback;
-    }
-  }
-
   function escapeText(value) {
     var text = String(value || "").trim();
     text = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
     return text;
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
   function loadScriptOnce(src) {
@@ -48,48 +40,6 @@
       };
       document.body.appendChild(script);
     });
-  }
-
-  var MAX_REVIEW_IMAGE_BYTES = 1300 * 1024;
-
-  function readImageFile(file) {
-    return new Promise(function (resolve, reject) {
-      if (!file) return resolve("");
-      if (file.size > MAX_REVIEW_IMAGE_BYTES) {
-        reject(new Error("Image is too large. Please upload one under 1.3MB."));
-        return;
-      }
-      var reader = new FileReader();
-      reader.onload = function () {
-        resolve(typeof reader.result === "string" ? reader.result : "");
-      };
-      reader.onerror = function () {
-        reject(new Error("Failed to read image file."));
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function postRemoteReview(payload) {
-    var response = await fetch("/api/reviews", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    var data = await response.json().catch(function () {
-      return {};
-    });
-    if (!response.ok) {
-      throw new Error(data && data.error ? data.error : "Could not submit review.");
-    }
-    return data && data.review ? data.review : null;
-  }
-
-  function saveLocalReview(slug, review) {
-    var existing = safeParse(window.localStorage.getItem(getStorageKey(slug)) || "[]", []);
-    if (!Array.isArray(existing)) existing = [];
-    existing.unshift(review);
-    window.localStorage.setItem(getStorageKey(slug), JSON.stringify(existing.slice(0, 60)));
   }
 
   function ensurePlayfairFont() {
@@ -166,31 +116,23 @@
       '    <div class="lifestyle-grid" data-lifestyle-grid></div>',
       "  </div>",
       "</section>",
-      '<section class="pdp-review-write" aria-labelledby="pdp-review-write-title">',
+      '<section class="pdp-review-write pdp-contact-inquiry" aria-labelledby="pdp-contact-title">',
       '  <div class="container pdp-review-write-inner">',
-      '    <h3 id="pdp-review-write-title">Write a review</h3>',
-      '    <form class="pdp-review-write-form" id="reviewForm">',
+      '    <h3 id="pdp-contact-title">Contact Us</h3>',
+      '    <p class="pdp-contact-lede">Questions about this piece? Send an inquiry — we\'ll get back to you soon.</p>',
+      '    <form class="pdp-review-write-form" id="pdpContactForm" novalidate>',
       '      <div class="pdp-review-write-grid">',
-      '        <label><span>Customer name</span><input type="text" name="name" maxlength="40" required /></label>',
-      '        <label><span>Purchased product</span><input type="text" name="productName" maxlength="80" required /></label>',
-      '        <label><span>Rating</span>',
-      '          <select name="rating" required>',
-      '            <option value="5">5 - Excellent</option>',
-      '            <option value="4">4 - Very good</option>',
-      '            <option value="3">3 - Good</option>',
-      '            <option value="2">2 - Fair</option>',
-      '            <option value="1">1 - Poor</option>',
-      "          </select>",
-      "        </label>",
-      '        <label><span>Upload image (optional)</span><input type="file" name="image" accept="image/*" /></label>',
+      '        <label><span>Name *</span><input type="text" name="name" id="pdpContactName" maxlength="120" required placeholder="Your full name" autocomplete="name" /></label>',
+      '        <label><span>Email *</span><input type="email" name="email" id="pdpContactEmail" maxlength="190" required placeholder="you@example.com" autocomplete="email" /></label>',
+      '        <label><span>Phone Number</span><input type="tel" name="phone" id="pdpContactPhone" maxlength="40" placeholder="+1 555 000 0000" autocomplete="tel" /></label>',
+      '        <label><span>Car Model Interest *</span><input type="text" name="carModelInterest" id="pdpContactCarModel" maxlength="160" required /></label>',
       "      </div>",
-      '      <label class="pdp-review-write-comment"><span>Your review</span>',
-      '        <textarea name="comment" maxlength="560" required placeholder="Share your experience with this artwork..."></textarea>',
+      '      <label class="pdp-review-write-comment"><span>Message *</span>',
+      '        <textarea name="message" id="pdpContactMessage" maxlength="4000" rows="5" required placeholder="Tell us your preferred size, power option, or any questions..."></textarea>',
       "      </label>",
-      '      <div class="review-upload-preview" id="reviewUploadPreview" hidden><img alt="Selected review image preview" /></div>',
       '      <div class="pdp-review-write-actions">',
-      '        <button type="submit" class="btn pdp-review-write-btn">Submit review</button>',
-      '        <p class="review-form-status" id="reviewFormStatus" aria-live="polite"></p>',
+      '        <button type="submit" class="btn pdp-review-write-btn">Send Inquiry</button>',
+      '        <p class="review-form-status" id="pdpContactFormStatus" aria-live="polite"></p>',
       "      </div>",
       "    </form>",
       "  </div>",
@@ -204,92 +146,87 @@
       loadScriptOnce("/js/lifestyle-gallery.js?v=pdp1")
     ]).catch(function () {});
 
-    var form = wrap.querySelector("#reviewForm");
-    var status = wrap.querySelector("#reviewFormStatus");
-    var previewWrap = wrap.querySelector("#reviewUploadPreview");
-    var previewImg = previewWrap ? previewWrap.querySelector("img") : null;
+    var form = wrap.querySelector("#pdpContactForm");
+    var status = wrap.querySelector("#pdpContactFormStatus");
     if (!form || !status) return;
 
-    var nameInput = form.querySelector('input[name="name"]');
-    var productInput = form.querySelector('input[name="productName"]');
-    var ratingInput = form.querySelector('select[name="rating"]');
-    var commentInput = form.querySelector('textarea[name="comment"]');
-    var imageInput = form.querySelector('input[name="image"]');
-    if (!nameInput || !productInput || !ratingInput || !commentInput || !imageInput) return;
-    productInput.value = productTitle;
-
-    imageInput.addEventListener("change", function () {
-      var file = imageInput.files && imageInput.files[0];
-      if (!file) {
-        if (previewWrap) previewWrap.hidden = true;
-        if (previewImg) previewImg.removeAttribute("src");
-        return;
-      }
-      readImageFile(file)
-        .then(function (dataUrl) {
-          if (!previewWrap || !previewImg || !dataUrl) return;
-          previewImg.src = dataUrl;
-          previewWrap.hidden = false;
-        })
-        .catch(function (err) {
-          imageInput.value = "";
-          if (previewWrap) previewWrap.hidden = true;
-          if (previewImg) previewImg.removeAttribute("src");
-          status.textContent = err.message || "Unable to preview image.";
-          status.className = "review-form-status is-error";
-        });
-    });
+    var nameInput = form.querySelector("#pdpContactName");
+    var emailInput = form.querySelector("#pdpContactEmail");
+    var phoneInput = form.querySelector("#pdpContactPhone");
+    var carModelInput = form.querySelector("#pdpContactCarModel");
+    var messageInput = form.querySelector("#pdpContactMessage");
+    if (!nameInput || !emailInput || !carModelInput || !messageInput) return;
+    carModelInput.value = productTitle;
 
     form.addEventListener("submit", function (event) {
       event.preventDefault();
-      var name = escapeText(nameInput.value).slice(0, 40);
-      var reviewProductName = escapeText(productInput.value).slice(0, 80);
-      var comment = escapeText(commentInput.value).slice(0, 560);
-      var rating = Math.max(1, Math.min(5, Number(ratingInput.value || 5)));
-      var file = imageInput.files && imageInput.files[0];
+      var payload = {
+        name: escapeText(nameInput.value).slice(0, 120),
+        email: String(emailInput.value || "")
+          .trim()
+          .toLowerCase()
+          .slice(0, 190),
+        phone: escapeText(phoneInput ? phoneInput.value : "").slice(0, 40),
+        carModelInterest: escapeText(carModelInput.value).slice(0, 160),
+        message: escapeText(messageInput.value).slice(0, 4000)
+      };
 
-      if (name.length < 2 || reviewProductName.length < 2 || comment.length < 8) {
-        status.textContent = "Please complete name, purchased product, and a short review.";
+      if (!payload.name || !payload.email || !payload.carModelInterest || !payload.message) {
+        status.textContent = "Please fill in all required fields.";
         status.className = "review-form-status is-error";
         return;
       }
-      status.textContent = "Submitting your review...";
+      if (!isValidEmail(payload.email)) {
+        status.textContent = "Please enter a valid email address.";
+        status.className = "review-form-status is-error";
+        return;
+      }
+
+      var submitBtn = form.querySelector('button[type="submit"]');
+      var originalLabel = submitBtn ? submitBtn.textContent : "";
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Sending…";
+      }
+      status.textContent = "Sending your inquiry…";
       status.className = "review-form-status";
 
-      readImageFile(file)
-        .then(function (imageDataUrl) {
-          var draft = {
-            productSlug: slug,
-            productName: reviewProductName,
-            name: name,
-            rating: rating,
-            comment: comment,
-            imageDataUrl: imageDataUrl || ""
-          };
-          return postRemoteReview(draft).catch(function () {
-            saveLocalReview(slug, {
-              productName: reviewProductName,
-              name: name,
-              rating: rating,
-              comment: comment,
-              imageUrl: imageDataUrl || "",
-              date: new Date().toISOString()
-            });
-            return "local";
+      fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+        .then(function (res) {
+          return res.json().catch(function () {
+            return {};
+          }).then(function (json) {
+            if (!res.ok) throw new Error(json.error || "Unable to submit inquiry.");
+            return json;
           });
         })
         .then(function () {
+          if (
+            window.ZYBAR &&
+            window.ZYBAR.Analytics &&
+            typeof window.ZYBAR.Analytics.trackContactSubmit === "function"
+          ) {
+            window.ZYBAR.Analytics.trackContactSubmit({ car_model: payload.carModelInterest });
+          }
           form.reset();
-          ratingInput.value = "5";
-          productInput.value = productTitle;
-          if (previewWrap) previewWrap.hidden = true;
-          if (previewImg) previewImg.removeAttribute("src");
-          status.textContent = "Thanks! Your review was added.";
+          carModelInput.value = productTitle;
+          status.textContent = "Thank you! Your inquiry has been submitted.";
           status.className = "review-form-status is-success";
         })
         .catch(function (err) {
-          status.textContent = err && err.message ? err.message : "Unable to submit review.";
+          status.textContent =
+            err && err.message ? err.message : "Submission failed. Please try again.";
           status.className = "review-form-status is-error";
+        })
+        .finally(function () {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalLabel || "Send Inquiry";
+          }
         });
     });
   }
