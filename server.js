@@ -23,6 +23,7 @@ const MemberPricing = require('./lib/member-pricing.js');
 const ProductTypes = require('./lib/product-types.js');
 const CustomOrders = require('./lib/custom-orders.js');
 const CustomLeads = require('./lib/custom-leads.js');
+const CheckoutSnapshots = require('./lib/checkout-snapshots.js');
 const SearchIndexBuilder = require('./lib/search-index-builder.js');
 
 const app = express();
@@ -602,9 +603,17 @@ app.post(
 
       // Meta Conversions API — server Purchase (deduped with browser via event_id)
       try {
+        let capiLineItems = [];
+        if (supabase) {
+          try {
+            const resolved = await CheckoutSnapshots.resolveLineItemsForSession(supabase, session);
+            capiLineItems = (resolved && resolved.lineItems) || [];
+          } catch (_) {}
+        }
         await MetaCapi.sendPurchaseFromCheckoutSession(session, {
           customer: customer,
           amount_cents: typeof session.amount_total === 'number' ? session.amount_total : 0,
+          lineItems: capiLineItems,
           event_source_url:
             (process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '') +
             '/purchase-confirmation.html?session_id=' +
@@ -1887,10 +1896,12 @@ async function persistPaidCheckoutSession(session) {
       : null;
   let lineItems = null;
   try {
-    if (session.metadata && session.metadata.variantDetails) {
-      lineItems = JSON.parse(session.metadata.variantDetails);
+    const resolved = await CheckoutSnapshots.resolveLineItemsForSession(supabase, session);
+    if (resolved && Array.isArray(resolved.lineItems) && resolved.lineItems.length) {
+      lineItems = resolved.lineItems;
     }
-  } catch (_) {
+  } catch (snapErr) {
+    console.warn('checkout snapshot resolve:', snapErr && snapErr.message);
     lineItems = null;
   }
 
@@ -2687,65 +2698,89 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
   const metadata = {};
   if (appliedDiscountCode) {
-    metadata.discountCode = appliedDiscountCode;
+    metadata.discountCode = CheckoutSnapshots.truncateMeta(appliedDiscountCode, 64);
     metadata.discountUSD = appliedDiscountUSD.toFixed(2);
   }
-  if (productSlug) metadata.productSlug = String(productSlug);
-  if (size) metadata.size = String(size);
-  if (powerType) metadata.powerType = String(powerType);
-  metadata.shippingMethod = resolvedShippingMethod;
-  if (Array.isArray(lineItems) && lineItems.length) {
-    const variantDetails = lineItems
-      .map(function (item) {
-        if (!item || typeof item !== 'object') return null;
-        const slug =
-          typeof item.productSlug === 'string'
-            ? item.productSlug.trim()
-            : typeof item.slug === 'string'
-              ? item.slug.trim()
-              : '';
-        const itemSize = typeof item.size === 'string' ? item.size.trim() : '';
-        const itemPower = typeof item.powerType === 'string' ? item.powerType.trim() : 'usb';
-        if (!slug && !itemSize) return null;
-        return {
-          productSlug: slug,
-          slug: slug,
-          size: itemSize,
-          powerType: itemPower || 'usb',
-          name: typeof item.name === 'string' ? item.name.trim() : '',
-          quantity: Number(item.quantity) || 1,
-          productType: item.productType || (ProductTypes.isCustomSlug(slug) ? 'custom' : 'standard'),
-          unitAmountUSD: item.unitAmountUSD,
-          baseUnitPriceUSD: item.baseUnitPriceUSD,
-          customDesignFeeUSD: item.customDesignFeeUSD,
-          customConfig: item.customConfig || null
-        };
-      })
-      .filter(Boolean);
-    if (variantDetails.length) metadata.variantDetails = JSON.stringify(variantDetails);
-  } else if (Array.isArray(lineItems) && lineItems.length === 1 && lineItems[0] && lineItems[0].powerType) {
-    metadata.powerType = String(lineItems[0].powerType);
+  if (productSlug) metadata.productSlug = CheckoutSnapshots.truncateMeta(productSlug, 120);
+  if (size) metadata.size = CheckoutSnapshots.truncateMeta(size, 32);
+  if (powerType) metadata.powerType = CheckoutSnapshots.truncateMeta(powerType, 32);
+  metadata.shippingMethod = CheckoutSnapshots.truncateMeta(resolvedShippingMethod, 32);
+
+  // Full cart / customConfig live in checkout_snapshots — never in Stripe metadata
+  // (Stripe enforces a 500-character max per metadata value).
+  const variantDetails = CheckoutSnapshots.buildVariantDetails(
+    Array.isArray(lineItems) && lineItems.length ? lineItems : []
+  );
+  if (
+    !variantDetails.length &&
+    Array.isArray(lineItems) &&
+    lineItems.length === 1 &&
+    lineItems[0] &&
+    lineItems[0].powerType
+  ) {
+    metadata.powerType = CheckoutSnapshots.truncateMeta(lineItems[0].powerType, 32);
   }
+
+  let checkoutSnapshotId = null;
+  if (supabase && variantDetails.length) {
+    try {
+      checkoutSnapshotId = await CheckoutSnapshots.createSnapshot(supabase, {
+        cartId: cartId || null,
+        visitorId: visitorId || null,
+        sessionId: sessionId || null,
+        uploadSessionId: uploadSessionId || null,
+        shippingMethod: resolvedShippingMethod,
+        discountCode: appliedDiscountCode || null,
+        discountUSD: appliedDiscountUSD > 0 ? appliedDiscountUSD : null,
+        lineItems: variantDetails
+      });
+      if (checkoutSnapshotId) {
+        metadata.checkoutSnapshotId = String(checkoutSnapshotId);
+      }
+    } catch (snapErr) {
+      console.error('checkout snapshot create failed:', snapErr && snapErr.message);
+      return res.status(500).json({
+        error: 'Could not prepare checkout. Please refresh and try again.'
+      });
+    }
+  }
+
   const totalQty = stripeLineItems.reduce(function (sum, item) {
     return sum + (Number(item.quantity) || 0);
   }, 0);
   metadata.quantity = String(totalQty);
   metadata.cartItems = String(stripeLineItems.length);
-  if (visitorId) metadata.visitorId = String(visitorId);
-  if (sessionId) metadata.analyticsSessionId = String(sessionId);
-  if (cartId) metadata.cartId = String(cartId);
-  if (uploadSessionId) metadata.uploadSessionId = String(uploadSessionId);
-  if (fbp) metadata.fbp = String(fbp).slice(0, 200);
-  if (fbc) metadata.fbc = String(fbc).slice(0, 200);
-  if (clientUserAgent) metadata.clientUserAgent = String(clientUserAgent).slice(0, 500);
+  if (visitorId) metadata.visitorId = CheckoutSnapshots.truncateMeta(visitorId, 80);
+  if (sessionId) metadata.analyticsSessionId = CheckoutSnapshots.truncateMeta(sessionId, 80);
+  if (cartId) metadata.cartId = CheckoutSnapshots.truncateMeta(cartId, 80);
+  if (uploadSessionId) {
+    metadata.uploadSessionId = CheckoutSnapshots.truncateMeta(uploadSessionId, 80);
+  }
+  if (fbp) metadata.fbp = CheckoutSnapshots.truncateMeta(fbp, 200);
+  if (fbc) metadata.fbc = CheckoutSnapshots.truncateMeta(fbc, 200);
+  if (clientUserAgent) {
+    metadata.clientUserAgent = CheckoutSnapshots.truncateMeta(clientUserAgent, 200);
+  }
   const forwarded =
     (req.headers['x-forwarded-for'] && String(req.headers['x-forwarded-for']).split(',')[0].trim()) ||
     req.headers['cf-connecting-ip'] ||
     req.ip ||
     '';
-  if (forwarded) metadata.clientIp = String(forwarded).slice(0, 64);
+  if (forwarded) metadata.clientIp = CheckoutSnapshots.truncateMeta(forwarded, 64);
   const storeUrl = String(process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '');
-  metadata.eventSourceUrl = storeUrl + '/purchase-confirmation.html';
+  metadata.eventSourceUrl = CheckoutSnapshots.truncateMeta(
+    storeUrl + '/purchase-confirmation.html',
+    200
+  );
+
+  try {
+    CheckoutSnapshots.assertMetadataSafe(metadata);
+  } catch (metaErr) {
+    console.error(metaErr && metaErr.message);
+    return res.status(500).json({
+      error: 'Checkout metadata invalid. Please refresh and try again.'
+    });
+  }
 
   if (supabase && uploadSessionId) {
     try {
@@ -2814,6 +2849,23 @@ app.post('/api/create-checkout-session', async (req, res) => {
     }
   };
 
+  async function afterCheckoutSessionCreated(session) {
+    if (!session || !session.id) return;
+    if (supabase && checkoutSnapshotId) {
+      try {
+        await CheckoutSnapshots.attachStripeSession(supabase, checkoutSnapshotId, session.id);
+      } catch (attachErr) {
+        console.warn('checkout snapshot attach:', attachErr && attachErr.message);
+      }
+    }
+    if (supabase && uploadSessionId) {
+      await supabase
+        .from('custom_leads')
+        .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })
+        .eq('upload_session_id', String(uploadSessionId));
+    }
+  }
+
   try {
     console.log('Checkout line item prices:', stripeLineItems.map(function (i) { return i.price; }));
 
@@ -2836,12 +2888,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
             ui_mode: 'custom',
             return_url: buildReturnUrl()
           }));
-          if (supabase && uploadSessionId) {
-            await supabase
-              .from('custom_leads')
-              .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })
-              .eq('upload_session_id', String(uploadSessionId));
-          }
+          await afterCheckoutSessionCreated(session);
           return res.json({
             clientSecret: session.client_secret,
             sessionId: session.id,
@@ -2855,12 +2902,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
         ui_mode: 'embedded',
         return_url: buildReturnUrl()
       }));
-      if (supabase && uploadSessionId) {
-        await supabase
-          .from('custom_leads')
-          .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })
-          .eq('upload_session_id', String(uploadSessionId));
-      }
+      await afterCheckoutSessionCreated(session);
       return res.json({
         clientSecret: session.client_secret,
         sessionId: session.id,
@@ -2873,12 +2915,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       success_url: successUrl,
       cancel_url: cancelUrl
     }));
-    if (supabase && uploadSessionId) {
-      await supabase
-        .from('custom_leads')
-        .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })
-        .eq('upload_session_id', String(uploadSessionId));
-    }
+    await afterCheckoutSessionCreated(session);
     return res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
     console.error('Checkout session creation failed:', err);
