@@ -141,9 +141,9 @@ window.AdminMarketingCenter = (function () {
       var kpis =
         '<div class="mkt-kpi-grid">' +
         kpiCard('Total Leads', num(k.total_leads), 'All subscribers', '#marketing/audience') +
-        kpiCard('Welcome', num(k.welcome_leads), 'Currently in Welcome', '#marketing/audience?journey=welcome_journey') +
-        kpiCard('Add to Cart', num(k.cart_leads), 'Currently in Cart', '#marketing/audience?journey=cart_journey') +
-        kpiCard('Purchase', num(k.purchase_leads), 'Currently in Purchase', '#marketing/audience?journey=customer_journey') +
+        kpiCard('Welcome journey', num(k.welcome_leads), 'Email leads in Welcome', '#marketing/audience?journey=welcome_journey') +
+        kpiCard('Cart journey', num(k.cart_leads), 'Email leads in Cart Recovery', '#marketing/audience?journey=cart_journey') +
+        kpiCard('Purchase journey', num(k.purchase_leads), 'Email leads in Purchase', '#marketing/audience?journey=customer_journey') +
         kpiCard('Subscribers Today', num(k.subscribers_today), 'New signups') +
         kpiCard('Not in Journey', num(k.never_enrolled), 'Need enrollment', '#marketing/audience?segment=never') +
         kpiCard('Journey Revenue', money(k.journey_revenue_cents), 'Store orders (attributed view)') +
@@ -156,8 +156,8 @@ window.AdminMarketingCenter = (function () {
 
       var categories =
         '<section class="mkt-lifecycle mkt-categories">' +
-        '<div class="mkt-lifecycle-head"><h3>Lead categories</h3>' +
-        '<p class="admin-muted">Where each lead is right now — Welcome → Cart → Purchase. Click to open that Audience list.</p></div>' +
+        '<div class="mkt-lifecycle-head"><h3>Email journey categories</h3>' +
+        '<p class="admin-muted">These are <strong>email subscribers currently in a journey</strong> — not website Add-to-Cart events. Dashboard “Add To Cart 107” counts site events; only leads with email who moved into Cart Recovery appear here.</p></div>' +
         '<div class="mkt-category-grid">' +
         cats
           .map(function (c) {
@@ -167,11 +167,11 @@ window.AdminMarketingCenter = (function () {
               '">' +
               '<div class="mkt-category-title">' +
               esc(c.label) +
-              '</div>' +
+              ' journey</div>' +
               '<div class="mkt-category-value">' +
               num(c.current) +
               '</div>' +
-              '<div class="mkt-category-meta">Active now · ' +
+              '<div class="mkt-category-meta">Active in this email flow · ' +
               num(c.active) +
               '</div>' +
               '<div class="mkt-category-meta">Ever enrolled · ' +
