@@ -9,7 +9,11 @@
   function setStatus(message, isError) {
     if (!statusEl) return;
     statusEl.textContent = message || '';
-    statusEl.className = 'contact-status' + (isError ? ' is-error' : ' is-success');
+    if (!message) {
+      statusEl.className = 'review-form-status';
+      return;
+    }
+    statusEl.className = 'review-form-status' + (isError ? ' is-error' : ' is-success');
   }
 
   function showToast(message) {

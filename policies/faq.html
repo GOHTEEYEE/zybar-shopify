@@ -21,8 +21,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css?v=luxury-mono1" />
-    <script src="/js/nav-drawer.js" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=nav-pro1" />
+    <script src="/js/nav-drawer.js?v=nav-pro1" defer></script>
   </head>
   <body class="about-body">
     <header class="site-header">
@@ -57,139 +57,191 @@
         <span class="about-rule" aria-hidden="true"></span>
       </header>
 
-      <section class="faq-item" aria-labelledby="faq-1">
-        <h2 id="faq-1" class="about-heading">1. How long does shipping take?</h2>
-        <p class="about-copy">Every ZYBAR piece is carefully handcrafted before shipping.</p>
-        <ul class="faq-list">
-          <li><strong>Standard Shipping:</strong> 14–18 business days</li>
-          <li><strong>Priority Shipping:</strong> 7–14 business days</li>
-        </ul>
-        <p class="about-copy">
-          Once your order ships, you’ll receive a tracking number by email so you can follow its
-          journey every step of the way.
-        </p>
-      </section>
+      <div class="faq-accordion" role="list">
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">How long does shipping take?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">Every ZYBAR piece is carefully handcrafted before shipping.</p>
+            <ul class="faq-list">
+              <li><strong>Standard Shipping:</strong> 14–18 business days</li>
+              <li><strong>Priority Shipping:</strong> 7–14 business days</li>
+            </ul>
+            <p class="about-copy">
+              Once your order ships, you’ll receive a tracking number by email so you can follow its
+              journey every step of the way.
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-2">
-        <h2 id="faq-2" class="about-heading">2. Where are ZYBAR products made?</h2>
-        <p class="about-copy">
-          Every ZYBAR piece is carefully handcrafted by our team and shipped worldwide from Malaysia.
-        </p>
-        <p class="about-copy">
-          We focus on premium craftsmanship, meticulous quality control, and attention to detail to
-          ensure every piece arrives ready to impress.
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">Where are ZYBAR products made?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">
+              Every ZYBAR piece is carefully handcrafted by our team and shipped worldwide from Malaysia.
+            </p>
+            <p class="about-copy">
+              We focus on premium craftsmanship, meticulous quality control, and attention to detail to
+              ensure every piece arrives ready to impress.
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-3">
-        <h2 id="faq-3" class="about-heading">3. Does it come ready to hang?</h2>
-        <p class="about-copy">Yes.</p>
-        <p class="about-copy">
-          Every artwork arrives ready to display with all the necessary mounting hardware included.
-        </p>
-        <p class="about-copy">
-          Installation only takes a few minutes, allowing you to transform your space effortlessly.
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">Does it come ready to hang?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">Yes.</p>
+            <p class="about-copy">
+              Every artwork arrives ready to display with all the necessary mounting hardware included.
+            </p>
+            <p class="about-copy">
+              Installation only takes a few minutes, allowing you to transform your space effortlessly.
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-4">
-        <h2 id="faq-4" class="about-heading">4. How is it powered?</h2>
-        <p class="about-copy">You can choose between two power options:</p>
-        <p class="about-copy"><strong>USB Powered</strong></p>
-        <p class="about-copy">
-          Connect directly to any USB power source. Perfect for desks, bedrooms, gaming setups, or
-          offices.
-        </p>
-        <p class="about-copy"><strong>Dual Power (USB + Battery)</strong></p>
-        <p class="about-copy">
-          Works with both USB power and batteries for greater flexibility. Ideal if you prefer a
-          cleaner, cordless display.
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">How is it powered?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">You can choose between two power options:</p>
+            <p class="about-copy"><strong>USB Powered</strong></p>
+            <p class="about-copy">
+              Connect directly to any USB power source. Perfect for desks, bedrooms, gaming setups, or
+              offices.
+            </p>
+            <p class="about-copy"><strong>Dual Power (USB + Battery)</strong></p>
+            <p class="about-copy">
+              Works with both USB power and batteries for greater flexibility. Ideal if you prefer a
+              cleaner, cordless display.
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-5">
-        <h2 id="faq-5" class="about-heading">5. Can I use it in my country?</h2>
-        <p class="about-copy">Absolutely.</p>
-        <p class="about-copy">
-          ZYBAR ships worldwide, and every piece is compatible with standard USB power sources used
-          internationally.
-        </p>
-        <p class="about-copy">
-          No matter where you live, you can enjoy your artwork right out of the box.
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">Can I use it in my country?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">Absolutely.</p>
+            <p class="about-copy">
+              ZYBAR ships worldwide, and every piece is compatible with standard USB power sources used
+              internationally.
+            </p>
+            <p class="about-copy">
+              No matter where you live, you can enjoy your artwork right out of the box.
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-6">
-        <h2 id="faq-6" class="about-heading">6. Is it bright enough?</h2>
-        <p class="about-copy">
-          Yes — our lighting is designed to create atmosphere, not overwhelm your space.
-        </p>
-        <p class="about-copy">
-          Instead of flooding the room with harsh light, ZYBAR uses selective illumination to
-          highlight the car’s iconic silhouette, creating a premium, cinematic look whether it’s
-          displayed in your garage, office, bedroom, or gaming room.
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">Is it bright enough?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">
+              Yes — our lighting is designed to create atmosphere, not overwhelm your space.
+            </p>
+            <p class="about-copy">
+              Instead of flooding the room with harsh light, ZYBAR uses selective illumination to
+              highlight the car’s iconic silhouette, creating a premium, cinematic look whether it’s
+              displayed in your garage, office, bedroom, or gaming room.
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-7">
-        <h2 id="faq-7" class="about-heading">7. Can I customize my own car?</h2>
-        <p class="about-copy">Yes.</p>
-        <p class="about-copy">
-          Our Custom Collection allows you to transform your own vehicle into a handcrafted
-          illuminated artwork.
-        </p>
-        <p class="about-copy">
-          Simply upload a photo of your car, choose your preferences, and our design team will create
-          a unique piece made just for you.
-        </p>
-        <p class="about-copy">
-          <a href="/products/custom-led-car-wall-art/">Start your Custom Made order →</a>
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">Can I customize my own car?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">Yes.</p>
+            <p class="about-copy">
+              Our Custom Collection allows you to transform your own vehicle into a handcrafted
+              illuminated artwork.
+            </p>
+            <p class="about-copy">
+              Simply upload a photo of your car, choose your preferences, and our design team will create
+              a unique piece made just for you.
+            </p>
+            <p class="about-copy">
+              <a href="/products/custom-led-car-wall-art/">Start your Custom Made order →</a>
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-8">
-        <h2 id="faq-8" class="about-heading">8. What if my order arrives damaged?</h2>
-        <p class="about-copy">We carefully inspect every piece before shipping.</p>
-        <p class="about-copy">
-          If your order arrives damaged during transit, simply contact us within 48 hours of delivery
-          and include a few photos of the damage.
-        </p>
-        <p class="about-copy">
-          We’ll work with you as quickly as possible to provide a replacement or the appropriate
-          solution.
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">What if my order arrives damaged?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">We carefully inspect every piece before shipping.</p>
+            <p class="about-copy">
+              If your order arrives damaged during transit, simply contact us within 48 hours of delivery
+              and include a few photos of the damage.
+            </p>
+            <p class="about-copy">
+              We’ll work with you as quickly as possible to provide a replacement or the appropriate
+              solution.
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-9">
-        <h2 id="faq-9" class="about-heading">9. What is your return policy?</h2>
-        <p class="about-copy">We offer a 30-Day Easy Returns policy for eligible products.</p>
-        <p class="about-copy">Items must be returned in their original condition and packaging.</p>
-        <p class="about-copy">
-          Please note that personalized or custom-made products cannot be returned unless they arrive
-          damaged or defective.
-        </p>
-        <p class="about-copy">
-          For full details, please visit our
-          <a href="/policies/refund-policy.html">Refund Policy</a>.
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">What is your return policy?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">We offer a 30-Day Easy Returns policy for eligible products.</p>
+            <p class="about-copy">Items must be returned in their original condition and packaging.</p>
+            <p class="about-copy">
+              Please note that personalized or custom-made products cannot be returned unless they arrive
+              damaged or defective.
+            </p>
+            <p class="about-copy">
+              For full details, please visit our
+              <a href="/policies/refund-policy.html">Refund Policy</a>.
+            </p>
+          </div>
+        </details>
 
-      <section class="faq-item" aria-labelledby="faq-10">
-        <h2 id="faq-10" class="about-heading">10. Why choose ZYBAR?</h2>
-        <p class="about-copy">ZYBAR isn’t just wall decor.</p>
-        <p class="about-copy">
-          It’s designed for people who love cars and want their passion to become part of their
-          living space.
-        </p>
-        <p class="about-copy">
-          Every piece combines premium materials, carefully controlled lighting, and handcrafted
-          detail to create an artwork that feels timeless—not just another LED decoration.
-        </p>
-        <p class="about-copy">
-          Our goal isn’t simply to light up a wall. It’s to create a space that feels unmistakably
-          yours.
-        </p>
-      </section>
+        <details class="faq-acc-item" role="listitem">
+          <summary class="faq-acc-trigger">
+            <span class="faq-acc-q">Why choose ZYBAR?</span>
+            <svg class="faq-acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="faq-acc-panel">
+            <p class="about-copy">ZYBAR isn’t just wall decor.</p>
+            <p class="about-copy">
+              It’s designed for people who love cars and want their passion to become part of their
+              living space.
+            </p>
+            <p class="about-copy">
+              Every piece combines premium materials, carefully controlled lighting, and handcrafted
+              detail to create an artwork that feels timeless—not just another LED decoration.
+            </p>
+            <p class="about-copy">
+              Our goal isn’t simply to light up a wall. It’s to create a space that feels unmistakably
+              yours.
+            </p>
+          </div>
+        </details>
+      </div>
 
       <div class="about-actions">
         <a href="/contact.html" class="about-cta about-cta--primary">Contact Support</a>

@@ -23,19 +23,25 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css" />
-    <script src="/js/nav-drawer.js" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=nav-pro1" />
+    <script src="/js/nav-drawer.js?v=nav-pro1" defer></script>
     <script src="/js/zybar-my-env.js" defer></script>
   </head>
   <body>
-    <div class="welcome-bar">Welcome to our store</div>
     <header class="site-header">
       <div class="container header-wrap">
         <a class="brand zybar-logo" href="/">
-          <img src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png" alt="ZYBAR" class="logo-img" loading="eager" width="1304" height="287" />
+          <img
+            src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png"
+            alt="ZYBAR"
+            class="logo-img"
+            loading="eager"
+            width="1304"
+            height="287"
+          />
         </a>
         <nav class="nav main-nav">
           <a href="/">Home</a>
@@ -44,50 +50,82 @@
         </nav>
         <div class="header-actions">
           <span class="currency">USD ▾</span>
-          <a href="/collections/all/" class="icon-btn" aria-label="Cart">🛒</a>
+          <a href="/cart/" class="icon-btn" aria-label="Cart">🛒</a>
         </div>
       </div>
     </header>
 
-    <main class="contact-page">
-      <section class="contact-hero container">
-        <p class="contact-eyebrow">Get In Touch</p>
-        <h1>Contact Us</h1>
-        <p class="contact-subtitle">
-          Tell us what build you are interested in. We will get back to you as soon as possible.
-        </p>
-      </section>
-
-      <section class="container contact-section">
-        <div class="contact-glass-card">
-          <form id="contactForm" novalidate>
-            <div class="contact-grid">
-              <label class="contact-field">
+    <main>
+      <section class="pdp-review-write pdp-contact-inquiry contact-page-standalone" aria-labelledby="contact-title">
+        <div class="container pdp-review-write-inner">
+          <h1 id="contact-title">Contact Us</h1>
+          <p class="pdp-contact-lede">
+            Questions about this piece? Send an inquiry — we'll get back to you soon.
+          </p>
+          <form class="pdp-review-write-form" id="contactForm" novalidate>
+            <div class="pdp-review-write-grid">
+              <label>
                 <span>Name *</span>
-                <input id="contactName" name="name" type="text" required placeholder="Your full name" />
+                <input
+                  type="text"
+                  name="name"
+                  id="contactName"
+                  maxlength="120"
+                  required
+                  placeholder="Your full name"
+                  autocomplete="name"
+                />
               </label>
-              <label class="contact-field">
+              <label>
                 <span>Email *</span>
-                <input id="contactEmail" name="email" type="email" required placeholder="you@example.com" />
+                <input
+                  type="email"
+                  name="email"
+                  id="contactEmail"
+                  maxlength="190"
+                  required
+                  placeholder="you@example.com"
+                  autocomplete="email"
+                />
               </label>
-              <label class="contact-field">
+              <label>
                 <span>Phone Number</span>
-                <input id="contactPhone" name="phone" type="tel" placeholder="+60 12-345 6789" />
+                <input
+                  type="tel"
+                  name="phone"
+                  id="contactPhone"
+                  maxlength="40"
+                  placeholder="+1 555 000 0000"
+                  autocomplete="tel"
+                />
               </label>
-              <label class="contact-field">
+              <label>
                 <span>Car Model Interest *</span>
-                <input id="contactCarModel" name="carModelInterest" type="text" required placeholder="e.g. Audi R8 White" />
-              </label>
-              <label class="contact-field contact-field-full">
-                <span>Message *</span>
-                <textarea id="contactMessage" name="message" rows="6" required placeholder="Tell us your preferred model, size, and any custom request."></textarea>
+                <input
+                  type="text"
+                  name="carModelInterest"
+                  id="contactCarModel"
+                  maxlength="160"
+                  required
+                  placeholder="Custom LED Car Wall Art"
+                />
               </label>
             </div>
-            <div class="contact-actions">
-              <button type="submit" class="btn contact-submit-btn">Send Inquiry</button>
-              <a href="/" class="btn btn-outline">Back to Home</a>
+            <label class="pdp-review-write-comment">
+              <span>Message *</span>
+              <textarea
+                name="message"
+                id="contactMessage"
+                maxlength="4000"
+                rows="5"
+                required
+                placeholder="Tell us your preferred size, power option, or any questions..."
+              ></textarea>
+            </label>
+            <div class="pdp-review-write-actions">
+              <button type="submit" class="btn pdp-review-write-btn">Send Inquiry</button>
+              <p class="review-form-status" id="contactFormStatus" aria-live="polite"></p>
             </div>
-            <p id="contactFormStatus" class="contact-status" aria-live="polite"></p>
           </form>
         </div>
       </section>
@@ -103,13 +141,13 @@
     </footer>
 
     <div id="contactToast" class="contact-toast" role="status" aria-live="polite" aria-hidden="true"></div>
-    <script src="/js/contact.js?v=2"></script>
-      <script src="/js/chatbot.js"></script>
-      <link rel="stylesheet" href="/css/premium-popup.css" />
+    <script src="/js/contact.js?v=contact-lux1"></script>
+    <script src="/js/chatbot.js"></script>
+    <link rel="stylesheet" href="/css/premium-popup.css" />
     <script src="/js/member-pricing.js" defer></script>
     <script src="/js/premium-popup/popup-storage.js" defer></script>
     <script src="/js/premium-popup/analytics.js" defer></script>
     <script src="/js/premium-popup/index.js" defer></script>
     <script src="/js/site-footer.js" defer></script>
-</body>
+  </body>
 </html>
