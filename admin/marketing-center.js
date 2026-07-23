@@ -135,23 +135,56 @@ window.AdminMarketingCenter = (function () {
       var d = r.body;
       var k = d.kpis || {};
       var life = d.lifecycle || [];
+      var cats = d.journey_categories || [];
       var up = d.upcoming || {};
 
       var kpis =
         '<div class="mkt-kpi-grid">' +
         kpiCard('Total Leads', num(k.total_leads), 'All subscribers', '#marketing/audience') +
+        kpiCard('Welcome', num(k.welcome_leads), 'Currently in Welcome', '#marketing/audience?journey=welcome_journey') +
+        kpiCard('Add to Cart', num(k.cart_leads), 'Currently in Cart', '#marketing/audience?journey=cart_journey') +
+        kpiCard('Purchase', num(k.purchase_leads), 'Currently in Purchase', '#marketing/audience?journey=customer_journey') +
         kpiCard('Subscribers Today', num(k.subscribers_today), 'New signups') +
         kpiCard('Not in Journey', num(k.never_enrolled), 'Need enrollment', '#marketing/audience?segment=never') +
         kpiCard('Journey Revenue', money(k.journey_revenue_cents), 'Store orders (attributed view)') +
         kpiCard('Open Rate', k.open_rate + '%', 'Completed emails') +
         kpiCard('Click Rate', k.click_rate + '%', 'Completed emails') +
         kpiCard('Conversion', k.conversion_rate + '%', 'Purchasers / leads') +
-        kpiCard('Rev / Recipient', money(k.revenue_per_recipient_cents), 'Average LTV proxy') +
         kpiCard('Sent Today', num(k.emails_sent_today), 'Completed sends') +
         kpiCard('Due Today', num(k.due_today), 'Scheduled sends', '#marketing/journeys') +
-        kpiCard('Pending Actions', num(k.pending_actions), 'All future + due') +
-        kpiCard('Unsubscribed', num(k.unsubscribed), 'Coming soon') +
         '</div>';
+
+      var categories =
+        '<section class="mkt-lifecycle mkt-categories">' +
+        '<div class="mkt-lifecycle-head"><h3>Lead categories</h3>' +
+        '<p class="admin-muted">Where each lead is right now — Welcome → Cart → Purchase. Click to open that Audience list.</p></div>' +
+        '<div class="mkt-category-grid">' +
+        cats
+          .map(function (c) {
+            return (
+              '<a class="mkt-category-card" href="' +
+              esc(c.href) +
+              '">' +
+              '<div class="mkt-category-title">' +
+              esc(c.label) +
+              '</div>' +
+              '<div class="mkt-category-value">' +
+              num(c.current) +
+              '</div>' +
+              '<div class="mkt-category-meta">Active now · ' +
+              num(c.active) +
+              '</div>' +
+              '<div class="mkt-category-meta">Ever enrolled · ' +
+              num(c.ever_enrolled) +
+              ' · Waiting ' +
+              num(c.waiting_history) +
+              ' · Done ' +
+              num(c.completed_history) +
+              '</div></a>'
+            );
+          })
+          .join('') +
+        '</div></section>';
 
       var strip =
         '<section class="mkt-lifecycle">' +
@@ -225,7 +258,7 @@ window.AdminMarketingCenter = (function () {
       var host = container.querySelector('.mkt-center');
       var loading = host.querySelector('.admin-loading');
       if (loading) loading.remove();
-      host.insertAdjacentHTML('beforeend', kpis + strip + table);
+      host.insertAdjacentHTML('beforeend', kpis + categories + strip + table);
 
       var btn = document.getElementById('mktExecReady');
       if (btn) {
@@ -251,6 +284,7 @@ window.AdminMarketingCenter = (function () {
   function renderAudience(container, opts) {
     opts = opts || {};
     var segment = opts.segment || '';
+    var journey = opts.journey || '';
     var q = opts.q || '';
     var offset = opts.offset || 0;
     var limit = 40;
@@ -271,7 +305,7 @@ window.AdminMarketingCenter = (function () {
         '" />' +
         '<select id="mktAudSeg" class="admin-input">' +
         [
-          ['', 'All subscribers'],
+          ['', 'All stages'],
           ['never', 'Not in journey'],
           ['enrolled', 'In a journey'],
           ['waiting', 'Active / waiting'],
@@ -291,6 +325,27 @@ window.AdminMarketingCenter = (function () {
           })
           .join('') +
         '</select>' +
+        '<select id="mktAudJourney" class="admin-input">' +
+        [
+          ['', 'All journeys'],
+          ['welcome_journey', 'Welcome'],
+          ['cart_journey', 'Add to Cart'],
+          ['customer_journey', 'Purchase'],
+          ['win_back_journey', 'Win Back']
+        ]
+          .map(function (o) {
+            return (
+              '<option value="' +
+              o[0] +
+              '"' +
+              (journey === o[0] ? ' selected' : '') +
+              '>' +
+              o[1] +
+              '</option>'
+            );
+          })
+          .join('') +
+        '</select>' +
         '<button type="button" class="admin-btn-secondary" id="mktAudGo">Apply</button>' +
         '</div><div id="mktAudHost"><div class="admin-loading">Loading audience…</div></div>'
     );
@@ -302,7 +357,8 @@ window.AdminMarketingCenter = (function () {
         '&offset=' +
         offset +
         (q ? '&q=' + encodeURIComponent(q) : '') +
-        (segment ? '&segment=' + encodeURIComponent(segment) : '');
+        (segment ? '&segment=' + encodeURIComponent(segment) : '') +
+        (journey ? '&journey=' + encodeURIComponent(journey) : '');
       fetchJson(url).then(function (r) {
         var host = document.getElementById('mktAudHost');
         if (!host) return;
@@ -382,10 +438,12 @@ window.AdminMarketingCenter = (function () {
     document.getElementById('mktAudGo').onclick = function () {
       q = document.getElementById('mktAudQ').value || '';
       segment = document.getElementById('mktAudSeg').value || '';
+      journey = document.getElementById('mktAudJourney').value || '';
       offset = 0;
       var hash = '#marketing/audience';
       var params = [];
       if (segment) params.push('segment=' + encodeURIComponent(segment));
+      if (journey) params.push('journey=' + encodeURIComponent(journey));
       if (q) params.push('q=' + encodeURIComponent(q));
       if (params.length) hash += '?' + params.join('&');
       window.location.hash = hash;

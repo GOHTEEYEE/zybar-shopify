@@ -1793,6 +1793,7 @@ app.get('/api/admin/marketing/audience', async (req, res) => {
     const data = await MarketingCenter.getAudience(supabase, {
       q: req.query && req.query.q,
       segment: req.query && req.query.segment,
+      journey: req.query && (req.query.journey || req.query.journey_key),
       limit: req.query && req.query.limit,
       offset: req.query && req.query.offset,
       include_test: String((req.query && req.query.include_test) || '') === '1'

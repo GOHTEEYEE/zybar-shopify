@@ -3365,3 +3365,40 @@ a.mkt-kpi:hover {
   .mkt-timeline li { grid-template-columns: 1fr; }
   .mkt-life-arrow { display: none; }
 }
+
+.mkt-categories { margin-top: 0.25rem; }
+.mkt-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+.mkt-category-card {
+  display: block;
+  padding: 1rem 1.1rem;
+  border: 1px solid #eceff3;
+  border-radius: 12px;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.mkt-category-card:hover {
+  border-color: #c5cad3;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+}
+.mkt-category-title {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 0.35rem;
+}
+.mkt-category-value {
+  font-size: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.45rem;
+}
+.mkt-category-meta {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  line-height: 1.35;
+}

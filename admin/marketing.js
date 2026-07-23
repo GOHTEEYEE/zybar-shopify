@@ -60,6 +60,7 @@ window.renderAdminmarketing = function (container) {
     if (section === 'audience') {
       return MC.renderAudience(container, {
         segment: queryParams.segment || '',
+        journey: queryParams.journey || queryParams.journey_key || '',
         q: queryParams.q || '',
         profileId: audienceProfileId
       });
