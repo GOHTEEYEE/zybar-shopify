@@ -673,7 +673,7 @@
     };
   }
 
-  function createCheckoutSession(pending) {
+  function createCheckoutSession(pending, modeOptions) {
     var config = getConfig();
     var pricing = getPricing();
     var apiBase = config.apiBaseUrl || window.location.origin;
@@ -690,13 +690,16 @@
       successUrl.indexOf("{CHECKOUT_SESSION_ID}") !== -1
         ? successUrl
         : successUrl + (successUrl.indexOf("?") === -1 ? "?" : "&") + "session_id={CHECKOUT_SESSION_ID}";
+    var modes = modeOptions || {};
+    var wantCustom = modes.custom !== false;
+    var wantEmbedded = modes.embedded !== false;
 
     return fetch(apiBase + "/api/create-checkout-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        embedded: true,
-        custom: true,
+        embedded: wantEmbedded,
+        custom: wantCustom,
         lineItems: pending.lineItems,
         shippingMethod: shippingMethod,
         discountCode: pending.discountCode || state.discountCode || null,
@@ -748,6 +751,13 @@
     });
   }
 
+  function createCheckoutSessionForMode(modeOptions) {
+    if (!state.pending) {
+      return Promise.resolve({ ok: false, data: { error: "No checkout in progress." } });
+    }
+    return createCheckoutSession(state.pending, modeOptions);
+  }
+
   function mountStripeFromSessionResult(result, token) {
     if (!result.ok || !result.data) {
       showError(
@@ -782,7 +792,20 @@
       console.warn("Custom checkout unavailable, falling back to embedded:", err);
       if (token !== state.mountToken) return;
       teardownStripeCheckout();
-      return mountEmbeddedCheckout(stripe, result.data.clientSecret, token);
+      // Custom session secrets cannot be used with Embedded Checkout — mint a new session.
+      return createCheckoutSessionForMode({ custom: false, embedded: true }).then(function (fallback) {
+        if (token !== state.mountToken) return;
+        if (!fallback.ok || !fallback.data || !fallback.data.clientSecret) {
+          showError(
+            (fallback.data && fallback.data.error) ||
+              (err && err.message) ||
+              "Could not start checkout. Please refresh and try again."
+          );
+          return;
+        }
+        rememberSession(getSelectedShippingMethod(), fallback);
+        return mountEmbeddedCheckout(stripe, fallback.data.clientSecret, token);
+      });
     });
   }
 
@@ -882,13 +905,14 @@
 
   function syncTotalsFromStripeCheckout(checkout) {
     try {
-      var stripeMinor =
-        checkout &&
-        checkout.total &&
-        checkout.total.total &&
-        checkout.total.total.minorUnitsAmount;
-      var stripeLabel =
-        checkout && checkout.total && checkout.total.total && checkout.total.total.amount;
+      var session =
+        checkout && typeof checkout.session === "function" ? checkout.session() : null;
+      var totalObj =
+        (session && session.total && session.total.total) ||
+        (checkout && checkout.total && checkout.total.total) ||
+        null;
+      var stripeMinor = totalObj && totalObj.minorUnitsAmount;
+      var stripeLabel = totalObj && totalObj.amount;
       if (!Number.isFinite(Number(stripeMinor))) return;
       var totalUsd = Number(stripeMinor) / 100;
       state.total = totalUsd;
@@ -903,6 +927,17 @@
         mobileTotal.setAttribute("data-value", String(totalUsd));
       }
     } catch (_) {}
+  }
+
+  function expressMethodsAvailable(paymentMethods) {
+    if (!paymentMethods) return false;
+    if (Array.isArray(paymentMethods)) return paymentMethods.length > 0;
+    var keys = Object.keys(paymentMethods);
+    for (var i = 0; i < keys.length; i++) {
+      var entry = paymentMethods[keys[i]];
+      if (entry && entry.available) return true;
+    }
+    return false;
   }
 
   /**
@@ -960,87 +995,79 @@
     state.clientSecret = clientSecret;
 
     if (typeof stripe.initCheckout !== "function") {
-      return mountEmbeddedCheckout(stripe, clientSecret, token);
+      return Promise.reject(new Error("Stripe.initCheckout is not available in this browser."));
     }
 
-    try {
-      var checkout = stripe.initCheckout({
-        clientSecret: clientSecret,
-        elementsOptions: { appearance: getAppearance() }
-      });
-      if (token !== state.mountToken) {
-        try {
-          if (typeof checkout.destroy === "function") checkout.destroy();
-        } catch (_) {}
-        return Promise.resolve();
-      }
-      state.stripeCheckout = checkout;
-      state.paymentMode = "custom";
+    // Basil Stripe.js: initCheckout is async and takes fetchClientSecret (not clientSecret).
+    // Confirm / update* live on the checkout object (no loadActions).
+    var initResult = stripe.initCheckout({
+      fetchClientSecret: function () {
+        return Promise.resolve(clientSecret);
+      },
+      elementsOptions: { appearance: getAppearance() }
+    });
 
-      var paymentMount = document.getElementById("checkout-payment-element");
-      if (paymentMount && typeof checkout.createPaymentElement === "function") {
-        // Payment Element: cards + PayPal; hide Link; wallets stay in Express.
-        var paymentElement = checkout.createPaymentElement({
-          layout: "tabs",
-          wallets: {
-            applePay: "never",
-            googlePay: "never",
-            link: "never"
-          },
-          paymentMethodOrder: ["card", "paypal"]
-        });
-        paymentElement.mount("#checkout-payment-element");
-      }
-
-      var expressMount = document.getElementById("checkout-express-element");
-      var expressSection = document.querySelector(".checkout-block--express");
-      var expressElement = null;
-      if (expressMount && typeof checkout.createExpressCheckoutElement === "function") {
-        try {
-          // Apple Pay / Google Pay first; hide Link from express row.
-          expressElement = checkout.createExpressCheckoutElement({
-            paymentMethods: {
-              applePay: "always",
-              googlePay: "always",
-              link: "never",
-              paypal: "auto",
-              amazonPay: "never",
-              klarna: "never"
-            },
-            paymentMethodOrder: ["applePay", "googlePay", "paypal"],
-            layout: { maxColumns: 2, maxRows: 2, overflow: "auto" }
-          });
-          expressElement.mount("#checkout-express-element");
-          expressElement.on("availablepaymentmethodschange", function (event) {
-            var methods = (event && event.paymentMethods) || [];
-            if (expressSection) expressSection.hidden = !methods.length;
-          });
-        } catch (_) {
-          if (expressSection) expressSection.hidden = true;
-        }
-      } else if (expressSection) {
-        expressSection.hidden = true;
-      }
-
-      return checkout.loadActions().then(function (result) {
+    return Promise.resolve(initResult)
+      .then(function (checkout) {
         if (token !== state.mountToken) return;
+        if (!checkout || typeof checkout.createPaymentElement !== "function") {
+          throw new Error("Stripe Custom Checkout failed to initialize.");
+        }
+
+        state.stripeCheckout = checkout;
+        state.paymentMode = "custom";
+
+        var paymentMount = document.getElementById("checkout-payment-element");
+        if (paymentMount) {
+          paymentMount.hidden = false;
+          // Payment Element: cards + PayPal; hide Link; wallets stay in Express.
+          var paymentElement = checkout.createPaymentElement({
+            layout: "tabs",
+            wallets: {
+              applePay: "never",
+              googlePay: "never",
+              link: "never"
+            },
+            paymentMethodOrder: ["card", "paypal"]
+          });
+          paymentElement.mount("#checkout-payment-element");
+        }
+
+        var expressMount = document.getElementById("checkout-express-element");
+        var expressSection = document.querySelector(".checkout-block--express");
+        var expressElement = null;
+        if (expressMount && typeof checkout.createExpressCheckoutElement === "function") {
+          try {
+            // Apple Pay / Google Pay first; hide Link from express row.
+            expressElement = checkout.createExpressCheckoutElement({
+              paymentMethods: {
+                applePay: "always",
+                googlePay: "always",
+                link: "never",
+                paypal: "auto",
+                amazonPay: "never",
+                klarna: "never"
+              },
+              paymentMethodOrder: ["applePay", "googlePay", "paypal"],
+              layout: { maxColumns: 2, maxRows: 2, overflow: "auto" }
+            });
+            expressElement.mount("#checkout-express-element");
+            expressElement.on("availablepaymentmethodschange", function (event) {
+              var methods = (event && event.paymentMethods) || {};
+              if (expressSection) expressSection.hidden = !expressMethodsAvailable(methods);
+            });
+          } catch (_) {
+            if (expressSection) expressSection.hidden = true;
+          }
+        } else if (expressSection) {
+          expressSection.hidden = true;
+        }
+
         hideLoading();
         clearError();
-        if (result.type !== "success") {
-          var errMsg =
-            result.error && result.error.message
-              ? result.error.message
-              : "Could not initialize payment.";
-          showError(errMsg);
-          return;
-        }
-
-        var actions = result.actions;
-
-        // Sync page TOTAL with the live Checkout Session amount (includes shipping).
         syncTotalsFromStripeCheckout(checkout);
 
-        // Required for Apple Pay / Google Pay / Link express buttons to complete.
+        // Required for Apple Pay / Google Pay express buttons to complete.
         if (expressElement && typeof expressElement.on === "function") {
           expressElement.on("confirm", function (event) {
             if (window.ZYBAR && window.ZYBAR.Analytics) {
@@ -1049,7 +1076,7 @@
                 state.total
               );
             }
-            actions
+            checkout
               .confirm({
                 expressCheckoutConfirmEvent: event,
                 returnUrl: state.returnUrl
@@ -1069,11 +1096,14 @@
               });
           });
         }
+
+        var payBtn = document.getElementById("checkout-pay-btn");
+        if (payBtn) payBtn.hidden = false;
+      })
+      .catch(function (err) {
+        teardownStripeCheckout();
+        return Promise.reject(err);
       });
-    } catch (err) {
-      teardownStripeCheckout();
-      return mountEmbeddedCheckout(stripe, clientSecret, token);
-    }
   }
 
   function mountEmbeddedCheckout(stripe, clientSecret, token) {
@@ -1193,32 +1223,24 @@
 
     var shippingAddress = buildStripeShippingAddress(values);
 
-    checkout
-      .loadActions()
-      .then(function (result) {
-        if (result.type !== "success") {
-          throw new Error(
-            (result.error && result.error.message) || "Could not complete checkout."
-          );
-        }
-        var actions = result.actions;
-        var updates = [];
-        if (values.email && typeof actions.updateEmail === "function") {
-          updates.push(actions.updateEmail(values.email));
-        }
-        if (typeof actions.updateShippingAddress === "function") {
-          updates.push(actions.updateShippingAddress(shippingAddress));
-        }
-        if (values.phone && typeof actions.updatePhoneNumber === "function") {
-          updates.push(actions.updatePhoneNumber(values.phone));
-        }
-        return Promise.all(updates).then(function () {
-          return actions.confirm({
-            email: values.email,
-            phoneNumber: values.phone || undefined,
-            shippingAddress: shippingAddress,
-            returnUrl: returnUrl
-          });
+    var updates = [];
+    if (values.email && typeof checkout.updateEmail === "function") {
+      updates.push(checkout.updateEmail(values.email));
+    }
+    if (typeof checkout.updateShippingAddress === "function") {
+      updates.push(checkout.updateShippingAddress(shippingAddress));
+    }
+    if (values.phone && typeof checkout.updatePhoneNumber === "function") {
+      updates.push(checkout.updatePhoneNumber(values.phone));
+    }
+
+    Promise.all(updates)
+      .then(function () {
+        return checkout.confirm({
+          email: values.email,
+          phoneNumber: values.phone || undefined,
+          shippingAddress: shippingAddress,
+          returnUrl: returnUrl
         });
       })
       .then(function (confirmResult) {

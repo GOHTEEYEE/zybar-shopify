@@ -10,6 +10,19 @@
           "value": "public, max-age=0, must-revalidate"
         }
       ]
+    },
+    {
+      "source": "/.well-known/apple-developer-merchantid-domain-association",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/octet-stream"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
     }
   ],
   "builds": [
@@ -18,6 +31,10 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/[...all].js" },
+    {
+      "src": "/.well-known/apple-developer-merchantid-domain-association",
+      "dest": "/.well-known/apple-developer-merchantid-domain-association"
+    },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

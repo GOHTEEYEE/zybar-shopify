@@ -27,9 +27,10 @@
     <script src="/js/meta-pixel.js"></script>
     <script src="/js/analytics-config.js"></script>
     <script src="/js/analytics.js?v=4" async></script>
-    <script src="https://js.stripe.com/v3/"></script>
+    <!-- Basil+ required for ui_mode:custom + Express Checkout (Apple/Google Pay). -->
+    <script src="https://js.stripe.com/basil/stripe.js"></script>
     <script src="/js/country-selector.js" defer></script>
-    <script src="/js/checkout-page.js?v=capi1" defer></script>
+    <script src="/js/checkout-page.js?v=basil1" defer></script>
   </head>
   <body class="checkout-page">
     <header class="checkout-topbar">

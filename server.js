@@ -103,7 +103,11 @@ if (!MetaCapi.configured()) {
   console.warn('Meta CAPI not configured — set META_CAPI_ACCESS_TOKEN (and optional META_PIXEL_ID) for server-side Purchase.');
 }
 
-const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
+// Custom Checkout (ui_mode: custom) + Express wallets need basil+.
+// Package default is still 2025-02-24.acacia, which silently falls back to embedded.
+const stripe = stripeSecretKey
+  ? new Stripe(stripeSecretKey, { apiVersion: '2025-03-31.basil' })
+  : null;
 const openai = openAiApiKey ? new OpenAI({ apiKey: openAiApiKey }) : null;
 const supabase = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
@@ -2787,10 +2791,16 @@ app.post('/api/create-checkout-session', async (req, res) => {
   // Wallets appear in Payment Element / Express Checkout when domain + Dashboard
   // wallet settings are configured. Do NOT use automatic_payment_methods here —
   // that flag is PaymentIntent-only.
+  //
+  // branding_settings + custom_text are Embedded/Hosted only — including them
+  // with ui_mode:custom makes Stripe reject the session and we fall back to
+  // embedded (which hides Express Apple Pay / Google Pay on our page).
   const sessionBase = {
     mode: 'payment',
     line_items: stripeLineItems,
-    metadata,
+    metadata
+  };
+  const embeddedOnlySettings = {
     branding_settings: {
       background_color: '#111111',
       button_color: '#d4af37',
@@ -2841,7 +2851,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
           console.warn('Custom checkout unavailable, using embedded:', customErr.message || customErr);
         }
       }
-      const session = await stripe.checkout.sessions.create(Object.assign({}, sessionBase, {
+      const session = await stripe.checkout.sessions.create(Object.assign({}, sessionBase, embeddedOnlySettings, {
         ui_mode: 'embedded',
         return_url: buildReturnUrl()
       }));
@@ -2859,7 +2869,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       });
     }
 
-    const session = await stripe.checkout.sessions.create(Object.assign({}, sessionBase, {
+    const session = await stripe.checkout.sessions.create(Object.assign({}, sessionBase, embeddedOnlySettings, {
       success_url: successUrl,
       cancel_url: cancelUrl
     }));
