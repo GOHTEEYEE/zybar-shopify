@@ -410,7 +410,7 @@ window.renderAdminmarketing = function (container) {
           btn.addEventListener('click', function () {
             if (
               !window.confirm(
-                'Permanently delete this journey? It will disappear from this screen and cannot be restored. Core Welcome / Cart / Purchase / Win Back journeys cannot be deleted.'
+                'Permanently delete this journey?\n\nThis also removes its enrollments and queued actions. Marketing send history is kept (journey link cleared). Core Welcome / Cart / Purchase / Win Back journeys cannot be deleted.'
               )
             ) {
               return;

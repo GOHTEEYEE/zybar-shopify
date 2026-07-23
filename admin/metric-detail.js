@@ -54,13 +54,13 @@ window.AdminMetricDetail = (function () {
     },
     email_leads: {
       title: 'Email Leads',
-      trendKey: 'visitors',
+      trendKey: 'email_leads',
       money: false,
       filters: ['country', 'source']
     },
     abandoned: {
       title: 'Abandoned Cart',
-      trendKey: 'add_to_cart',
+      trendKey: 'abandoned',
       money: false,
       filters: ['country']
     }
@@ -710,8 +710,8 @@ window.AdminMetricDetail = (function () {
       ]).then(function (parts) {
         var trends = parts[0] || {};
         var prevTrends = parts[1] || {};
-        var currentPoints = trends[seriesKey] || trends.visitors || [];
-        var prevPoints = (prevTrends && (prevTrends[seriesKey] || prevTrends.visitors)) || [];
+        var currentPoints = trends[seriesKey] || [];
+        var prevPoints = (prevTrends && prevTrends[seriesKey]) || [];
         prevSeriesValues = seriesValues(prevPoints, meta.money);
         var currTotal = sumSeries(seriesValues(currentPoints, meta.money));
         var prevTotal = sumSeries(prevSeriesValues);

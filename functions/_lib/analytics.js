@@ -323,10 +323,12 @@ async function fetchAllRows(env, path) {
 async function trendsFallback(env, range, granularity) {
   const start = encodeURIComponent(range.start);
   const end = encodeURIComponent(range.end);
-  const [events, sessions, orders] = await Promise.all([
+  const [events, sessions, orders, leads, carts] = await Promise.all([
     fetchAllRows(env, '/rest/v1/events?created_at=gte.' + start + '&created_at=lt.' + end + '&select=event_type,created_at&limit=10000'),
     fetchAllRows(env, '/rest/v1/sessions?started_at=gte.' + start + '&started_at=lt.' + end + '&select=visitor_id,started_at&limit=10000'),
-    fetchAllRows(env, '/rest/v1/orders?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at,amount_total_cents&limit=10000')
+    fetchAllRows(env, '/rest/v1/orders?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at,amount_total_cents&limit=10000'),
+    fetchAllRows(env, '/rest/v1/newsletter_subscribers?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at&limit=10000'),
+    fetchAllRows(env, '/rest/v1/cart_sessions?created_at=gte.' + start + '&created_at=lt.' + end + '&select=created_at,abandoned_at,last_activity_at,status,recovery_status,purchased_at&limit=10000')
   ]);
 
   const addToCart = {};
@@ -340,8 +342,10 @@ async function trendsFallback(env, range, granularity) {
   });
 
   const visitors = {};
+  const sessionCounts = {};
   sessions.forEach(function (s) {
     const d = bucketDate(s.started_at, granularity);
+    sessionCounts[d] = (sessionCounts[d] || 0) + 1;
     if (!visitors[d]) visitors[d] = {};
     if (s.visitor_id) visitors[d][s.visitor_id] = true;
   });
@@ -352,6 +356,23 @@ async function trendsFallback(env, range, granularity) {
     const d = bucketDate(o.created_at, granularity);
     revenue[d] = (revenue[d] || 0) + (Number(o.amount_total_cents) || 0);
     orderCounts[d] = (orderCounts[d] || 0) + 1;
+  });
+
+  const emailLeads = {};
+  leads.forEach(function (l) {
+    const d = bucketDate(l.created_at, granularity);
+    emailLeads[d] = (emailLeads[d] || 0) + 1;
+  });
+
+  const abandoned = {};
+  carts.forEach(function (c) {
+    const isAbandoned =
+      c.status === 'abandoned' ||
+      ['abandoned', 'recoverable', 'unrecovered'].indexOf(c.recovery_status) !== -1 ||
+      (!c.purchased_at && c.abandoned_at);
+    if (!isAbandoned) return;
+    const d = bucketDate(c.abandoned_at || c.last_activity_at || c.created_at, granularity);
+    abandoned[d] = (abandoned[d] || 0) + 1;
   });
 
   function toSeries(map, isObjectSet) {
@@ -368,7 +389,10 @@ async function trendsFallback(env, range, granularity) {
     orders: toSeries(orderCounts, false),
     add_to_cart: toSeries(addToCart, false),
     checkout: toSeries(checkout, false),
-    visitors: toSeries(visitors, true)
+    visitors: toSeries(visitors, true),
+    sessions: toSeries(sessionCounts, false),
+    email_leads: toSeries(emailLeads, false),
+    abandoned: toSeries(abandoned, false)
   };
 }
 
