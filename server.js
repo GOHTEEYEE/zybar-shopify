@@ -2978,6 +2978,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
             percentOff: appliedPercentOff || null
           }
         : null;
+    const customerEmailSet = !!(sessionBase.customer_email);
 
     if (isCustom || isEmbedded) {
       if (isCustom) {
@@ -2991,7 +2992,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
             clientSecret: session.client_secret,
             sessionId: session.id,
             checkoutMode: 'custom',
-            appliedDiscount: discountPayload
+            appliedDiscount: discountPayload,
+            customerEmailSet: customerEmailSet
           });
         } catch (customErr) {
           console.warn('Custom checkout unavailable, using embedded:', customErr.message || customErr);
@@ -3007,7 +3009,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
         sessionId: session.id,
         checkoutMode: 'embedded',
         embedded: true,
-        appliedDiscount: discountPayload
+        appliedDiscount: discountPayload,
+        customerEmailSet: customerEmailSet
       });
     }
 
@@ -3019,7 +3022,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.json({
       url: session.url,
       sessionId: session.id,
-      appliedDiscount: discountPayload
+      appliedDiscount: discountPayload,
+      customerEmailSet: customerEmailSet
     });
   } catch (err) {
     console.error('Checkout session creation failed:', err);

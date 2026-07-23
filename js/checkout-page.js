@@ -31,6 +31,8 @@
     /** Cached Stripe session results by shipping method for instant swaps. */
     sessionByShipping: {},
     sessionFetchByShipping: {},
+    /** True when the active Stripe session was created with customer_email set. */
+    sessionCustomerEmailSet: false,
     /** Hidden internal test code from ?code=DEVTEST99 (not shown as a promo field). */
     requestedDevtestCode: "",
     customerEmail: ""
@@ -99,6 +101,15 @@
         if (state.pending) delete state.pending.discountCode;
       }
     }
+  }
+
+  function applySessionFlagsFromResult(result) {
+    var data = result && result.data;
+    state.sessionCustomerEmailSet = !!(data && data.customerEmailSet);
+  }
+
+  function sessionHasServerCustomerEmail() {
+    return !!state.sessionCustomerEmailSet;
   }
 
   function computeDevtestDiscountUSD(subtotal, shipping, tax) {
@@ -849,6 +860,7 @@
       );
       return Promise.resolve();
     }
+    applySessionFlagsFromResult(result);
     if (result.data.url && !result.data.clientSecret) {
       window.location.href = result.data.url;
       return Promise.resolve();
@@ -902,6 +914,7 @@
       return;
     }
     applyDiscountFromSessionResult(result);
+    applySessionFlagsFromResult(result);
     state.sessionByShipping[shippingMethod] = result;
     if (state.displayItems && state.displayItems.length) {
       renderOrderSummary(state.displayItems);
@@ -960,6 +973,7 @@
     } catch (_) {}
     state.stripeCheckout = null;
     state.clientSecret = "";
+    state.sessionCustomerEmailSet = false;
 
     var paymentMount = document.getElementById("checkout-payment-element");
     if (paymentMount) {
@@ -1316,8 +1330,16 @@
         if (!checkout) {
           throw new Error("Payment is not ready. Please wait or refresh the page.");
         }
+        var emailAlreadySet = sessionHasServerCustomerEmail();
         var updates = [];
-        if (values.email && typeof checkout.updateEmail === "function") {
+        // Only update email when the session was created without customer_email
+        // (normal checkout). DEVTEST remints set customer_email server-side —
+        // calling updateEmail again throws from Stripe.
+        if (
+          values.email &&
+          !emailAlreadySet &&
+          typeof checkout.updateEmail === "function"
+        ) {
           updates.push(checkout.updateEmail(values.email));
         }
         if (typeof checkout.updateShippingAddress === "function") {
@@ -1327,12 +1349,15 @@
           updates.push(checkout.updatePhoneNumber(values.phone));
         }
         return Promise.all(updates).then(function () {
-          return checkout.confirm({
-            email: values.email,
+          var confirmOpts = {
             phoneNumber: values.phone || undefined,
             shippingAddress: shippingAddress,
             returnUrl: returnUrl
-          });
+          };
+          if (!emailAlreadySet && values.email) {
+            confirmOpts.email = values.email;
+          }
+          return checkout.confirm(confirmOpts);
         });
       })
       .then(function (confirmResult) {
