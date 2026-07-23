@@ -1274,18 +1274,24 @@
     };
   }
 
+  /**
+   * Basil Custom Checkout expects shipping as { name, address: { line1, ... } }.
+   * Flat Address fields at the top level are rejected (e.g. "line1 is not an accepted parameter").
+   */
   function buildStripeShippingAddress(values) {
     var name = [values.firstName, values.lastName].filter(Boolean).join(" ").trim();
-    var shipping = {
-      name: name,
+    var address = {
       line1: values.address,
       city: values.city,
       postal_code: values.postcode,
       country: values.country
     };
-    if (values.apartment) shipping.line2 = values.apartment;
-    if (values.state) shipping.state = values.state;
-    return shipping;
+    if (values.apartment) address.line2 = values.apartment;
+    if (values.state) address.state = values.state;
+    return {
+      name: name,
+      address: address
+    };
   }
 
   function validateForm() {

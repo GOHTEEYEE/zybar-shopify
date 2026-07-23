@@ -1868,10 +1868,18 @@ function formatShippingAddress(details) {
 
 /** Normalized customer + shipping fields for Supabase orders (Stripe Checkout Session). */
 function extractOrderCustomerFields(session) {
-  const details =
-    session && (session.customer_details || session.shipping_details)
-      ? session.customer_details || session.shipping_details
+  const collectedShipping =
+    session &&
+    session.collected_information &&
+    session.collected_information.shipping_details
+      ? session.collected_information.shipping_details
       : null;
+  // Basil stores shipping under collected_information; legacy sessions used shipping_details.
+  const shippingDetails = collectedShipping || (session && session.shipping_details) || null;
+  const details =
+    session && session.customer_details
+      ? session.customer_details
+      : shippingDetails;
   const email =
     details && details.email
       ? String(details.email).trim()
@@ -1879,11 +1887,21 @@ function extractOrderCustomerFields(session) {
         ? String(session.customer_email).trim()
         : null;
   const phone = details && details.phone ? String(details.phone).trim() : null;
-  const name = details && details.name ? String(details.name).trim() : null;
-  const addr =
-    details && details.address && typeof details.address === 'object' ? details.address : {};
-  const line1 = addr.line1 || addr.line_1 || '';
-  const line2 = addr.line2 || addr.line_2 || '';
+  const name =
+    details && details.name
+      ? String(details.name).trim()
+      : shippingDetails && shippingDetails.name
+        ? String(shippingDetails.name).trim()
+        : null;
+  const addrSource =
+    (details && details.address && typeof details.address === 'object' && details.address) ||
+    (shippingDetails &&
+      shippingDetails.address &&
+      typeof shippingDetails.address === 'object' &&
+      shippingDetails.address) ||
+    {};
+  const line1 = addrSource.line1 || addrSource.line_1 || '';
+  const line2 = addrSource.line2 || addrSource.line_2 || '';
   const streetParts = [line1, line2].map(function (s) {
     return String(s || '').trim();
   }).filter(Boolean);
@@ -1893,13 +1911,13 @@ function extractOrderCustomerFields(session) {
     customer_email: email || null,
     customer_phone: phone || null,
     shipping_address: streetParts.length ? streetParts.join(', ') : null,
-    city: addr.city ? String(addr.city).trim() : null,
-    state: addr.state ? String(addr.state).trim() : null,
+    city: addrSource.city ? String(addrSource.city).trim() : null,
+    state: addrSource.state ? String(addrSource.state).trim() : null,
     postcode:
-      addr.postal_code || addr.postalCode
-        ? String(addr.postal_code || addr.postalCode).trim()
+      addrSource.postal_code || addrSource.postalCode
+        ? String(addrSource.postal_code || addrSource.postalCode).trim()
         : null,
-    country: addr.country ? String(addr.country).trim() : null
+    country: addrSource.country ? String(addrSource.country).trim() : null
   };
 }
 
@@ -2202,7 +2220,11 @@ app.get('/api/checkout-session', async (req, res) => {
       };
     });
 
-    const shipping = formatShippingAddress(session.customer_details || session.shipping_details);
+    const shipping = formatShippingAddress(
+      (session.collected_information && session.collected_information.shipping_details) ||
+        session.customer_details ||
+        session.shipping_details
+    );
     const shippingCents =
       session.total_details &&
       typeof session.total_details.amount_shipping === 'number'
