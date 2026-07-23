@@ -37,14 +37,26 @@ window.AdminMarketingCenter = (function () {
   }
 
   function fetchJson(url, opts) {
-    return fetch(window.location.origin + url, opts || {})
+    // Use relative /api/... paths so admin/auth.js can attach the Bearer token.
+    var path = String(url || '');
+    if (path.indexOf('http') === 0) {
+      try {
+        path = new URL(path).pathname + new URL(path).search;
+      } catch (e) {}
+    }
+    return fetch(path, opts || {})
       .then(function (r) {
-        return r.json().then(function (body) {
-          return { ok: r.ok, status: r.status, body: body };
-        });
+        return r
+          .json()
+          .then(function (body) {
+            return { ok: r.ok, status: r.status, body: body };
+          })
+          .catch(function () {
+            return { ok: false, status: r.status, body: { error: 'Invalid response' } };
+          });
       })
       .catch(function () {
-        return { ok: false, body: {} };
+        return { ok: false, status: 0, body: { error: 'Network error' } };
       });
   }
 
@@ -109,9 +121,14 @@ window.AdminMarketingCenter = (function () {
 
     fetchJson('/api/admin/marketing/overview').then(function (r) {
       if (!r.ok) {
+        var errMsg =
+          (r.body && r.body.error) ||
+          (r.status === 401 ? 'Admin session expired — please sign in again.' : 'Failed to load overview.');
+        var loading = container.querySelector('.admin-loading');
+        if (loading) loading.remove();
         container.querySelector('.mkt-center').insertAdjacentHTML(
           'beforeend',
-          '<p class="admin-error">Failed to load overview.</p>'
+          '<p class="admin-error">' + esc(errMsg) + '</p>'
         );
         return;
       }
