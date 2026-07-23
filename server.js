@@ -1886,7 +1886,14 @@ function extractOrderCustomerFields(session) {
       : session && session.customer_email
         ? String(session.customer_email).trim()
         : null;
-  const phone = details && details.phone ? String(details.phone).trim() : null;
+  const phone =
+    (details && details.phone ? String(details.phone).trim() : null) ||
+    (session &&
+    session.customer_details &&
+    session.customer_details.phone
+      ? String(session.customer_details.phone).trim()
+      : null) ||
+    null;
   const name =
     details && details.name
       ? String(details.name).trim()
@@ -2220,10 +2227,18 @@ app.get('/api/checkout-session', async (req, res) => {
       };
     });
 
-    const shipping = formatShippingAddress(
+    const shippingSource =
       (session.collected_information && session.collected_information.shipping_details) ||
-        session.customer_details ||
-        session.shipping_details
+      session.customer_details ||
+      session.shipping_details ||
+      null;
+    const shipping = formatShippingAddress(
+      Object.assign({}, shippingSource || {}, {
+        phone:
+          (session.customer_details && session.customer_details.phone) ||
+          (shippingSource && shippingSource.phone) ||
+          ''
+      })
     );
     const shippingCents =
       session.total_details &&
@@ -2935,7 +2950,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
   const sessionBase = {
     mode: 'payment',
     line_items: stripeLineItems,
-    metadata
+    metadata,
+    // Required for Custom Checkout updatePhoneNumber / confirm({ phoneNumber })
+    // so phone is stored on the completed session for orders + shipping labels.
+    phone_number_collection: {
+      enabled: true
+    }
   };
   if (resolvedDevtest && resolvedDevtest.email) {
     // Prefill + lock intent to the authorized tester email for this coupon.
