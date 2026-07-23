@@ -24,6 +24,7 @@ const ProductTypes = require('./lib/product-types.js');
 const CustomOrders = require('./lib/custom-orders.js');
 const CustomLeads = require('./lib/custom-leads.js');
 const CheckoutSnapshots = require('./lib/checkout-snapshots.js');
+const DevtestDiscount = require('./lib/devtest-discount.js');
 const SearchIndexBuilder = require('./lib/search-index-builder.js');
 
 const app = express();
@@ -2574,6 +2575,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
     custom,
     shippingMethod,
     discountCode,
+    customerEmail,
+    email,
     memberCredential,
     unitAmountUSD,
     name,
@@ -2587,6 +2590,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
   } = req.body || {};
   const isEmbedded = embedded === true || embedded === 'true';
   const isCustom = custom === true || custom === 'true';
+  const checkoutEmail = String(customerEmail || email || '').trim();
 
   if (isEmbedded || isCustom) {
     if (!returnUrl && !successUrl) {
@@ -2695,18 +2699,23 @@ app.post('/api/create-checkout-session', async (req, res) => {
     );
   }
 
-  // Validate the discount against the catalog and price it off the product
-  // subtotal only (shipping stays full price) — same math the storefront shows.
+  // Product subtotal excludes the shipping line (no product metadata).
+  // Order total includes every Stripe line item (products + shipping).
   const productSubtotalUSD = stripeLineItems.reduce(function (sum, li) {
     const isProduct =
       li && li.price_data && li.price_data.product_data && li.price_data.product_data.metadata;
     if (!isProduct) return sum;
     return sum + (li.price_data.unit_amount * li.quantity) / 100;
   }, 0);
+  const orderTotalUSD = stripeLineItems.reduce(function (sum, li) {
+    if (!li || !li.price_data) return sum;
+    return sum + (li.price_data.unit_amount * li.quantity) / 100;
+  }, 0);
 
   let appliedDiscountUSD = 0;
   let appliedDiscountCode = '';
   let appliedDiscountLabel = '';
+  let appliedPercentOff = 0;
   let resolvedMember = { active: false };
   try {
     resolvedMember = await MemberPricing.resolveMember(
@@ -2721,20 +2730,34 @@ app.post('/api/create-checkout-session', async (req, res) => {
   } catch (memberErr) {
     console.warn('Checkout member pricing lookup:', memberErr && memberErr.message);
   }
-  // The browser never authorizes pricing. Only a verified member identity can
-  // select a tier benefit; arbitrary client coupon strings are ignored.
-  const effectiveDiscountCode = resolvedMember.active ? resolvedMember.discountCode : '';
-  if (effectiveDiscountCode && typeof pricingApi.applyDiscountUSD === 'function') {
-    const codeRaw = String(effectiveDiscountCode).trim();
-    appliedDiscountUSD = pricingApi.applyDiscountUSD(codeRaw, productSubtotalUSD);
-    if (appliedDiscountUSD > 0) {
-      appliedDiscountCode = codeRaw.toUpperCase();
-      const catalogEntry =
-        catalog && catalog.discountCodes ? catalog.discountCodes[codeRaw.toLowerCase()] : null;
-      appliedDiscountLabel =
-        resolvedMember.active
-          ? resolvedMember.tierLabel + ' Savings'
-          : (catalogEntry && catalogEntry.label) || 'Discount';
+
+  // Hidden internal test code (server-only). Not in the public catalog.
+  // Requires a whitelisted checkout email; applies 99% to the full order total.
+  const resolvedDevtest = DevtestDiscount.resolve(discountCode, checkoutEmail, process.env);
+  if (resolvedDevtest) {
+    appliedPercentOff = resolvedDevtest.percentOff;
+    appliedDiscountUSD = DevtestDiscount.discountAmountUSD(
+      orderTotalUSD,
+      resolvedDevtest.percentOff
+    );
+    appliedDiscountCode = resolvedDevtest.code;
+    appliedDiscountLabel = resolvedDevtest.label;
+  } else {
+    // The browser never authorizes member pricing. Only a verified member
+    // identity can select a tier benefit; arbitrary client coupons are ignored.
+    const effectiveDiscountCode = resolvedMember.active ? resolvedMember.discountCode : '';
+    if (effectiveDiscountCode && typeof pricingApi.applyDiscountUSD === 'function') {
+      const codeRaw = String(effectiveDiscountCode).trim();
+      appliedDiscountUSD = pricingApi.applyDiscountUSD(codeRaw, productSubtotalUSD);
+      if (appliedDiscountUSD > 0) {
+        appliedDiscountCode = codeRaw.toUpperCase();
+        const catalogEntry =
+          catalog && catalog.discountCodes ? catalog.discountCodes[codeRaw.toLowerCase()] : null;
+        appliedDiscountLabel =
+          resolvedMember.active
+            ? resolvedMember.tierLabel + ' Savings'
+            : (catalogEntry && catalogEntry.label) || 'Discount';
+      }
     }
   }
 
@@ -2742,6 +2765,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (appliedDiscountCode) {
     metadata.discountCode = CheckoutSnapshots.truncateMeta(appliedDiscountCode, 64);
     metadata.discountUSD = appliedDiscountUSD.toFixed(2);
+  }
+  if (appliedPercentOff > 0) {
+    metadata.discountPercent = String(appliedPercentOff);
+  }
+  if (resolvedDevtest && resolvedDevtest.email) {
+    metadata.devtestEmail = CheckoutSnapshots.truncateMeta(resolvedDevtest.email, 120);
   }
   if (productSlug) metadata.productSlug = CheckoutSnapshots.truncateMeta(productSlug, 120);
   if (size) metadata.size = CheckoutSnapshots.truncateMeta(size, 32);
@@ -2886,6 +2915,10 @@ app.post('/api/create-checkout-session', async (req, res) => {
     line_items: stripeLineItems,
     metadata
   };
+  if (resolvedDevtest && resolvedDevtest.email) {
+    // Prefill + lock intent to the authorized tester email for this coupon.
+    sessionBase.customer_email = resolvedDevtest.email;
+  }
   const embeddedOnlySettings = {
     branding_settings: {
       background_color: '#111111',
@@ -2919,7 +2952,14 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     // Attach the validated discount as a real Stripe coupon so the charged
     // amount always matches the savings promised in the cart and checkout UI.
-    if (appliedDiscountUSD > 0) {
+    if (appliedPercentOff > 0) {
+      const coupon = await stripe.coupons.create({
+        percent_off: appliedPercentOff,
+        duration: 'once',
+        name: String(appliedDiscountLabel || appliedDiscountCode).slice(0, 40)
+      });
+      sessionBase.discounts = [{ coupon: coupon.id }];
+    } else if (appliedDiscountUSD > 0) {
       const coupon = await stripe.coupons.create({
         amount_off: Math.round(appliedDiscountUSD * 100),
         currency: 'usd',
@@ -2928,6 +2968,16 @@ app.post('/api/create-checkout-session', async (req, res) => {
       });
       sessionBase.discounts = [{ coupon: coupon.id }];
     }
+
+    const discountPayload =
+      appliedDiscountCode
+        ? {
+            code: appliedDiscountCode,
+            label: appliedDiscountLabel || 'Discount',
+            amountUSD: appliedDiscountUSD,
+            percentOff: appliedPercentOff || null
+          }
+        : null;
 
     if (isCustom || isEmbedded) {
       if (isCustom) {
@@ -2940,7 +2990,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
           return res.json({
             clientSecret: session.client_secret,
             sessionId: session.id,
-            checkoutMode: 'custom'
+            checkoutMode: 'custom',
+            appliedDiscount: discountPayload
           });
         } catch (customErr) {
           console.warn('Custom checkout unavailable, using embedded:', customErr.message || customErr);
@@ -2955,7 +3006,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
         clientSecret: session.client_secret,
         sessionId: session.id,
         checkoutMode: 'embedded',
-        embedded: true
+        embedded: true,
+        appliedDiscount: discountPayload
       });
     }
 
@@ -2964,7 +3016,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
       cancel_url: cancelUrl
     }));
     await afterCheckoutSessionCreated(session);
-    return res.json({ url: session.url, sessionId: session.id });
+    return res.json({
+      url: session.url,
+      sessionId: session.id,
+      appliedDiscount: discountPayload
+    });
   } catch (err) {
     console.error('Checkout session creation failed:', err);
     return res.status(500).json({ error: err.message || 'Failed to create checkout session' });

@@ -7,7 +7,10 @@
   var PENDING_KEY = "zybar.checkout.pending";
   var CART_KEY = "zybar.cart.items";
   var ANIM_MS = 200;
+  var DEVTEST_CODE = "DEVTEST99";
+  var DEVTEST_PERCENT = 99;
   var shippingRefreshTimer = null;
+  var emailDiscountTimer = null;
 
   var state = {
     subtotal: 0,
@@ -15,6 +18,7 @@
     tax: 0,
     discount: 0,
     discountCode: "",
+    discountPercent: 0,
     total: 0,
     displayItems: [],
     clientSecret: "",
@@ -26,7 +30,10 @@
     mountToken: 0,
     /** Cached Stripe session results by shipping method for instant swaps. */
     sessionByShipping: {},
-    sessionFetchByShipping: {}
+    sessionFetchByShipping: {},
+    /** Hidden internal test code from ?code=DEVTEST99 (not shown as a promo field). */
+    requestedDevtestCode: "",
+    customerEmail: ""
   };
 
   function getConfig() {
@@ -45,6 +52,59 @@
     var summary = getPricingSummary();
     if (!summary || !code) return false;
     return String(code).toLowerCase() === String(summary.WELCOME_CODE).toLowerCase();
+  }
+
+  function isDevtestCode(code) {
+    return String(code || "").trim().toUpperCase() === DEVTEST_CODE;
+  }
+
+  function readRequestedDevtestCode() {
+    try {
+      var params = new URLSearchParams(window.location.search || "");
+      var fromQuery = String(params.get("code") || params.get("discount") || "").trim();
+      if (isDevtestCode(fromQuery)) return DEVTEST_CODE;
+      var stored = String(window.sessionStorage.getItem("zybar.devtest.code") || "").trim();
+      if (isDevtestCode(stored)) return DEVTEST_CODE;
+    } catch (_) {}
+    return "";
+  }
+
+  function persistRequestedDevtestCode(code) {
+    if (!isDevtestCode(code)) return;
+    try {
+      window.sessionStorage.setItem("zybar.devtest.code", DEVTEST_CODE);
+    } catch (_) {}
+  }
+
+  function applyDiscountFromSessionResult(result) {
+    var payload = result && result.data && result.data.appliedDiscount;
+    if (payload && payload.code) {
+      state.discountCode = String(payload.code);
+      state.discountPercent = Number(payload.percentOff) || 0;
+      state.discount =
+        typeof payload.amountUSD === "number"
+          ? payload.amountUSD
+          : Number(payload.amountUSD) || 0;
+      if (state.pending) {
+        state.pending.discountCode = state.discountCode;
+      }
+      return;
+    }
+    if (state.requestedDevtestCode) {
+      // Server silently ignored an unauthorized / incomplete DEVTEST attempt.
+      if (isDevtestCode(state.discountCode)) {
+        state.discountCode = "";
+        state.discountPercent = 0;
+        state.discount = 0;
+        if (state.pending) delete state.pending.discountCode;
+      }
+    }
+  }
+
+  function computeDevtestDiscountUSD(subtotal, shipping, tax) {
+    var base =
+      (Number(subtotal) || 0) + (Number(shipping) || 0) + (Number(tax) || 0);
+    return Math.round(base * (DEVTEST_PERCENT / 100) * 100) / 100;
   }
 
   function formatUsd(amount) {
@@ -486,11 +546,25 @@
     var pricing = getPricing();
     var shippingMethod = getSelectedShippingMethod();
     if (pricing) {
+      var provisional = pricing.calculateOrderTotals({
+        items: displayItems || [],
+        shippingMethod: shippingMethod,
+        taxUSD: state.tax,
+        discountUSD: 0
+      });
+      var discountUSD = state.discount;
+      if (isDevtestCode(state.discountCode) || state.discountPercent === DEVTEST_PERCENT) {
+        discountUSD = computeDevtestDiscountUSD(
+          provisional.subtotal,
+          provisional.shipping,
+          provisional.tax
+        );
+      }
       var order = pricing.calculateOrderTotals({
         items: displayItems || [],
         shippingMethod: shippingMethod,
         taxUSD: state.tax,
-        discountUSD: state.discount
+        discountUSD: discountUSD
       });
       state.subtotal = order.subtotal;
       state.shipping = order.shipping;
@@ -511,6 +585,9 @@
     state.subtotal = subtotal;
     state.shipping = 0;
     state.tax = 0;
+    if (isDevtestCode(state.discountCode)) {
+      state.discount = computeDevtestDiscountUSD(state.subtotal, state.shipping, state.tax);
+    }
     state.total = Math.max(0, subtotal + state.shipping + state.tax - state.discount);
     return state;
   }
@@ -531,8 +608,9 @@
         : "";
 
     var member = window.ZYBAR && window.ZYBAR.MemberPricing;
-    var discountLabel =
-      (member && member.isActive()) || isWelcomeCode(state.discountCode)
+    var discountLabel = isDevtestCode(state.discountCode)
+      ? "Internal Test Discount"
+      : (member && member.isActive()) || isWelcomeCode(state.discountCode)
         ? "Member Savings"
         : "Savings";
     var totalSavings = Math.round((calcLaunchSavings() + state.discount) * 100) / 100;
@@ -703,6 +781,11 @@
         lineItems: pending.lineItems,
         shippingMethod: shippingMethod,
         discountCode: pending.discountCode || state.discountCode || null,
+        customerEmail:
+          pending.customerEmail ||
+          state.customerEmail ||
+          ((document.getElementById("checkout-email") || {}).value || "").trim() ||
+          null,
         memberCredential:
           pending.memberCredential ||
           (window.ZYBAR &&
@@ -818,7 +901,11 @@
     if (!shippingMethod || !result || !result.ok || !result.data || !result.data.clientSecret) {
       return;
     }
+    applyDiscountFromSessionResult(result);
     state.sessionByShipping[shippingMethod] = result;
+    if (state.displayItems && state.displayItems.length) {
+      renderOrderSummary(state.displayItems);
+    }
   }
 
   function getOrCreateSession(shippingMethod) {
@@ -1223,24 +1310,29 @@
 
     var shippingAddress = buildStripeShippingAddress(values);
 
-    var updates = [];
-    if (values.email && typeof checkout.updateEmail === "function") {
-      updates.push(checkout.updateEmail(values.email));
-    }
-    if (typeof checkout.updateShippingAddress === "function") {
-      updates.push(checkout.updateShippingAddress(shippingAddress));
-    }
-    if (values.phone && typeof checkout.updatePhoneNumber === "function") {
-      updates.push(checkout.updatePhoneNumber(values.phone));
-    }
-
-    Promise.all(updates)
+    syncDevtestFromEmail({ force: isDevtestCode(state.requestedDevtestCode) })
       .then(function () {
-        return checkout.confirm({
-          email: values.email,
-          phoneNumber: values.phone || undefined,
-          shippingAddress: shippingAddress,
-          returnUrl: returnUrl
+        checkout = state.stripeCheckout || checkout;
+        if (!checkout) {
+          throw new Error("Payment is not ready. Please wait or refresh the page.");
+        }
+        var updates = [];
+        if (values.email && typeof checkout.updateEmail === "function") {
+          updates.push(checkout.updateEmail(values.email));
+        }
+        if (typeof checkout.updateShippingAddress === "function") {
+          updates.push(checkout.updateShippingAddress(shippingAddress));
+        }
+        if (values.phone && typeof checkout.updatePhoneNumber === "function") {
+          updates.push(checkout.updatePhoneNumber(values.phone));
+        }
+        return Promise.all(updates).then(function () {
+          return checkout.confirm({
+            email: values.email,
+            phoneNumber: values.phone || undefined,
+            shippingAddress: shippingAddress,
+            returnUrl: returnUrl
+          });
         });
       })
       .then(function (confirmResult) {
@@ -1382,6 +1474,9 @@
    * Must run before the first Stripe session is created.
    */
   function resolveAutoDiscount() {
+    if (isDevtestCode(state.requestedDevtestCode) || isDevtestCode(state.discountCode)) {
+      return;
+    }
     var pricing = getPricing();
     if (!pricing || typeof pricing.applyDiscountUSD !== "function") return;
     var member = window.ZYBAR && window.ZYBAR.MemberPricing;
@@ -1400,6 +1495,71 @@
       state.pending.discountCode = code;
       state.pending.memberCredential = member.getCredential();
     }
+  }
+
+  function syncDevtestFromEmail(options) {
+    options = options || {};
+    var emailInput = document.getElementById("checkout-email");
+    var email = String((emailInput && emailInput.value) || "").trim();
+    state.customerEmail = email;
+    if (!state.pending) return Promise.resolve();
+
+    if (!isDevtestCode(state.requestedDevtestCode)) return Promise.resolve();
+
+    var emailLooksValid = email.indexOf("@") > 0 && email.indexOf(".") > email.indexOf("@");
+    if (!emailLooksValid) return Promise.resolve();
+
+    var prevEmail = String(state.pending.customerEmail || "").trim().toLowerCase();
+    var nextEmail = email.toLowerCase();
+    var already =
+      isDevtestCode(state.pending.discountCode) &&
+      prevEmail === nextEmail &&
+      isDevtestCode(state.discountCode) &&
+      !options.force;
+
+    if (already) return Promise.resolve();
+
+    state.pending.discountCode = DEVTEST_CODE;
+    state.pending.customerEmail = email;
+    persistRequestedDevtestCode(DEVTEST_CODE);
+    try {
+      window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(state.pending));
+    } catch (_) {}
+
+    invalidateSessionCache();
+    return refreshCheckoutSession();
+  }
+
+  function wireDevtestDiscount() {
+    state.requestedDevtestCode = readRequestedDevtestCode();
+    if (!isDevtestCode(state.requestedDevtestCode)) return;
+
+    persistRequestedDevtestCode(DEVTEST_CODE);
+    // Keep the query param out of casual share screenshots after first load.
+    try {
+      var url = new URL(window.location.href);
+      if (url.searchParams.has("code") || url.searchParams.has("discount")) {
+        url.searchParams.delete("code");
+        url.searchParams.delete("discount");
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      }
+    } catch (_) {}
+
+    var emailInput = document.getElementById("checkout-email");
+    if (!emailInput) return;
+
+    function schedule() {
+      if (emailDiscountTimer) clearTimeout(emailDiscountTimer);
+      emailDiscountTimer = setTimeout(function () {
+        syncDevtestFromEmail().catch(function (err) {
+          console.warn("DEVTEST remint:", err && err.message);
+        });
+      }, 450);
+    }
+
+    emailInput.addEventListener("change", schedule);
+    emailInput.addEventListener("blur", schedule);
+    emailInput.addEventListener("input", schedule);
   }
 
   function init() {
@@ -1423,6 +1583,11 @@
           "session_id={CHECKOUT_SESSION_ID}";
 
     state.pending = pending;
+    wireDevtestDiscount();
+    if (isDevtestCode(state.requestedDevtestCode)) {
+      pending.discountCode = DEVTEST_CODE;
+    }
+
     var pricing = getPricing();
     if (pricing) {
       // CRO default: Priority shipping (+$5) unless customer already chose on this checkout.
@@ -1459,6 +1624,9 @@
     window.addEventListener("zybar:member-pricing-change", function () {
       var member = window.ZYBAR && window.ZYBAR.MemberPricing;
       if (!member || !member.isActive() || state.discount > 0) return;
+      if (isDevtestCode(state.requestedDevtestCode) || isDevtestCode(state.discountCode)) {
+        return;
+      }
       resolveAutoDiscount();
       renderOrderSummary(state.displayItems);
       invalidateSessionCache();
@@ -1475,6 +1643,7 @@
       })
       .then(function () {
         prefetchOtherShippingSessions();
+        return syncDevtestFromEmail();
       })
       .catch(function (err) {
         console.error(err);
