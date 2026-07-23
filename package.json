@@ -15,6 +15,7 @@
     "detect-led-colors": "node scripts/detect-product-led-colors.js",
     "sync:shared-gallery": "node scripts/sync-shared-gallery.js",
     "compress:images": "node scripts/compress-images.js",
+    "export:welcome-emails": "node scripts/export-welcome-emails.js",
     "dev": "node scripts/sync-shared-gallery.js && node server.js"
   },
   "dependencies": {

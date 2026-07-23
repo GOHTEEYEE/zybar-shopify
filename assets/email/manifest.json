@@ -1,0 +1,73 @@
+{
+  "journey": {
+    "key": "welcome_journey",
+    "name": "ZYBAR Welcome Journey",
+    "description": "7-day welcome sequence that introduces atmosphere, craft, identity, collectors, custom, and invitation.",
+    "days": [
+      {
+        "day": 0,
+        "templateKey": "welcome_day0",
+        "delayValue": 5,
+        "delayUnit": "minutes",
+        "stepName": "Welcome to ZYBAR"
+      },
+      {
+        "day": 1,
+        "templateKey": "welcome_day1",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "The Art of Living With Light"
+      },
+      {
+        "day": 2,
+        "templateKey": "welcome_day2",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Behind Every Piece"
+      },
+      {
+        "day": 3,
+        "templateKey": "welcome_day3",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Find Your Style"
+      },
+      {
+        "day": 4,
+        "templateKey": "welcome_day4",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Collector Stories"
+      },
+      {
+        "day": 5,
+        "templateKey": "welcome_day5",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Turn Your Own Car Into Light"
+      },
+      {
+        "day": 6,
+        "templateKey": "welcome_day6",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Why ZYBAR?"
+      },
+      {
+        "day": 7,
+        "templateKey": "welcome_day7",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Your Invitation"
+      }
+    ]
+  },
+  "storeUrl": "https://www.zybar.shop",
+  "imageRoots": {
+    "emailOptimized": "/Image/email/",
+    "products": "/Image/",
+    "lifestyle": "/lifestyle-gallery/",
+    "posters": "/Poster/"
+  },
+  "note": "Production emails use absolute URLs on www.zybar.shop. Local previews require the store to serve these paths."
+}
