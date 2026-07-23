@@ -1,5 +1,5 @@
 {
-  "journey": {
+  "welcome": {
     "key": "welcome_journey",
     "name": "ZYBAR Welcome Journey",
     "description": "7-day welcome sequence that introduces atmosphere, craft, identity, collectors, custom, and invitation.",
@@ -62,12 +62,131 @@
       }
     ]
   },
-  "storeUrl": "https://www.zybar.shop",
-  "imageRoots": {
-    "emailOptimized": "/Image/email/",
-    "products": "/Image/",
-    "lifestyle": "/lifestyle-gallery/",
-    "posters": "/Poster/"
+  "cart": {
+    "key": "cart_journey",
+    "name": "ZYBAR Cart Recovery Journey",
+    "description": "7-day abandoned cart recovery: reminder, atmosphere, help, proof, craft, value, invitation.",
+    "days": [
+      {
+        "day": 0,
+        "templateKey": "cart_day0",
+        "delayValue": 30,
+        "delayUnit": "minutes",
+        "stepName": "Your Cart Is Waiting"
+      },
+      {
+        "day": 1,
+        "templateKey": "cart_day1",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Imagine It On Your Wall"
+      },
+      {
+        "day": 2,
+        "templateKey": "cart_day2",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Need A Hand?"
+      },
+      {
+        "day": 3,
+        "templateKey": "cart_day3",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "What Collectors Say"
+      },
+      {
+        "day": 4,
+        "templateKey": "cart_day4",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Why The Craft Matters"
+      },
+      {
+        "day": 5,
+        "templateKey": "cart_day5",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Your Savings Still Apply"
+      },
+      {
+        "day": 6,
+        "templateKey": "cart_day6",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Make It Yours"
+      },
+      {
+        "day": 7,
+        "templateKey": "cart_day7",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Last Soft Invitation"
+      }
+    ]
   },
-  "note": "Production emails use absolute URLs on www.zybar.shop. Local previews require the store to serve these paths."
+  "purchase": {
+    "key": "customer_journey",
+    "name": "ZYBAR Purchase Journey",
+    "description": "7-day post-purchase care: thank you, anticipation, install, atmosphere, share, review, next piece.",
+    "days": [
+      {
+        "day": 0,
+        "templateKey": "purchase_day0",
+        "delayValue": 0,
+        "delayUnit": "minutes",
+        "stepName": "Thank You"
+      },
+      {
+        "day": 1,
+        "templateKey": "purchase_day1",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Your Piece Is Being Prepared"
+      },
+      {
+        "day": 2,
+        "templateKey": "purchase_day2",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "How To Live With Light"
+      },
+      {
+        "day": 3,
+        "templateKey": "purchase_day3",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Install With Ease"
+      },
+      {
+        "day": 4,
+        "templateKey": "purchase_day4",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Share Your Setup"
+      },
+      {
+        "day": 5,
+        "templateKey": "purchase_day5",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Leave A Collector Review"
+      },
+      {
+        "day": 6,
+        "templateKey": "purchase_day6",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Your Next Chapter"
+      },
+      {
+        "day": 7,
+        "templateKey": "purchase_day7",
+        "delayValue": 1,
+        "delayUnit": "days",
+        "stepName": "Welcome To The Garage"
+      }
+    ]
+  },
+  "storeUrl": "https://www.zybar.shop"
 }
