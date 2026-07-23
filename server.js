@@ -686,8 +686,7 @@ app.all('/api/cron/cleanup-checkout-snapshots', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Database unavailable' });
   try {
     const result = await CheckoutSnapshots.cleanupAbandoned(supabase, {
-      unattachedDays: Number(req.query.unattachedDays) || undefined,
-      unpaidDays: Number(req.query.unpaidDays) || undefined
+      retentionDays: Number(req.query.retentionDays) || 7
     });
     return res.json({ ok: true, result: result });
   } catch (err) {
@@ -1988,6 +1987,20 @@ async function persistPaidCheckoutSession(session) {
   if (error) {
     console.error('Supabase upsert orders error:', error);
     return { ok: false, error: error };
+  }
+
+  try {
+    const snapId =
+      session.metadata && session.metadata.checkoutSnapshotId
+        ? String(session.metadata.checkoutSnapshotId)
+        : null;
+    if (snapId) {
+      await CheckoutSnapshots.markCompleted(supabase, snapId);
+    } else if (session.id) {
+      await CheckoutSnapshots.markCompletedForStripeSession(supabase, session.id);
+    }
+  } catch (markErr) {
+    console.warn('checkout snapshot mark completed:', markErr && markErr.message);
   }
 
   let persistedOrder = null;
