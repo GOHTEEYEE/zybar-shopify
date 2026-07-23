@@ -96,7 +96,7 @@ Inspired by Apple / Porsche / Aesop / Bang & Olufsen.
 | On/Off | `/Image/comparison-overlay-top.png`, `comparison-overlay-bottom.png` |
 | Collections | `/Image/email/product-*.jpg`, lit product webps |
 | Custom | `/Image/custom-led-car-wall-art-*.jpg` |
-| Brand impact | `/Poster/caris expensive but dream is priceless .png` |
+| Brand impact | `/Poster/every-dream-starts-somewhere.jpg` |
 
 All production emails use absolute URLs on `https://www.zybar.shop`.
 

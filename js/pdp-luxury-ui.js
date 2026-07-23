@@ -329,22 +329,22 @@
         id: "shipping",
         title: "Shipping & Delivery",
         body:
-          "<p class=\"pdp-accordion-text\">Each piece is handcrafted to order in Japan. Orders ship within 2–3 business days after production, with worldwide delivery typically arriving in 7–10 business days. Tracking is provided once your order leaves our studio.</p>"
+          "<p class=\"pdp-accordion-text\">Each piece is carefully handcrafted before shipping. Standard Shipping: 14–18 business days. Priority Shipping: 7–14 business days. You’ll receive a tracking number by email once your order ships.</p>"
       },
       {
         id: "warranty",
         title: "Warranty",
         body:
-          "<p class=\"pdp-accordion-text\">Every ZYBAR piece is backed by a 30-day satisfaction guarantee and a 12-month craftsmanship warranty covering manufacturing defects. If anything falls short of our standard, we will make it right.</p>"
+          "<p class=\"pdp-accordion-text\">Every ZYBAR piece is backed by a 30-day easy returns policy for eligible products, and we carefully inspect every piece before shipping. If your order arrives damaged, contact us within 48 hours of delivery with photos.</p>"
       },
       {
         id: "installation",
         title: "Installation Guide",
         body:
           "<ol class=\"pdp-accordion-steps\">" +
-          "<li>Select your preferred wall location with access to power (or use battery mode).</li>" +
-          "<li>Mount using the included hardware—no drilling required.</li>" +
-          "<li>Connect USB power or insert batteries for cordless display.</li>" +
+          "<li>Select your preferred wall location with access to power (or use Dual Power / battery mode).</li>" +
+          "<li>Mount using the included hardware—ready to hang out of the box.</li>" +
+          "<li>Connect USB power, or use batteries if you chose Dual Power.</li>" +
           "<li>Use the remote to adjust brightness, speed, and lighting modes.</li>" +
           "</ol>"
       },
@@ -353,9 +353,10 @@
         title: "FAQs",
         body:
           "<div class=\"pdp-accordion-faq\">" +
-          "<p><strong>Can I use batteries instead of USB?</strong><br>Select Dual Power at checkout for USB and battery operation.</p>" +
-          "<p><strong>Is the artwork dimmable?</strong><br>Yes—brightness and animation speed are fully adjustable via remote.</p>" +
-          "<p><strong>Do you ship internationally?</strong><br>Yes, we offer tracked worldwide shipping on every order.</p>" +
+          "<p><strong>Where are products made?</strong><br>Handcrafted by our team and shipped worldwide from Malaysia.</p>" +
+          "<p><strong>Can I customize my own car?</strong><br>Yes — upload a photo on our Custom Made page and we’ll handcraft a one-of-one piece.</p>" +
+          "<p><strong>Can I use it in my country?</strong><br>Yes. Worldwide shipping and standard USB power compatibility.</p>" +
+          "<p><a href=\"/policies/faq.html\">View full FAQ →</a></p>" +
           "</div>"
       }
     ];

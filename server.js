@@ -3158,7 +3158,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
   const embeddedOnlySettings = {
     branding_settings: {
       background_color: '#111111',
-      button_color: '#d4af37',
+      button_color: '#ffffff',
       border_style: 'rounded',
       font_family: 'inter'
     },
