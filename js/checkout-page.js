@@ -33,6 +33,9 @@
     sessionFetchByShipping: {},
     /** True when the active Stripe session was created with customer_email set. */
     sessionCustomerEmailSet: false,
+    /** Payment Element has emitted ready for the current mount. */
+    paymentElementReady: false,
+    paymentElementReadyWaiters: [],
     /** Hidden internal test code from ?code=DEVTEST99 (not shown as a promo field). */
     requestedDevtestCode: "",
     customerEmail: ""
@@ -110,6 +113,72 @@
 
   function sessionHasServerCustomerEmail() {
     return !!state.sessionCustomerEmailSet;
+  }
+
+  function resetPaymentElementReady() {
+    state.paymentElementReady = false;
+    state.paymentElementReadyWaiters = [];
+  }
+
+  function markPaymentElementReady() {
+    state.paymentElementReady = true;
+    var waiters = state.paymentElementReadyWaiters.slice();
+    state.paymentElementReadyWaiters = [];
+    waiters.forEach(function (resolve) {
+      try {
+        resolve();
+      } catch (_) {}
+    });
+    var payBtn = document.getElementById("checkout-pay-btn");
+    if (payBtn && state.paymentMode === "custom" && !document.documentElement.classList.contains("checkout-updating-total")) {
+      payBtn.disabled = false;
+    }
+  }
+
+  /**
+   * Basil requires Payment Element mounted + ready before confirm().
+   * Resolves immediately if already ready; otherwise waits for the ready event.
+   */
+  function waitForPaymentElementReady(timeoutMs) {
+    if (state.paymentMode === "embedded") return Promise.resolve();
+    if (state.paymentElementReady && state.stripeCheckout) return Promise.resolve();
+    var limit = typeof timeoutMs === "number" ? timeoutMs : 20000;
+    return new Promise(function (resolve, reject) {
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        reject(
+          new Error(
+            "Payment form is still loading. Please wait a moment and try again."
+          )
+        );
+      }, limit);
+      state.paymentElementReadyWaiters.push(function () {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      });
+      if (state.paymentElementReady) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+  }
+
+  function setPayButtonBusy(isBusy, label) {
+    var payBtn = document.getElementById("checkout-pay-btn");
+    if (!payBtn) return;
+    if (isBusy) {
+      payBtn.disabled = true;
+      if (label) payBtn.textContent = label;
+      return;
+    }
+    payBtn.textContent = label || "Complete Secure Order";
+    payBtn.disabled = !(state.paymentElementReady || state.paymentMode === "embedded");
   }
 
   function computeDevtestDiscountUSD(subtotal, shipping, tax) {
@@ -974,6 +1043,7 @@
     state.stripeCheckout = null;
     state.clientSecret = "";
     state.sessionCustomerEmailSet = false;
+    resetPaymentElementReady();
 
     var paymentMount = document.getElementById("checkout-payment-element");
     if (paymentMount) {
@@ -992,6 +1062,7 @@
     var payBtn = document.getElementById("checkout-pay-btn");
     if (payBtn) {
       payBtn.hidden = false;
+      payBtn.disabled = true;
       payBtn.textContent = "Complete Secure Order";
     }
   }
@@ -1000,7 +1071,7 @@
     document.documentElement.classList.toggle("checkout-updating-total", !!isRefreshing);
     var payBtn = document.getElementById("checkout-pay-btn");
     if (payBtn && state.paymentMode === "custom") {
-      payBtn.disabled = !!isRefreshing;
+      payBtn.disabled = !!isRefreshing || !state.paymentElementReady;
     }
   }
 
@@ -1117,12 +1188,15 @@
 
         state.stripeCheckout = checkout;
         state.paymentMode = "custom";
+        resetPaymentElementReady();
+        setPayButtonBusy(true, "Loading payment…");
 
         var paymentMount = document.getElementById("checkout-payment-element");
+        var paymentElement = null;
         if (paymentMount) {
           paymentMount.hidden = false;
           // Payment Element: cards + PayPal; hide Link; wallets stay in Express.
-          var paymentElement = checkout.createPaymentElement({
+          paymentElement = checkout.createPaymentElement({
             layout: "tabs",
             wallets: {
               applePay: "never",
@@ -1131,7 +1205,20 @@
             },
             paymentMethodOrder: ["card", "paypal"]
           });
+          if (paymentElement && typeof paymentElement.on === "function") {
+            paymentElement.on("ready", function () {
+              if (token !== state.mountToken) return;
+              markPaymentElementReady();
+            });
+          }
           paymentElement.mount("#checkout-payment-element");
+          // Safety: if ready never fires, unlock after a short wait so checkout isn't stuck.
+          setTimeout(function () {
+            if (token !== state.mountToken) return;
+            if (!state.paymentElementReady) markPaymentElementReady();
+          }, 8000);
+        } else {
+          markPaymentElementReady();
         }
 
         var expressMount = document.getElementById("checkout-express-element");
@@ -1177,10 +1264,12 @@
                 state.total
               );
             }
-            // Session already has return_url from create — Basil rejects returnUrl here.
-            checkout
-              .confirm({
-                expressCheckoutConfirmEvent: event
+            waitForPaymentElementReady()
+              .then(function () {
+                // Session already has return_url from create — Basil rejects returnUrl here.
+                return checkout.confirm({
+                  expressCheckoutConfirmEvent: event
+                });
               })
               .then(function (confirmResult) {
                 if (confirmResult && confirmResult.error) {
@@ -1309,17 +1398,12 @@
     if (state.paymentMode === "embedded") return;
     if (!validateForm()) return;
 
-    var checkout = state.stripeCheckout;
-    if (!checkout) {
+    if (!state.stripeCheckout) {
       showError("Payment is not ready. Please wait or refresh the page.");
       return;
     }
 
-    var payBtn = document.getElementById("checkout-pay-btn");
-    if (payBtn) {
-      payBtn.disabled = true;
-      payBtn.textContent = "Processing…";
-    }
+    setPayButtonBusy(true, "Processing…");
 
     if (window.ZYBAR && window.ZYBAR.Analytics) {
       window.ZYBAR.Analytics.trackPaymentStarted("card", state.total);
@@ -1328,9 +1412,17 @@
     var values = getFormValues();
     var shippingAddress = buildStripeShippingAddress(values);
 
-    syncDevtestFromEmail({ force: isDevtestCode(state.requestedDevtestCode) })
+    // Only remint when DEVTEST is requested but not yet applied — forced remint
+    // on every pay destroy/remounts Payment Element and races confirm() vs ready.
+    var needsDevtestRemint =
+      isDevtestCode(state.requestedDevtestCode) && !isDevtestCode(state.discountCode);
+
+    syncDevtestFromEmail({ force: needsDevtestRemint })
       .then(function () {
-        checkout = state.stripeCheckout || checkout;
+        return waitForPaymentElementReady();
+      })
+      .then(function () {
+        var checkout = state.stripeCheckout;
         if (!checkout) {
           throw new Error("Payment is not ready. Please wait or refresh the page.");
         }
@@ -1376,10 +1468,7 @@
           window.ZYBAR.Analytics.trackPaymentFailed((err && err.message) || "unknown");
         }
         showError((err && err.message) || "Payment could not be completed. Please try again.");
-        if (payBtn) {
-          payBtn.disabled = false;
-          payBtn.textContent = "Complete Secure Order";
-        }
+        setPayButtonBusy(false);
       });
   }
 
