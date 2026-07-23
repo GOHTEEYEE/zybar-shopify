@@ -1177,10 +1177,10 @@
                 state.total
               );
             }
+            // Session already has return_url from create — Basil rejects returnUrl here.
             checkout
               .confirm({
-                expressCheckoutConfirmEvent: event,
-                returnUrl: state.returnUrl
+                expressCheckoutConfirmEvent: event
               })
               .then(function (confirmResult) {
                 if (confirmResult && confirmResult.error) {
@@ -1326,8 +1326,6 @@
     }
 
     var values = getFormValues();
-    var returnUrl = state.returnUrl;
-
     var shippingAddress = buildStripeShippingAddress(values);
 
     syncDevtestFromEmail({ force: isDevtestCode(state.requestedDevtestCode) })
@@ -1355,10 +1353,10 @@
           updates.push(checkout.updatePhoneNumber(values.phone));
         }
         return Promise.all(updates).then(function () {
+          // Do not pass returnUrl — server already set return_url on session create.
           var confirmOpts = {
             phoneNumber: values.phone || undefined,
-            shippingAddress: shippingAddress,
-            returnUrl: returnUrl
+            shippingAddress: shippingAddress
           };
           if (!emailAlreadySet && values.email) {
             confirmOpts.email = values.email;
