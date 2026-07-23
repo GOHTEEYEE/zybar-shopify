@@ -53,7 +53,7 @@
     var link = document.createElement('link');
     link.id = 'zybar-premium-popup-css';
     link.rel = 'stylesheet';
-    link.href = '/css/premium-popup.css?v=20260718-square';
+    link.href = '/css/premium-popup.css?v=20260723-15off';
     document.head.appendChild(link);
   }
 
@@ -82,9 +82,13 @@
       '<div class="zybar-popup-body">' +
       '<p class="zybar-popup-kicker">Welcome to</p>' +
       '<h2 class="zybar-popup-title" id="zybar-popup-title">THE ZYBAR GARAGE</h2>' +
-      '<p class="zybar-popup-offer">Activate <strong>Member Pricing</strong><br />for your first order.</p>' +
+      '<p class="zybar-popup-discount" aria-label="15 percent member discount">' +
+      '<span class="zybar-popup-discount-pct">15% OFF</span>' +
+      '<span class="zybar-popup-discount-label">Member Pricing</span>' +
+      '</p>' +
+      '<p class="zybar-popup-offer">Join free — savings apply automatically on your first order.</p>' +
       '<ul class="zybar-popup-benefits" aria-label="Member benefits">' +
-      '<li><span aria-hidden="true">✓</span>Extra 15% Member Savings</li>' +
+      '<li class="zybar-popup-benefit--highlight"><span aria-hidden="true">✓</span><strong>Extra 15% Member Discount</strong></li>' +
       '<li><span aria-hidden="true">✓</span>Early Access to New Collections</li>' +
       '<li><span aria-hidden="true">✓</span>Members-only Promotions</li>' +
       '</ul>' +
@@ -96,14 +100,14 @@
       langOptions +
       '</select>' +
       '<p class="zybar-popup-error" id="zybar-popup-error" role="alert" aria-live="polite"></p>' +
-      '<button type="submit" class="zybar-popup-cta">Activate Member Pricing</button>' +
+      '<button type="submit" class="zybar-popup-cta">Unlock 15% Member Pricing</button>' +
       '<p class="zybar-popup-note">No spam. Unsubscribe anytime.</p>' +
       '</form>' +
       '</div></div>' +
       '<div class="zybar-popup-success" hidden>' +
       '<div class="zybar-popup-success-icon" aria-hidden="true">✓</div>' +
       '<h2>✓ Welcome to ZYBAR Garage</h2>' +
-      '<p class="zybar-popup-success-copy">Your member pricing is active. Extra 15% savings will be applied automatically.</p>' +
+      '<p class="zybar-popup-success-copy">Your <strong>15% Member Pricing</strong> is active and will be applied automatically.</p>' +
       '<button type="button" class="zybar-popup-cta zybar-popup-continue">Continue Shopping</button>' +
       '</div></div>';
 
@@ -125,8 +129,8 @@
     teaser.id = 'zybar-premium-popup-teaser';
     teaser.hidden = true;
     teaser.innerHTML =
-      '<button type="button" class="zybar-popup-teaser-open" aria-label="Open member pricing">' +
-      '<span class="zybar-popup-teaser-label">MEMBER PRICING</span>' +
+      '<button type="button" class="zybar-popup-teaser-open" aria-label="Open 15% member pricing offer">' +
+      '<span class="zybar-popup-teaser-label">15% OFF · MEMBER</span>' +
       '</button>' +
       '<button type="button" class="zybar-popup-teaser-close" aria-label="Hide bonus offer">&times;</button>';
     document.body.appendChild(teaser);
@@ -292,10 +296,10 @@
 
     if (payload && payload.alreadyMember) {
       title.textContent = "You're already a member.";
-      copy.textContent = 'Your member pricing is active and will be applied automatically.';
+      copy.innerHTML = 'Your <strong>15% Member Pricing</strong> is active and will be applied automatically.';
     } else {
       title.textContent = '✓ Welcome to ZYBAR Garage';
-      copy.textContent = 'Extra 15% member savings will be applied automatically.';
+      copy.innerHTML = 'Your <strong>15% Member Pricing</strong> is active and will be applied automatically.';
     }
 
     if (formView) formView.hidden = true;

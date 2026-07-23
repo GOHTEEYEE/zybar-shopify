@@ -124,13 +124,42 @@
   color: #fff;
 }
 
+.zybar-popup-discount {
+  margin: 0.55rem 0 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.zybar-popup-discount-pct {
+  display: block;
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.85rem, 5.5vw, 2.35rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #c9a45c;
+}
+
+.zybar-popup-discount-label {
+  display: block;
+  font-family: Inter, Helvetica, Arial, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.88);
+}
+
 .zybar-popup-offer {
-  margin: 0.35rem 0 0;
+  margin: 0.4rem 0 0;
   text-align: center;
   font-family: Inter, Helvetica, Arial, sans-serif;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .zybar-popup-offer strong {
@@ -155,6 +184,15 @@
   color: rgba(255, 255, 255, 0.78);
 }
 
+.zybar-popup-benefit--highlight {
+  color: #f0e2c0;
+}
+
+.zybar-popup-benefit--highlight strong {
+  font-weight: 700;
+  color: #c9a45c;
+}
+
 .zybar-popup-benefits li span {
   display: inline-flex;
   width: 12px;
@@ -166,6 +204,11 @@
   font-size: 0.5rem;
   color: rgba(255, 255, 255, 0.9);
   flex-shrink: 0;
+}
+
+.zybar-popup-benefit--highlight span {
+  border-color: rgba(201, 164, 92, 0.55);
+  color: #c9a45c;
 }
 
 .zybar-popup-form {
