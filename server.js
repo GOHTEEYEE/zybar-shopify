@@ -669,6 +669,33 @@ app.post(
 // ----- JSON body for other routes -----
 app.use(express.json({ limit: '3mb' }));
 
+/**
+ * Daily cleanup of abandoned checkout_snapshots (Vercel Cron).
+ * Auth: Authorization Bearer CRON_SECRET, or x-vercel-cron, or admin session.
+ */
+app.all('/api/cron/cleanup-checkout-snapshots', async (req, res) => {
+  const cronSecret = String(process.env.CRON_SECRET || '').trim();
+  const auth = String(req.headers.authorization || '');
+  const bearer = auth.indexOf('Bearer ') === 0 ? auth.slice(7).trim() : '';
+  const isVercelCron = String(req.headers['x-vercel-cron'] || '') === '1';
+  const adminOk = !!verifyAdminSession(bearer);
+  const secretOk = !!(cronSecret && bearer && bearer === cronSecret);
+  if (!isVercelCron && !secretOk && !adminOk) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (!supabase) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const result = await CheckoutSnapshots.cleanupAbandoned(supabase, {
+      unattachedDays: Number(req.query.unattachedDays) || undefined,
+      unpaidDays: Number(req.query.unpaidDays) || undefined
+    });
+    return res.json({ ok: true, result: result });
+  } catch (err) {
+    console.error('cleanup-checkout-snapshots:', err && err.message);
+    return res.status(500).json({ error: err.message || 'Cleanup failed' });
+  }
+});
+
 app.post('/api/admin/auth/login', async (req, res) => {
   if (!supabase || !adminSessionSecret) {
     return res.status(503).json({ error: 'Admin authentication is unavailable.' });
@@ -2722,28 +2749,37 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 
   let checkoutSnapshotId = null;
-  if (supabase && variantDetails.length) {
-    try {
-      checkoutSnapshotId = await CheckoutSnapshots.createSnapshot(supabase, {
-        cartId: cartId || null,
-        visitorId: visitorId || null,
-        sessionId: sessionId || null,
-        uploadSessionId: uploadSessionId || null,
-        shippingMethod: resolvedShippingMethod,
-        discountCode: appliedDiscountCode || null,
-        discountUSD: appliedDiscountUSD > 0 ? appliedDiscountUSD : null,
-        lineItems: variantDetails
-      });
-      if (checkoutSnapshotId) {
-        metadata.checkoutSnapshotId = String(checkoutSnapshotId);
-      }
-    } catch (snapErr) {
-      console.error('checkout snapshot create failed:', snapErr && snapErr.message);
-      return res.status(500).json({
-        error: 'Could not prepare checkout. Please refresh and try again.'
-      });
-    }
+  if (!supabase) {
+    return res.status(503).json({
+      error: 'Checkout is temporarily unavailable. Please try again shortly.'
+    });
   }
+  if (!variantDetails.length) {
+    return res.status(400).json({ error: 'No valid cart items for checkout.' });
+  }
+  try {
+    checkoutSnapshotId = await CheckoutSnapshots.createSnapshot(supabase, {
+      cartId: cartId || null,
+      visitorId: visitorId || null,
+      sessionId: sessionId || null,
+      uploadSessionId: uploadSessionId || null,
+      shippingMethod: resolvedShippingMethod,
+      discountCode: appliedDiscountCode || null,
+      discountUSD: appliedDiscountUSD > 0 ? appliedDiscountUSD : null,
+      lineItems: variantDetails
+    });
+  } catch (snapErr) {
+    console.error('checkout snapshot create failed:', snapErr && snapErr.message);
+    return res.status(500).json({
+      error: 'Could not prepare checkout. Please refresh and try again.'
+    });
+  }
+  if (!checkoutSnapshotId) {
+    return res.status(500).json({
+      error: 'Could not prepare checkout. Please refresh and try again.'
+    });
+  }
+  metadata.checkoutSnapshotId = String(checkoutSnapshotId);
 
   const totalQty = stripeLineItems.reduce(function (sum, item) {
     return sum + (Number(item.quantity) || 0);
@@ -2851,14 +2887,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
   async function afterCheckoutSessionCreated(session) {
     if (!session || !session.id) return;
-    if (supabase && checkoutSnapshotId) {
-      try {
-        await CheckoutSnapshots.attachStripeSession(supabase, checkoutSnapshotId, session.id);
-      } catch (attachErr) {
-        console.warn('checkout snapshot attach:', attachErr && attachErr.message);
-      }
+    if (!checkoutSnapshotId) {
+      throw new Error('Missing checkoutSnapshotId after Stripe session create.');
     }
-    if (supabase && uploadSessionId) {
+    await CheckoutSnapshots.attachStripeSession(supabase, checkoutSnapshotId, session.id);
+    if (uploadSessionId) {
       await supabase
         .from('custom_leads')
         .update({ stripe_session_id: session.id, updated_at: new Date().toISOString() })

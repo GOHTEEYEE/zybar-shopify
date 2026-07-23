@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-checkout-snapshots",
+      "schedule": "0 3 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/js/stripe-config.js",
