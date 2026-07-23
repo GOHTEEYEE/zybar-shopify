@@ -1,5 +1,6 @@
--- ZYBAR Welcome Journey v2 — 7-day lifecycle (Day 0–7)
+-- ZYBAR Welcome Journey v2 — 8 email steps (Day 0–7)
 -- Replaces the short 4-step welcome nurture with the full brand journey.
+-- Safely remounts waiting enrollments onto the new step queue.
 
 DO $$
 DECLARE
@@ -26,8 +27,15 @@ BEGIN
     WHERE id = welcome_id;
   END IF;
 
-  -- Archive legacy short-journey template keys remain available in code;
-  -- steps now point at welcome_day0–welcome_day7.
+  -- Cancel pending queue rows that still point at old step IDs.
+  UPDATE public.action_queue
+  SET
+    status = 'cancelled',
+    error_message = 'Cancelled during welcome journey v2 step upgrade',
+    updated_at = NOW()
+  WHERE journey_id = welcome_id
+    AND status = 'pending';
+
   DELETE FROM public.journey_steps WHERE journey_id = welcome_id;
 
   INSERT INTO public.journey_steps
@@ -42,7 +50,57 @@ BEGIN
     (welcome_id, 7, 'Why ZYBAR?', 1, 'days', 'email', 'welcome_day6'),
     (welcome_id, 8, 'Your Invitation', 1, 'days', 'email', 'welcome_day7');
 
-  -- Seed email_templates catalog rows for journey builder / admin (html from code renderers).
+  -- Cap current_step for anyone past the old 4-step journey onto the new last step.
+  UPDATE public.lead_journeys
+  SET
+    current_step = LEAST(current_step, 8),
+    updated_at = NOW()
+  WHERE journey_id = welcome_id
+    AND status IN ('waiting', 'ready');
+
+  -- Remount pending sends for waiting enrollments onto matching new step_order.
+  INSERT INTO public.action_queue (
+    lead_id,
+    journey_id,
+    step_id,
+    lead_journey_id,
+    action_type,
+    template_id,
+    recipient,
+    scheduled_at,
+    status,
+    step_name_snapshot,
+    updated_at
+  )
+  SELECT
+    lj.lead_id,
+    welcome_id,
+    js.id,
+    lj.id,
+    js.action_type,
+    js.template_id,
+    ns.email,
+    GREATEST(lj.next_ready_at, NOW()),
+    'pending',
+    js.step_name,
+    NOW()
+  FROM public.lead_journeys lj
+  JOIN public.newsletter_subscribers ns ON ns.id = lj.lead_id
+  JOIN public.journey_steps js
+    ON js.journey_id = welcome_id
+   AND js.step_order = lj.current_step
+  WHERE lj.journey_id = welcome_id
+    AND lj.status IN ('waiting', 'ready');
+
+  -- Keep subscriber lifecycle pointer in sync when present.
+  UPDATE public.newsletter_subscribers ns
+  SET current_step = lj.current_step
+  FROM public.lead_journeys lj
+  WHERE lj.lead_id = ns.id
+    AND lj.journey_id = welcome_id
+    AND lj.status IN ('waiting', 'ready')
+    AND ns.current_journey_instance_id = lj.id;
+
   INSERT INTO public.email_templates (template_key, name, description, subject, html_body, status)
   VALUES
     ('welcome_day0', 'Welcome Day 0', 'Introduce brand, founder why, atmosphere, collector welcome.', 'Welcome to ZYBAR', '', 'active'),
