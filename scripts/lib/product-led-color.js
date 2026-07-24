@@ -21,16 +21,19 @@ function getExplicitLedColorFromSlug(slug, name) {
   const s = String(slug || '').toLowerCase();
   const n = String(name || '').toLowerCase();
 
-  if (s.indexOf('white') !== -1 || /\bwhite\b/.test(n)) return 'White';
-  if (s.indexOf('yellow') !== -1 || /\byellow\b/.test(n)) return 'Yellow';
-  if (s.indexOf('green') !== -1 || /\bgreen\b/.test(n)) return 'Green';
-  if (s.indexOf('grey') !== -1 || s.indexOf('gray') !== -1 || /\bgrey\b/.test(n) || /\bgray\b/.test(n)) return 'White';
-  if (s.indexOf('black') !== -1 || /\bblack\b/.test(n)) return 'White';
-  if (s.indexOf('oragne') !== -1 || s.indexOf('orange') !== -1 || /\borange\b/.test(n)) return 'Orange';
-  if (s.indexOf('blue') !== -1 || /\bblue\b/.test(n)) return 'Blue';
-  if (s.indexOf('red') !== -1 || /\bred\b/.test(n)) return 'Red';
-  if (s.indexOf('purple') !== -1 || /\bpurple\b/.test(n)) return 'Purple';
-  if (s.indexOf('neon') !== -1 || /\bneon\b/.test(n)) return null;
+  // Only treat color words as LED when they are clearly lighting-related.
+  // Body/edition colors in the slug (white/yellow/green/black…) are NOT LED colors.
+  if (/\bled\b/.test(n) || /\bneon\b/.test(n)) {
+    if (/\bwhite\s+led\b/.test(n)) return 'White';
+    if (/\byellow\s+led\b/.test(n)) return 'Yellow';
+    if (/\bgreen\s+led\b/.test(n)) return 'Green';
+    if (/\bblue\s+led\b/.test(n)) return 'Blue';
+    if (/\bred\s+led\b/.test(n)) return 'Red';
+    if (/\borange\s+led\b/.test(n)) return 'Orange';
+    if (/\bpurple\s+led\b/.test(n)) return 'Purple';
+    if (/\bmulti\s+led\b/.test(n)) return 'Multi';
+  }
+  if (s.indexOf('neon') !== -1 && s.indexOf('yellow') !== -1) return 'Yellow';
   if (s.indexOf('tailight') !== -1 || s.indexOf('taillight') !== -1) return null;
   if (s.indexOf('dark-colour') !== -1 || s.indexOf('dark-color') !== -1) return null;
   return null;
@@ -57,15 +60,17 @@ function classifyGlowPixel(r, g, b) {
     s = l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
   }
 
-  if (l < 0.1) return null;
-  if (s < 0.1 && l < 0.42) return null;
+  // Path A: blown-out / cool-white headlight cores
+  if (l >= 0.78 && (s < 0.3 || max - min < 0.14)) {
+    return { color: 'White', weight: (0.8 + l) * 1.4 };
+  }
 
-  const isGlow = l > 0.52 || (s > 0.28 && l > 0.32);
-  if (!isGlow) return null;
+  // Path B: saturated colored LED glow (red/blue/yellow can be dimmer than white cores)
+  // Keep luminance high so orange/red body paint is not mistaken for headlights.
+  if (l < 0.62 || s < 0.38) return null;
+  if (l < 0.7 && s < 0.5) return null;
 
-  const weight = s * l * (0.65 + l * 0.35);
-  if (s < 0.16 && l > 0.58) return { color: 'White', weight: weight * 1.15 };
-
+  const weight = s * (0.45 + l) * (l >= 0.7 ? 1.25 : 1);
   const hue = rgbToHue(r, g, b);
   if (hue < 12 || hue >= 348) return { color: 'Red', weight: weight };
   if (hue < 38) return { color: 'Orange', weight: weight };
@@ -78,7 +83,7 @@ function classifyGlowPixel(r, g, b) {
 
 async function detectLedColorFromImage(imagePath) {
   const { data } = await sharp(imagePath)
-    .resize(96, 96, { fit: 'inside' })
+    .resize(128, 128, { fit: 'inside' })
     .removeAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -111,11 +116,34 @@ async function detectLedColorFromImage(imagePath) {
 
   const top = ranked[0];
   const second = ranked[1];
+  const colored = ranked.filter(function (row) {
+    return row.color !== 'White' && row.score > 0;
+  });
+  const coloredTotal = colored.reduce(function (sum, row) {
+    return sum + row.score;
+  }, 0);
+  const whiteScore = buckets.White || 0;
   const total = ranked.reduce(function (sum, row) {
     return sum + row.score;
   }, 0);
 
-  if (top.score / total >= 0.58) return top.color;
+  // If a saturated LED color is meaningful vs white cores, prefer that color.
+  // Avoid labeling red body paint as LED when white headlights dominate.
+  if (colored.length && coloredTotal > 0) {
+    const leadColor = colored[0];
+    const leadShareOfColor = leadColor.score / coloredTotal;
+    const vsWhite = whiteScore > 0 ? leadColor.score / whiteScore : 99;
+    if (leadShareOfColor >= 0.55 && (vsWhite >= 0.22 || whiteScore < leadColor.score * 2.2)) {
+      if (colored.length > 1 && colored[1].score > leadColor.score * 0.55) {
+        return 'Multi';
+      }
+      if (leadColor.color === 'Orange' && colored[1] && colored[1].color === 'Red') return 'Red';
+      if (leadColor.color === 'Red' && colored[1] && colored[1].color === 'Orange') return 'Red';
+      return leadColor.color;
+    }
+  }
+
+  if (top.color === 'White' || top.score / total >= 0.55) return 'White';
 
   if (second && second.score > top.score * 0.52) {
     if (top.color === 'Orange' && second.color === 'Red') return 'Red';
@@ -151,6 +179,7 @@ function getCardBaseName(name, slug) {
 
 async function resolveLedColor(slug, name, options) {
   const opts = options || {};
+  // Trust curated products.json ledColor when present.
   if (opts.ledColor) return opts.ledColor;
 
   const s = String(slug || '').toLowerCase();

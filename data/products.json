@@ -13,7 +13,7 @@
     {
       "slug": "audi-r8-gt3",
       "name": "Audi R8 GT3",
-      "ledColor": "Red"
+      "ledColor": "White"
     },
     {
       "slug": "audi-r8-white",
@@ -23,12 +23,12 @@
     {
       "slug": "audi-r8-yellow",
       "name": "Audi R8 – Yellow",
-      "ledColor": "Yellow"
+      "ledColor": "White"
     },
     {
       "slug": "audi-rs6",
       "name": "Audi RS6",
-      "ledColor": "Multi"
+      "ledColor": "White"
     },
     {
       "slug": "b-dodge-hellcat-02",
