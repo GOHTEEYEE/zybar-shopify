@@ -301,16 +301,36 @@ window.AdminMarketingCenter = (function () {
       var btn = document.getElementById('mktExecReady');
       if (btn) {
         btn.addEventListener('click', function () {
-          if (!window.confirm('Promote due steps and execute pending email actions via Resend?')) return;
+          if (
+            !window.confirm(
+              'Promote due steps and send ALL pending due emails via Resend? This may take a minute.'
+            )
+          )
+            return;
           btn.disabled = true;
-          btn.textContent = 'Running…';
-          fetchJson('/api/admin/journey-queue/execute', { method: 'POST' }).then(function (res) {
+          btn.textContent = 'Sending all due…';
+          fetchJson('/api/admin/journey-queue/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ limit: 25, promote_limit: 100, max_rounds: 20 })
+          }).then(function (res) {
             btn.disabled = false;
             btn.textContent = 'Execute Due Sends';
             if (!res.ok) {
               alert((res.body && res.body.error) || 'Execute failed');
               return;
             }
+            var b = res.body || {};
+            alert(
+              'Done.\nCompleted: ' +
+                (b.completed || 0) +
+                '\nFailed: ' +
+                (b.failed || 0) +
+                '\nCancelled: ' +
+                (b.cancelled || 0) +
+                '\nRounds: ' +
+                (b.rounds || 1)
+            );
             renderOverview(container);
           });
         });

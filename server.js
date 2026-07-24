@@ -707,6 +707,38 @@ app.all('/api/cron/cleanup-checkout-snapshots', async (req, res) => {
   }
 });
 
+/**
+ * Promote due journey steps and send pending emails (Vercel Cron every 5 min).
+ * Auth: Authorization Bearer CRON_SECRET, or x-vercel-cron, or admin session.
+ */
+app.all('/api/cron/execute-journey-queue', async (req, res) => {
+  const cronSecret = String(process.env.CRON_SECRET || '').trim();
+  const auth = String(req.headers.authorization || '');
+  const bearer = auth.indexOf('Bearer ') === 0 ? auth.slice(7).trim() : '';
+  const isVercelCron = String(req.headers['x-vercel-cron'] || '') === '1';
+  const adminOk = !!verifyAdminSession(bearer);
+  const secretOk = !!(cronSecret && bearer && bearer === cronSecret);
+  if (!isVercelCron && !secretOk && !adminOk) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (!supabase) return res.status(503).json({ error: 'Journey engine is unavailable.' });
+  try {
+    const JourneyEngine = require('./lib/journey-engine.js');
+    const q = req.query || {};
+    const body = req.body || {};
+    const result = await JourneyEngine.executeReadyActions(supabase, process.env, {
+      limit: Number(body.limit || q.limit) || 25,
+      promote_limit: Number(body.promote_limit || q.promote_limit) || 50,
+      // Cap cron work per tick to stay within serverless time limits.
+      max_rounds: Number(body.max_rounds || q.max_rounds) || 4
+    });
+    return res.json({ ok: true, result: result });
+  } catch (err) {
+    console.error('execute-journey-queue:', err && err.message);
+    return res.status(500).json({ error: err.message || 'Journey queue execute failed' });
+  }
+});
+
 app.post('/api/admin/auth/login', async (req, res) => {
   if (!supabase || !adminSessionSecret) {
     return res.status(503).json({ error: 'Admin authentication is unavailable.' });
@@ -1716,10 +1748,11 @@ app.post('/api/admin/journey-queue/execute', async (req, res) => {
   try {
     const JourneyEngine = require('./lib/journey-engine.js');
     const body = req.body || {};
-    // Single-button flow: promote due steps then execute pending
+    // Single-button flow: promote due steps then drain pending sends
     const result = await JourneyEngine.executeReadyActions(supabase, process.env, {
       limit: body.limit || 25,
-      promote_limit: body.promote_limit || 50,
+      promote_limit: body.promote_limit || 100,
+      max_rounds: body.max_rounds || 20,
       action_id: body.action_id || null
     });
     return res.json(Object.assign({ ok: true }, result));

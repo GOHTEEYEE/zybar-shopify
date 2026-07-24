@@ -304,12 +304,34 @@ window.renderAdminmarketing = function (container) {
     var execBtn = document.getElementById('mktJourneyExec');
     if (execBtn) {
       execBtn.addEventListener('click', function () {
-        if (!window.confirm('Promote due steps and execute pending email actions via Resend?')) return;
+        if (
+          !window.confirm(
+            'Promote due steps and send ALL pending due emails via Resend? This may take a minute.'
+          )
+        )
+          return;
         execBtn.disabled = true;
-        fetchJson('/api/admin/journey-queue/execute', { method: 'POST' }).then(function (r) {
+        execBtn.textContent = 'Sending all due…';
+        fetchJson('/api/admin/journey-queue/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit: 25, promote_limit: 100, max_rounds: 20 })
+        }).then(function (r) {
           execBtn.disabled = false;
+          execBtn.textContent = 'Execute Due Sends';
           if (!r.ok) alert((r.body && r.body.error) || 'Execute failed');
-          else loadJourneys();
+          else {
+            var b = r.body || {};
+            alert(
+              'Done. Completed ' +
+                (b.completed || 0) +
+                ', failed ' +
+                (b.failed || 0) +
+                ', cancelled ' +
+                (b.cancelled || 0)
+            );
+            loadJourneys();
+          }
         });
       });
     }
@@ -1058,14 +1080,19 @@ window.renderAdminmarketing = function (container) {
     }
 
     document.getElementById('jqExecute').addEventListener('click', function () {
-      if (!window.confirm('Promote due steps and execute pending email actions via Resend?')) return;
+      if (
+        !window.confirm(
+          'Promote due steps and send ALL pending due emails via Resend? This may take a minute.'
+        )
+      )
+        return;
       var btn = document.getElementById('jqExecute');
       btn.disabled = true;
-      btn.textContent = 'Executing…';
+      btn.textContent = 'Sending all due…';
       fetchJson('/api/admin/journey-queue/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: 25 })
+        body: JSON.stringify({ limit: 25, promote_limit: 100, max_rounds: 20 })
       })
         .then(function (r) {
           if (!r.ok) {
@@ -1080,7 +1107,9 @@ window.renderAdminmarketing = function (container) {
               ' · Cancelled stale ' +
               (r.body.cancelled || 0) +
               ' · Failed ' +
-              (r.body.failed || 0),
+              (r.body.failed || 0) +
+              ' · Rounds ' +
+              (r.body.rounds || 1),
             true
           );
           load();

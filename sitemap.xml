@@ -11,11 +11,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://zybar-ledcar.pages.dev/track-order.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://zybar-ledcar.pages.dev/products/audi-r8-gt3/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -91,6 +86,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://zybar-ledcar.pages.dev/products/bmw-m4-g82-01/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://zybar-ledcar.pages.dev/products/bmw-m5-e39/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -107,6 +107,11 @@
   </url>
   <url>
     <loc>https://zybar-ledcar.pages.dev/products/c-lamborghini-oragne/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://zybar-ledcar.pages.dev/products/custom-led-car-wall-art/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

@@ -86,6 +86,11 @@
       "ledColor": "White"
     },
     {
+      "slug": "bmw-m4-g82-01",
+      "name": "BMW M4 G82 01",
+      "ledColor": "Red"
+    },
+    {
       "slug": "bmw-m5-e39",
       "name": "Bmw M5 E39",
       "ledColor": "Purple"
@@ -104,6 +109,13 @@
       "slug": "c-lamborghini-oragne",
       "name": "C Lamborghini Oragne",
       "ledColor": "Orange"
+    },
+    {
+      "slug": "custom-led-car-wall-art",
+      "name": "Custom LED Car Wall Art",
+      "productType": "custom",
+      "customDesignFeeUsd": 10,
+      "ledColor": "Custom"
     },
     {
       "slug": "dark-colour-audi",
@@ -184,13 +196,6 @@
       "slug": "xd-bmw-headlights-motorcycle",
       "name": "Xd Bmw Headlights Motorcycle",
       "ledColor": "Yellow"
-    },
-    {
-      "slug": "custom-led-car-wall-art",
-      "name": "Custom LED Car Wall Art",
-      "productType": "custom",
-      "customDesignFeeUsd": 10,
-      "ledColor": "Custom"
     }
   ]
 }
