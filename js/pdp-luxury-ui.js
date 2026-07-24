@@ -218,15 +218,43 @@
     return formatTimelineDate(startDate) + " – " + formatTimelineDate(endDate);
   }
 
-  function getDeliveryTimelineDates() {
+  /** Ready-made vs Custom Made stage labels + day offsets from today. */
+  var DELIVERY_TIMELINE_MODES = {
+    ready: {
+      midLabel: "PRODUCTION",
+      midStart: 2,
+      midEnd: 4,
+      deliveryStart: 9,
+      deliveryEnd: 12
+    },
+    custom: {
+      midLabel: "CUSTOM ARTWORK",
+      midStart: 5,
+      midEnd: 10,
+      deliveryStart: 14,
+      deliveryEnd: 18
+    }
+  };
+
+  function isCustomMadeProduct() {
+    return getProductSlug() === "custom-led-car-wall-art";
+  }
+
+  function getDeliveryTimelineMode() {
+    return isCustomMadeProduct() ? "custom" : "ready";
+  }
+
+  function getDeliveryTimelineDates(mode) {
+    var config = DELIVERY_TIMELINE_MODES[mode] || DELIVERY_TIMELINE_MODES.ready;
     var today = new Date();
     today.setHours(12, 0, 0, 0);
     return {
       order: today,
-      handcraftedStart: addDays(today, 2),
-      handcraftedEnd: addDays(today, 4),
-      deliveryStart: addDays(today, 9),
-      deliveryEnd: addDays(today, 12)
+      midStart: addDays(today, config.midStart),
+      midEnd: addDays(today, config.midEnd),
+      deliveryStart: addDays(today, config.deliveryStart),
+      deliveryEnd: addDays(today, config.deliveryEnd),
+      midLabel: config.midLabel
     };
   }
 
@@ -265,11 +293,17 @@
     );
   }
 
-  function buildDeliveryTimeline() {
-    var dates = getDeliveryTimelineDates();
+  function buildDeliveryTimeline(mode) {
+    mode = mode || getDeliveryTimelineMode();
+    var dates = getDeliveryTimelineDates(mode);
     var wrap = document.createElement("div");
     wrap.className = "pdp-luxury-delivery";
-    wrap.setAttribute("aria-label", "Craft and fulfillment journey");
+    if (mode === "custom") wrap.classList.add("is-custom-made");
+    wrap.setAttribute(
+      "aria-label",
+      mode === "custom" ? "Custom artwork and fulfillment journey" : "Craft and fulfillment journey"
+    );
+    wrap.setAttribute("data-timeline-mode", mode);
     wrap.innerHTML =
       '<div class="pdp-delivery-timeline">' +
       '<div class="pdp-delivery-rail" role="list">' +
@@ -277,8 +311,8 @@
       buildDeliveryMilestone("order", formatTimelineDate(dates.order), "ORDER", 0, false) +
       buildDeliveryMilestone(
         "production",
-        formatTimelineRange(dates.handcraftedStart, dates.handcraftedEnd),
-        "PRODUCTION",
+        formatTimelineRange(dates.midStart, dates.midEnd),
+        dates.midLabel,
         1,
         false
       ) +

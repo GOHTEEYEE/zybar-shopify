@@ -4275,6 +4275,12 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.42);
+  max-width: 8.5rem;
+  line-height: 1.35;
+}
+
+.pdp-luxury-delivery.is-custom-made .pdp-delivery-label {
+  letter-spacing: 0.1em;
 }
 
 .pdp-delivery-milestone:not(.is-destination) .pdp-delivery-date {
