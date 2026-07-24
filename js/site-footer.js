@@ -53,16 +53,120 @@
     }
   ];
 
-  var PAYMENTS = [
-    { name: "Visa", className: "is-visa", label: "VISA" },
-    { name: "Mastercard", className: "is-mastercard", label: "Mastercard" },
-    { name: "Amex", className: "is-amex", label: "AMEX" },
-    { name: "Apple Pay", className: "is-applepay", label: "Pay" },
-    { name: "Google Pay", className: "is-gpay", label: "GPay" },
-    { name: "PayPal", className: "is-paypal", label: "PayPal" },
-    { name: "Klarna", className: "is-klarna", label: "Klarna" },
-    { name: "Link", className: "is-link", label: "Link" }
-  ];
+  var CONTACT = {
+    addressLines: [
+      "ZYBAR Studio",
+      "2-14-5 Jingumae",
+      "Shibuya-ku, Tokyo",
+      "Japan",
+      "150-0001"
+    ],
+    email: "zybar.info@gmail.com",
+    phoneLabel: "Contact Support",
+    phoneHref: "/contact.html"
+  };
+
+  function iconSvg(type) {
+    if (type === "pin") {
+      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+    }
+    if (type === "mail") {
+      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 7 9-7"/></svg>';
+    }
+    if (type === "phone") {
+      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>';
+    }
+    return "";
+  }
+
+  function buildHelpItem(opts) {
+    var item = document.createElement("div");
+    item.className = "footer-help-item";
+
+    var icon = document.createElement("span");
+    icon.className = "footer-help-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = iconSvg(opts.icon);
+    item.appendChild(icon);
+
+    var body = document.createElement("div");
+    body.className = "footer-help-body";
+
+    var label = document.createElement("p");
+    label.className = "footer-help-label";
+    label.textContent = opts.label;
+    body.appendChild(label);
+
+    if (opts.lines) {
+      var detail = document.createElement("p");
+      detail.className = "footer-help-detail";
+      detail.innerHTML = opts.lines
+        .map(function (line) {
+          return "<span>" + line + "</span>";
+        })
+        .join("<br />");
+      body.appendChild(detail);
+    }
+
+    if (opts.href && opts.hrefText) {
+      var link = document.createElement("a");
+      link.className = "footer-help-link";
+      link.href = opts.href;
+      if (opts.href.indexOf("mailto:") === 0) {
+        link.setAttribute("rel", "noopener noreferrer");
+      }
+      link.textContent = opts.hrefText;
+      body.appendChild(link);
+    }
+
+    item.appendChild(body);
+    return item;
+  }
+
+  function buildNeedHelp() {
+    var section = document.createElement("section");
+    section.className = "footer-need-help";
+    section.setAttribute("aria-labelledby", "footer-need-help-title");
+
+    var title = document.createElement("h2");
+    title.id = "footer-need-help-title";
+    title.className = "footer-need-help-title";
+    title.textContent = "Need Help?";
+    section.appendChild(title);
+
+    var grid = document.createElement("div");
+    grid.className = "footer-need-help-grid";
+
+    grid.appendChild(
+      buildHelpItem({
+        icon: "pin",
+        label: "Address",
+        lines: CONTACT.addressLines
+      })
+    );
+
+    var right = document.createElement("div");
+    right.className = "footer-need-help-right";
+    right.appendChild(
+      buildHelpItem({
+        icon: "mail",
+        label: "Email",
+        href: "mailto:" + CONTACT.email,
+        hrefText: CONTACT.email
+      })
+    );
+    right.appendChild(
+      buildHelpItem({
+        icon: "phone",
+        label: "Phone",
+        href: CONTACT.phoneHref,
+        hrefText: CONTACT.phoneLabel
+      })
+    );
+    grid.appendChild(right);
+    section.appendChild(grid);
+    return section;
+  }
 
   function buildNavColumns() {
     var grid = document.createElement("div");
@@ -185,6 +289,7 @@
     }
     wrap.classList.add("footer-wrap--premium");
     wrap.innerHTML = "";
+    wrap.appendChild(buildNeedHelp());
     wrap.appendChild(buildNavColumns());
     wrap.appendChild(buildPayments());
     wrap.appendChild(buildCopyright());
