@@ -8,7 +8,68 @@
     "30x45": 198,
     "40x60": 208
   },
-  "perProductPricesBySize": {},
+  "perProductPricesBySize": {
+    "bmw-m4-g82-01": {
+      "30x45": 98,
+      "40x60": 108
+    },
+    "audi-rs6": {
+      "30x45": 98,
+      "40x60": 108
+    },
+    "audi-r8-white": {
+      "30x45": 98,
+      "40x60": 108
+    },
+    "lambrghini-svj-tailights": {
+      "30x45": 98,
+      "40x60": 108
+    },
+    "nissan-gtr": {
+      "30x45": 98,
+      "40x60": 108
+    },
+    "c-lamborghini-oragne": {
+      "30x45": 98,
+      "40x60": 108
+    },
+    "dodge-srt-hellcat-01": {
+      "30x45": 98,
+      "40x60": 108
+    },
+    "bmw-m1000rr": {
+      "30x45": 98,
+      "40x60": 108
+    },
+    "toyota-supra": {
+      "30x45": 118,
+      "40x60": 128
+    },
+    "dark-colour-audi": {
+      "30x45": 118,
+      "40x60": 128
+    },
+    "ferrari-f8": {
+      "30x45": 118,
+      "40x60": 128
+    },
+    "bmw-m4-black": {
+      "30x45": 118,
+      "40x60": 128
+    },
+    "b-ferrari-f40": {
+      "30x45": 118,
+      "40x60": 128
+    },
+    "ferrari-488": {
+      "30x45": 118,
+      "40x60": 128
+    },
+    "audi-r8-gt3": {
+      "30x45": 118,
+      "40x60": 128
+    }
+  },
   "products": [
     {
       "slug": "audi-r8-gt3",
