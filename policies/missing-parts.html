@@ -10,73 +10,110 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Missing Parts Form | ZYBAR</title>
-    <meta name="description" content="Report missing parts from your ZYBAR order. We will ship replacements quickly." />
+    <meta
+      name="description"
+      content="Report missing parts from your ZYBAR order. We will ship replacements quickly."
+    />
     <link rel="canonical" href="https://zybar-ledcar.pages.dev/policies/missing-parts.html" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css?v=policy-lux1" />
     <script src="/js/nav-drawer.js?v=nav-ia1" defer></script>
   </head>
-  <body>
+  <body class="about-body">
     <header class="site-header">
       <div class="container header-wrap">
-        <a class="brand zybar-logo" href="/"><img src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png" alt="ZYBAR" class="logo-img" loading="eager" width="1304" height="287" /></a>
-        <nav class="nav main-nav"><a href="/">Home</a><a href="/collections/all/">Catalog</a><a href="/contact.html">Contact</a></nav>
-        <div class="header-actions"><span class="currency">USD ▾</span><a href="/collections/all/" class="icon-btn" aria-label="Cart">🛒</a></div>
+        <a class="brand zybar-logo" href="/"
+          ><img
+            src="/Poster/ChatGPT Image 2026年2月9日 15_16_52 1.png"
+            alt="ZYBAR"
+            class="logo-img"
+            loading="eager"
+            width="1304"
+            height="287"
+        /></a>
+        <nav class="nav main-nav">
+          <a href="/">Home</a><a href="/collections/all/">Catalog</a><a href="/contact.html">Contact</a>
+        </nav>
+        <div class="header-actions">
+          <span class="currency">USD ▾</span>
+          <a href="/cart/" class="icon-btn" aria-label="Cart">🛒</a>
+        </div>
       </div>
     </header>
 
-    <main class="policy-page">
-      <h1>Missing Parts Form</h1>
-      <p class="policy-intro">Did your order arrive incomplete? We will make it right.</p>
+    <main class="about-page policy-lux-page">
+      <header class="about-hero">
+        <p class="about-eyebrow">Support</p>
+        <h1 class="about-title">Missing Parts</h1>
+        <p class="about-lede">Did your order arrive incomplete? We will make it right.</p>
+        <span class="about-rule" aria-hidden="true"></span>
+      </header>
 
-      <h2>How it Works</h2>
-      <p>In the very rare event that a component (like the remote, a specific bracket, or the power cable) is missing, please fill out the form below.</p>
+      <section class="about-block" aria-labelledby="mp-how">
+        <p class="about-block-index">01</p>
+        <h2 id="mp-how" class="about-heading">How It Works</h2>
+        <p class="about-copy">
+          In the rare event that a component (like the remote, a bracket, or the power cable) is
+          missing, please fill out the form below.
+        </p>
+      </section>
 
-      <h2>Processing</h2>
-      <p>Most missing parts are shipped within 48 hours, free of charge.</p>
+      <section class="about-block" aria-labelledby="mp-process">
+        <p class="about-block-index">02</p>
+        <h2 id="mp-process" class="about-heading">Processing</h2>
+        <p class="about-copy">Most missing parts are shipped within 48 hours, free of charge.</p>
+      </section>
 
-      <form class="policy-form" action="/contact.html" method="get" id="missing-parts-form">
-        <label for="mp-name">Name</label>
-        <input type="text" id="mp-name" name="name" required placeholder="Your full name" />
+      <section class="about-block policy-lux-form-block" aria-labelledby="mp-form-title">
+        <p class="about-block-index">03</p>
+        <h2 id="mp-form-title" class="about-heading">Submit Request</h2>
+        <form class="policy-lux-form" action="/contact.html" method="get" id="missing-parts-form">
+          <label>
+            <span>Name *</span>
+            <input type="text" id="mp-name" name="name" required placeholder="Your full name" autocomplete="name" />
+          </label>
+          <label>
+            <span>Order Number *</span>
+            <input type="text" id="mp-order" name="order_number" required placeholder="e.g. #1001" />
+          </label>
+          <label>
+            <span>Missing Item Description *</span>
+            <textarea
+              id="mp-description"
+              name="missing_item"
+              rows="4"
+              required
+              placeholder="Describe which part(s) are missing (e.g. remote control, USB cable, wall bracket)."
+            ></textarea>
+          </label>
+          <button type="submit" class="about-cta about-cta--primary">Submit Request</button>
+        </form>
+      </section>
 
-        <label for="mp-order">Order Number</label>
-        <input type="text" id="mp-order" name="order_number" required placeholder="e.g. #1001" />
-
-        <label for="mp-description">Missing Item Description</label>
-        <textarea id="mp-description" name="missing_item" rows="4" required placeholder="Describe which part(s) are missing (e.g. remote control, USB cable, wall bracket)."></textarea>
-
-        <button type="submit" class="btn">Submit Request</button>
-      </form>
-
-      <p><a href="/" class="btn btn-outline">Back to Home</a></p>
+      <div class="about-actions">
+        <a href="/contact.html" class="about-cta about-cta--ghost">Contact Support</a>
+        <a href="/" class="about-cta about-cta--ghost">Back to Home</a>
+      </div>
     </main>
 
     <footer class="site-footer">
       <div class="container footer-wrap">
         <div class="footer-copyright">
-          <p>© 2026 <a href="/">ZYBAR</a>, Powered by Shopify</p>
+          <p>© 2026 <a href="/">ZYBAR</a></p>
         </div>
-        <nav class="footer-policies" aria-label="Site policies and information">
-          <h3 class="footer-policies-title">Site Policies &amp; Information</h3>
-          <ul class="footer-policies-list">
-            <li><a href="/policies/faq.html">FAQ</a></li>
-            <li><a href="/policies/privacy-statement.html">Privacy Statement</a></li>
-            <li><a href="/policies/tos.html">Terms Of Service</a></li>
-            <li><a href="/policies/refund-policy.html">Refund Policy</a></li>
-            <li><a href="/policies/missing-parts.html">Missing Parts Form</a></li>
-            <li><a href="/about/about-us.html">About Us</a></li>
-          </ul>
-        </nav>
       </div>
     </footer>
-      <script src="/js/chatbot.js"></script>
-      <link rel="stylesheet" href="/css/premium-popup.css" />
+    <script src="/js/chatbot.js"></script>
+    <link rel="stylesheet" href="/css/premium-popup.css" />
     <script src="/js/member-pricing.js" defer></script>
     <script src="/js/premium-popup/popup-storage.js" defer></script>
     <script src="/js/premium-popup/analytics.js" defer></script>
     <script src="/js/premium-popup/index.js" defer></script>
     <script src="/js/site-footer.js?v=nav-ia1" defer></script>
-</body>
+  </body>
 </html>

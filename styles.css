@@ -5257,6 +5257,54 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   text-decoration: underline;
 }
 
+.policy-lux-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  margin-top: 0.35rem;
+}
+
+.policy-lux-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.policy-lux-form input,
+.policy-lux-form textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  padding: 0.75rem 0.85rem;
+  font: inherit;
+}
+
+.policy-lux-form input:focus,
+.policy-lux-form textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.policy-lux-form textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.policy-lux-form .about-cta {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  border: 0;
+  cursor: pointer;
+}
+
+.policy-lux-page .about-actions {
+  margin-top: 0.5rem;
+}
+
 /* ========== About ZYBAR — luxury editorial ========== */
 .about-body {
   background:
