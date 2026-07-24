@@ -330,6 +330,10 @@ async function updateCollectionsAll(productsCfg, imageMap) {
     const ledColor = await resolveLedColor(slug, name, { ledColor: p.ledColor });
     const cardTitle = formatNeonPosterCardTitle(name, slug, ledColor);
     const price = getPriceForCard(slug, productsCfg);
+    const defaultPrice = Number(productsCfg.pricesBySize && productsCfg.pricesBySize['30x45']) || 138;
+    const compareAt = Number(productsCfg.compareAtPricesBySize && productsCfg.compareAtPricesBySize['30x45']) || 198;
+    // Sale items: show previous list price ($138). Full-price items: show compare-at MSRP.
+    const comparePrice = Number(price) < defaultPrice ? defaultPrice : compareAt;
     const paths = getCardImagePaths(slug, imageMap);
     const offAttr = paths.onSrc && paths.offSrc && paths.offSrc !== paths.cardSrc
       ? ' data-off-src="' + paths.offSrc + '"'
@@ -345,7 +349,7 @@ async function updateCollectionsAll(productsCfg, imageMap) {
       '            <h3 class="product-card-title">' + cardTitle + '</h3>',
       '          </a>',
       '          <div class="product-card-pricing">',
-      '            <p class="product-card-price-compare">$' + (Number(price) + 39).toFixed(2) + '</p>',
+      '            <p class="product-card-price-compare">$' + Number(comparePrice).toFixed(2) + '</p>',
       '            <p class="product-card-price"><span class="product-card-price-from">From</span> $' + Number(price).toFixed(2) + '</p>',
       '          </div>',
       '        </div>',

@@ -67,8 +67,14 @@
         return;
       }
       existing.prices = existing.prices || {};
-      if (!Number(existing.prices['30x45'])) existing.prices['30x45'] = prices['30x45'];
-      if (!Number(existing.prices['40x60'])) existing.prices['40x60'] = prices['40x60'];
+      // perProductPricesBySize is an intentional override (e.g. sale tiers) — always win.
+      if (perProduct[slug]) {
+        existing.prices['30x45'] = prices['30x45'];
+        existing.prices['40x60'] = prices['40x60'];
+      } else {
+        if (!Number(existing.prices['30x45'])) existing.prices['30x45'] = prices['30x45'];
+        if (!Number(existing.prices['40x60'])) existing.prices['40x60'] = prices['40x60'];
+      }
     });
     return catalog;
   }
