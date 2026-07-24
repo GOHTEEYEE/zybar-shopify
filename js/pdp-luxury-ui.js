@@ -640,9 +640,52 @@
     var duplicateFeatures = document.querySelector('section.pdp-section[aria-labelledby="pdp-features-heading"]');
     if (duplicateFeatures) duplicateFeatures.classList.add("pdp-luxury-hidden");
 
+    ensureWhyBuySection();
     updatePdpLuxuryRating(loadLocalReviews(getProductSlug()));
     syncMemberCta();
     watchMemberCta();
+  }
+
+  function buildWhyBuySection() {
+    var section = document.createElement("section");
+    section.className = "pdp-why-buy section";
+    section.id = "pdp-why-buy";
+    section.setAttribute("aria-labelledby", "pdp-why-buy-title");
+    section.innerHTML =
+      '<div class="container pdp-why-buy-inner">' +
+      '<p class="pdp-why-buy-badge">' +
+      '<span class="pdp-why-buy-badge-icon" aria-hidden="true">' +
+      '<svg width="18" height="18" viewBox="0 0 18 18" fill="none">' +
+      '<rect x="1.75" y="1.75" width="5.5" height="5.5" rx="0.7" stroke="currentColor" stroke-width="1.35"/>' +
+      '<circle cx="12.75" cy="4.5" r="2.55" stroke="currentColor" stroke-width="1.35"/>' +
+      '<path d="M2.4 15.1 4.5 11.05 6.6 15.1Z" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/>' +
+      '<path d="M12.75 10.15 15.55 12.95 12.75 15.75 9.95 12.95Z" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/>' +
+      "</svg></span>" +
+      "<span>HANDCRAFTED IN TOKYO</span>" +
+      "</p>" +
+      '<h2 class="pdp-why-buy-title" id="pdp-why-buy-title">' +
+      '<span class="pdp-why-buy-title-mark">Why buy</span> from ZYBAR?' +
+      "</h2>" +
+      '<div class="pdp-why-buy-copy">' +
+      "<p>Every piece is composed and finished in our Tokyo studio—from lighting layout to acrylic assembly. Because we handle the craft in-house, you get sharper contrast, cleaner internal glow, and a collector-grade finish—not mass-market edge lighting.</p>" +
+      "<p>Browse ready-made models, or upload your own car for a one-of-one Custom Made artwork. The best part? " +
+      "<strong>2-year LED warranty · 30-day returns · damage replacement within 48 hours.</strong> " +
+      "Focus on the car you love—we handle the rest.</p>" +
+      "</div>" +
+      '<ul class="pdp-why-buy-points" aria-label="ZYBAR purchase benefits">' +
+      "<li>Studio craft in Japan</li>" +
+      "<li>Lights from within</li>" +
+      "<li>Worldwide shipping</li>" +
+      "</ul>" +
+      "</div>";
+    return section;
+  }
+
+  function ensureWhyBuySection() {
+    if (document.getElementById("pdp-why-buy")) return;
+    var core = document.getElementById("product-feature");
+    if (!core || !core.parentNode) return;
+    core.parentNode.insertBefore(buildWhyBuySection(), core);
   }
 
   window.ZYBAR = window.ZYBAR || {};

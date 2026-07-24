@@ -2725,6 +2725,118 @@ a.btn.brand-impact-cta:hover {
   font-family: "Inter", "Montserrat", sans-serif;
 }
 
+/* ----- Why buy from ZYBAR (PDP trust / value) ----- */
+.pdp-why-buy {
+  padding: 2.75rem 0 0.5rem;
+}
+
+.pdp-why-buy-inner {
+  max-width: 40rem;
+  margin: 0 auto 2.75rem;
+  text-align: left;
+}
+
+.pdp-why-buy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0 1.15rem;
+  font-family: "Inter", "Montserrat", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.pdp-why-buy-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #3498db;
+}
+
+.pdp-why-buy-title {
+  margin: 0 0 1.25rem;
+  font-family: "Inter", "Montserrat", sans-serif;
+  font-size: clamp(1.55rem, 3.5vw, 2.05rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+
+.pdp-why-buy-title-mark {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.2rem;
+}
+
+.pdp-why-buy-title-mark::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: #3498db;
+}
+
+.pdp-why-buy-copy {
+  display: grid;
+  gap: 1rem;
+}
+
+.pdp-why-buy-copy p {
+  margin: 0;
+  font-family: "Inter", "Montserrat", sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.pdp-why-buy-copy strong {
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 600;
+}
+
+.pdp-why-buy-points {
+  list-style: none;
+  margin: 1.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1.25rem;
+}
+
+.pdp-why-buy-points li {
+  position: relative;
+  padding-left: 0.95rem;
+  font-family: "Inter", "Montserrat", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.pdp-why-buy-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: #3498db;
+  box-shadow: 0 0 8px rgba(52, 152, 219, 0.55);
+}
+
 .product-feature-media {
   position: relative;
   border-radius: 12px;
@@ -2881,6 +2993,37 @@ a.btn.brand-impact-cta:hover {
 }
 
 @media (max-width: 768px) {
+  .pdp-why-buy {
+    padding: 2rem 0 0.25rem;
+  }
+
+  .pdp-why-buy-inner {
+    margin-bottom: 2rem;
+  }
+
+  .pdp-why-buy-badge {
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+  }
+
+  .pdp-why-buy-title {
+    font-size: clamp(1.4rem, 6vw, 1.75rem);
+    margin-bottom: 1rem;
+  }
+
+  .pdp-why-buy-copy p {
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  .pdp-why-buy-points {
+    gap: 0.45rem 1rem;
+  }
+
+  .pdp-why-buy-points li {
+    font-size: 0.74rem;
+  }
+
   .product-feature-wrap {
     grid-template-columns: 1fr;
     gap: 1.5rem;
@@ -3230,6 +3373,10 @@ body:has(.product-showcase-wrap) {
 /* Reserve space when sticky bar is present on product page */
 body:has(.pdp-sticky-bar) .product-showcase-wrap {
   padding-bottom: 5rem;
+}
+
+body:has(.pdp-sticky-bar) .site-footer {
+  padding-bottom: 5.5rem;
 }
 
 .product-showcase {
@@ -6237,8 +6384,8 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 }
 
 .site-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: #050505;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, #0c0c10 0%, #070709 40%, #050505 100%);
 }
 
 .footer-wrap {
@@ -6256,20 +6403,22 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   align-items: stretch;
   justify-content: flex-start;
   text-align: left;
-  gap: 1.75rem;
-  padding: 2.5rem 0 2.25rem;
+  gap: 1.9rem;
+  padding: 2.75rem 0 2.5rem;
 }
 
 .footer-need-help {
   width: 100%;
-  padding-bottom: 1.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.35rem 1.15rem 1.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .footer-need-help-title {
-  margin: 0 0 1.5rem;
+  margin: 0 0 1.35rem;
   font-family: var(--font-body);
-  font-size: clamp(1.05rem, 2.2vw, 1.2rem);
+  font-size: clamp(1.12rem, 2.4vw, 1.3rem);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -6290,16 +6439,16 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 }
 
 .footer-help-icon {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.88);
+  background: rgba(52, 152, 219, 0.1);
+  border: 1px solid rgba(52, 152, 219, 0.35);
+  color: #7ec8f0;
 }
 
 .footer-help-body {
@@ -6309,18 +6458,18 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .footer-help-label {
   margin: 0 0 0.4rem;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.74rem;
+  font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .footer-help-detail {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .footer-help-detail span {
@@ -6329,36 +6478,43 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .footer-help-link {
   display: inline-block;
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.85);
+  color: #fff;
   text-decoration: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom: 1px solid rgba(126, 200, 240, 0.55);
   transition: color 0.18s ease, border-color 0.18s ease;
 }
 
 .footer-help-link:hover,
 .footer-help-link:focus-visible {
-  color: #fff;
-  border-bottom-color: rgba(255, 255, 255, 0.55);
+  color: #7ec8f0;
+  border-bottom-color: rgba(126, 200, 240, 0.95);
   outline: none;
 }
 
 .footer-help-cta {
-  display: inline-block;
-  margin-top: 0.55rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  display: block;
+  width: fit-content;
+  margin-top: 0.7rem;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  color: #fff;
   text-decoration: none;
-  transition: color 0.18s ease;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
 .footer-help-cta:hover,
 .footer-help-cta:focus-visible {
   color: #fff;
+  border-color: rgba(126, 200, 240, 0.55);
+  background: rgba(52, 152, 219, 0.16);
   outline: none;
 }
 
@@ -6371,11 +6527,11 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
 .footer-nav-title {
   margin: 0 0 0.85rem;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.74rem;
+  font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .footer-nav-list {
@@ -6391,17 +6547,17 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   display: inline-flex;
   align-items: center;
   min-height: 40px;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
-  font-size: 0.92rem;
-  font-weight: 450;
+  font-size: 0.95rem;
+  font-weight: 500;
   letter-spacing: 0.01em;
   transition: color 0.18s ease;
 }
 
 .footer-nav-list a:hover,
 .footer-nav-list a:focus-visible {
-  color: #fff;
+  color: #7ec8f0;
   outline: none;
 }
 
@@ -6558,12 +6714,12 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 }
 
 .footer-wrap .footer-nav-list a {
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .footer-wrap .footer-nav-list a:hover,
 .footer-wrap .footer-nav-list a:focus-visible {
-  color: #fff;
+  color: #7ec8f0;
 }
 
 .footer-policies {
@@ -7238,12 +7394,13 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   }
 
   .footer-wrap--premium {
-    padding: 2rem 0 2.25rem;
-    gap: 1.5rem;
+    padding: 2.15rem 0 2.4rem;
+    gap: 1.55rem;
   }
 
   .footer-need-help {
-    padding-bottom: 1.35rem;
+    padding: 1.15rem 0.95rem 1.35rem;
+    border-radius: 14px;
   }
 
   .footer-need-help-grid {
@@ -7253,6 +7410,11 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
 
   .footer-help-item {
     gap: 0.85rem;
+  }
+
+  .footer-help-label,
+  .footer-nav-title {
+    color: rgba(255, 255, 255, 0.78);
   }
 
   .footer-nav-grid {
