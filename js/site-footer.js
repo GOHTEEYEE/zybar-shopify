@@ -77,10 +77,10 @@
 
   function iconSvg(type) {
     if (type === "pin") {
-      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+      return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>';
     }
     if (type === "mail") {
-      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 7 9-7"/></svg>';
+      return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 7 9-7"/></svg>';
     }
     return "";
   }
@@ -140,6 +140,11 @@
     title.textContent = "Need Help?";
     section.appendChild(title);
 
+    var lede = document.createElement("p");
+    lede.className = "footer-need-help-lede";
+    lede.textContent = "Studio support for orders, shipping, and custom requests.";
+    section.appendChild(lede);
+
     var grid = document.createElement("div");
     grid.className = "footer-need-help-grid";
 
@@ -151,20 +156,23 @@
       })
     );
 
-    var emailItem = buildHelpItem({
-      icon: "mail",
-      label: "Email",
-      href: "mailto:" + CONTACT.email,
-      hrefText: CONTACT.email
-    });
+    grid.appendChild(
+      buildHelpItem({
+        icon: "mail",
+        label: "Email",
+        href: "mailto:" + CONTACT.email,
+        hrefText: CONTACT.email
+      })
+    );
+
+    section.appendChild(grid);
+
     var contactLink = document.createElement("a");
     contactLink.className = "footer-help-cta";
     contactLink.href = CONTACT.contactHref;
     contactLink.textContent = "Contact form";
-    emailItem.querySelector(".footer-help-body").appendChild(contactLink);
-    grid.appendChild(emailItem);
+    section.appendChild(contactLink);
 
-    section.appendChild(grid);
     return section;
   }
 
