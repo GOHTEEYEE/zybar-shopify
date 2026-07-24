@@ -353,7 +353,7 @@
         title: "FAQs",
         body:
           "<div class=\"pdp-accordion-faq\">" +
-          "<p><strong>Where are products made?</strong><br>Handcrafted by our team and shipped worldwide from Malaysia.</p>" +
+          "<p><strong>Where are products made?</strong><br>Handcrafted in Japan by our team and shipped worldwide from Tokyo.</p>" +
           "<p><strong>Can I customize my own car?</strong><br>Yes — upload a photo on our Custom Made page and we’ll handcraft a one-of-one piece.</p>" +
           "<p><strong>Can I use it in my country?</strong><br>Yes. Worldwide shipping and standard USB power compatibility.</p>" +
           "<p><a href=\"/policies/faq.html\">View full FAQ →</a></p>" +

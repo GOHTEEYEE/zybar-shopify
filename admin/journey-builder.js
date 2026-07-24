@@ -443,12 +443,12 @@
     }
 
     function statusPill(status) {
-      var s = String(status || '');
+      var s = String(status || '').toLowerCase();
       var cls = 'admin-workflow-pill admin-workflow-pill-status';
       if (s === 'waiting') cls += ' admin-journey-pill-wait';
-      if (s === 'ready') cls += ' admin-journey-pill-ready';
-      if (s === 'completed') cls += ' admin-journey-pill-ok';
-      if (s === 'cancelled') cls += ' admin-journey-pill-off';
+      else if (s === 'ready') cls += ' admin-journey-pill-due';
+      else if (s === 'completed' || s === 'cancelled') cls += ' admin-journey-pill-cyan';
+      else cls += ' admin-journey-pill-off';
       return '<span class="' + cls + '">' + esc(s) + '</span>';
     }
 

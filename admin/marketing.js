@@ -84,18 +84,35 @@ window.renderAdminmarketing = function (container) {
     return d.toLocaleString();
   }
 
-  function statusPill(status) {
-    var s = String(status || '');
+  function queueDisplayStatus(status, scheduledAt) {
+    var s = String(status || '').toLowerCase();
+    if (s === 'pending') {
+      var at = scheduledAt ? new Date(scheduledAt).getTime() : 0;
+      if (at && at <= Date.now()) return 'due';
+      return 'waiting';
+    }
+    return s || '—';
+  }
+
+  function statusPill(status, scheduledAt) {
+    var label = queueDisplayStatus(status, scheduledAt);
     var cls = 'admin-workflow-pill admin-workflow-pill-status';
-    if (s === 'pending' || s === 'waiting' || s === 'scheduled' || s === 'draft') {
+    if (label === 'waiting' || label === 'scheduled' || label === 'draft') {
       cls += ' admin-journey-pill-wait';
+    } else if (
+      label === 'due' ||
+      label === 'ready' ||
+      label === 'executing' ||
+      label === 'active' ||
+      label === 'published'
+    ) {
+      cls += ' admin-journey-pill-due';
+    } else if (label === 'completed' || label === 'cancelled' || label === 'partial') {
+      cls += ' admin-journey-pill-cyan';
+    } else {
+      cls += ' admin-journey-pill-off';
     }
-    if (s === 'ready' || s === 'executing' || s === 'active' || s === 'published') {
-      cls += ' admin-journey-pill-ready';
-    }
-    if (s === 'completed' || s === 'partial') cls += ' admin-journey-pill-ok';
-    if (s === 'failed' || s === 'cancelled' || s === 'archived' || s === 'off') cls += ' admin-journey-pill-off';
-    return '<span class="' + cls + '">' + esc(s) + '</span>';
+    return '<span class="' + cls + '">' + esc(label) + '</span>';
   }
 
   function engagePill(label, cls) {
@@ -1002,7 +1019,7 @@ window.renderAdminmarketing = function (container) {
                 '</td><td>' +
                 esc(when(r.scheduled_at)) +
                 '</td><td>' +
-                statusPill(r.status) +
+                statusPill(r.status, r.scheduled_at) +
                 (r.error_message
                   ? '<div class="admin-muted">' + esc(r.error_message) + '</div>'
                   : '') +

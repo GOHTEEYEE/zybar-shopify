@@ -36,6 +36,28 @@ window.AdminMarketingCenter = (function () {
     return d.toLocaleString();
   }
 
+  /** Queue UX labels: pending → due (ready now) or waiting (scheduled later). */
+  function queueDisplayStatus(row) {
+    var s = String((row && row.status) || '').toLowerCase();
+    if (s === 'pending') {
+      var at = row && row.scheduled_at ? new Date(row.scheduled_at).getTime() : 0;
+      if (at && at <= Date.now()) return 'due';
+      return 'waiting';
+    }
+    return s || '—';
+  }
+
+  function queueStatusPill(row) {
+    var label = queueDisplayStatus(row);
+    var cls = 'admin-workflow-pill admin-workflow-pill-status';
+    if (label === 'waiting') cls += ' admin-journey-pill-wait';
+    else if (label === 'due') cls += ' admin-journey-pill-due';
+    else if (label === 'completed' || label === 'cancelled') cls += ' admin-journey-pill-cyan';
+    else if (label === 'failed') cls += ' admin-journey-pill-off';
+    else cls += ' admin-journey-pill-off';
+    return '<span class="' + cls + '">' + esc(label) + '</span>';
+  }
+
   function withFrom(target) {
     var U = window.AdminUtils || {};
     return U.withFrom ? U.withFrom(target) : String(target || '');
@@ -263,7 +285,7 @@ window.AdminMarketingCenter = (function () {
               '</td><td>' +
               esc(row.template_id || row.action_type || '—') +
               '</td><td>' +
-              esc(row.status) +
+              queueStatusPill(row) +
               '</td></tr>'
             );
           })

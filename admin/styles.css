@@ -186,18 +186,20 @@ body {
 }
 
 .admin-journey-pill-wait {
-  background: rgba(245, 158, 11, 0.12);
+  background: rgba(245, 158, 11, 0.14);
   color: #b45309;
 }
 
+.admin-journey-pill-due,
 .admin-journey-pill-ready {
   background: rgba(37, 99, 235, 0.12);
   color: #1d4ed8;
 }
 
-.admin-journey-pill-ok {
-  background: rgba(22, 163, 74, 0.12);
-  color: #15803d;
+.admin-journey-pill-ok,
+.admin-journey-pill-cyan {
+  background: rgba(8, 145, 178, 0.14);
+  color: #0e7490;
 }
 
 .admin-journey-pill-off {
