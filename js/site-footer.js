@@ -58,13 +58,22 @@
       "ZYBAR Studio",
       "2-14-5 Jingumae",
       "Shibuya-ku, Tokyo",
-      "Japan",
-      "150-0001"
+      "Japan 150-0001"
     ],
     email: "zybar.info@gmail.com",
-    phoneLabel: "Contact Support",
-    phoneHref: "/contact.html"
+    contactHref: "/contact.html"
   };
+
+  var PAYMENTS = [
+    { name: "Visa", className: "is-visa", label: "VISA" },
+    { name: "Mastercard", className: "is-mastercard", label: "Mastercard" },
+    { name: "Amex", className: "is-amex", label: "AMEX" },
+    { name: "Apple Pay", className: "is-applepay", label: "Pay" },
+    { name: "Google Pay", className: "is-gpay", label: "GPay" },
+    { name: "PayPal", className: "is-paypal", label: "PayPal" },
+    { name: "Klarna", className: "is-klarna", label: "Klarna" },
+    { name: "Link", className: "is-link", label: "Link" }
+  ];
 
   function iconSvg(type) {
     if (type === "pin") {
@@ -72,9 +81,6 @@
     }
     if (type === "mail") {
       return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 7 9-7"/></svg>';
-    }
-    if (type === "phone") {
-      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>';
     }
     return "";
   }
@@ -145,25 +151,19 @@
       })
     );
 
-    var right = document.createElement("div");
-    right.className = "footer-need-help-right";
-    right.appendChild(
-      buildHelpItem({
-        icon: "mail",
-        label: "Email",
-        href: "mailto:" + CONTACT.email,
-        hrefText: CONTACT.email
-      })
-    );
-    right.appendChild(
-      buildHelpItem({
-        icon: "phone",
-        label: "Phone",
-        href: CONTACT.phoneHref,
-        hrefText: CONTACT.phoneLabel
-      })
-    );
-    grid.appendChild(right);
+    var emailItem = buildHelpItem({
+      icon: "mail",
+      label: "Email",
+      href: "mailto:" + CONTACT.email,
+      hrefText: CONTACT.email
+    });
+    var contactLink = document.createElement("a");
+    contactLink.className = "footer-help-cta";
+    contactLink.href = CONTACT.contactHref;
+    contactLink.textContent = "Contact form";
+    emailItem.querySelector(".footer-help-body").appendChild(contactLink);
+    grid.appendChild(emailItem);
+
     section.appendChild(grid);
     return section;
   }
