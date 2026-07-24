@@ -33,12 +33,12 @@
     {
       "slug": "b-dodge-hellcat-02",
       "name": "B Dodge Hellcat 02",
-      "ledColor": "Multi"
+      "ledColor": "Red"
     },
     {
       "slug": "b-dodge-hellcat-03",
       "name": "B Dodge Hellcat 03",
-      "ledColor": "Blue"
+      "ledColor": "Red"
     },
     {
       "slug": "b-ferrari-f40",
@@ -78,12 +78,12 @@
     {
       "slug": "bmw-m4",
       "name": "Bmw M4",
-      "ledColor": "Multi"
+      "ledColor": "Yellow"
     },
     {
       "slug": "bmw-m4-black",
       "name": "Bmw M4 Black",
-      "ledColor": "White"
+      "ledColor": "Yellow"
     },
     {
       "slug": "bmw-m4-g82-01",
@@ -93,7 +93,7 @@
     {
       "slug": "bmw-m5-e39",
       "name": "Bmw M5 E39",
-      "ledColor": "Purple"
+      "ledColor": "Blue"
     },
     {
       "slug": "bugatti-tailights",
@@ -108,7 +108,7 @@
     {
       "slug": "c-lamborghini-oragne",
       "name": "C Lamborghini Oragne",
-      "ledColor": "Orange"
+      "ledColor": "White"
     },
     {
       "slug": "custom-led-car-wall-art",
@@ -125,7 +125,7 @@
     {
       "slug": "dodge-srt-hellcat-01",
       "name": "Dodge Srt Hellcat 01",
-      "ledColor": "Orange"
+      "ledColor": "White"
     },
     {
       "slug": "ferrari-488",
@@ -135,7 +135,7 @@
     {
       "slug": "ferrari-f8",
       "name": "Ferrari F8",
-      "ledColor": "Red"
+      "ledColor": "White"
     },
     {
       "slug": "lambrghini-svj-tailights",
@@ -145,7 +145,7 @@
     {
       "slug": "mercedes-benz-amg-1",
       "name": "Mercedes Benz Amg 1",
-      "ledColor": "Red"
+      "ledColor": "White"
     },
     {
       "slug": "mercedes-benz-cls-amg63",
@@ -155,7 +155,7 @@
     {
       "slug": "mercedes-benz-g63-double-tail-2",
       "name": "Mercedes Benz G63 Double Tail 2",
-      "ledColor": "White"
+      "ledColor": "Red"
     },
     {
       "slug": "nissan-gtr",
@@ -170,12 +170,12 @@
     {
       "slug": "porsche-gt3-rs-green",
       "name": "Porsche Gt3 Rs Green",
-      "ledColor": "Green"
+      "ledColor": "Red"
     },
     {
       "slug": "porsche-gt3-rs-grey",
       "name": "Porsche Gt3 Rs Grey",
-      "ledColor": "White"
+      "ledColor": "Red"
     },
     {
       "slug": "porsche-r",
@@ -185,12 +185,12 @@
     {
       "slug": "toyota-supra",
       "name": "Toyota Supra",
-      "ledColor": "Red"
+      "ledColor": "Yellow"
     },
     {
       "slug": "xa-ferrari-motorcycle-1",
       "name": "Xa Ferrari Motorcycle 1",
-      "ledColor": "Multi"
+      "ledColor": "White"
     },
     {
       "slug": "xd-bmw-headlights-motorcycle",
