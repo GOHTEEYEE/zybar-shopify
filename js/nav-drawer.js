@@ -3,17 +3,49 @@
 
   if (window.location.pathname.indexOf('/admin/') === 0) return;
 
-  var DRAWER_LINKS = [
-    { href: '/', label: 'Home' },
-    { href: '/collections/all/', label: 'Catalog' },
-    { href: '/products/custom-led-car-wall-art/', label: 'Custom Made' },
-    { href: '/about/about-us.html', label: 'About' },
-    { href: '/policies/faq.html', label: 'FAQ' },
-    { href: '/track-order.html', label: 'Track Order' },
-    { href: '/contact.html#support', label: 'Support' }
+  var CUSTOM_MADE_HREF = '/products/custom-led-car-wall-art/';
+  var CATALOG_HREF = '/collections/all/';
+
+  var NAV_SECTIONS = [
+    {
+      title: 'Shop',
+      links: [
+        { href: CATALOG_HREF, label: 'Ready Made Collection' },
+        { href: CUSTOM_MADE_HREF, label: 'Custom Made Collection' },
+        { href: CATALOG_HREF, label: 'All Products' }
+      ]
+    },
+    {
+      title: 'Support',
+      links: [
+        { href: '/policies/faq.html', label: 'Shipping & FAQ' },
+        { href: '/policies/refund-policy.html', label: 'Refund Policy' },
+        { href: '/policies/privacy-policy/', label: 'Privacy Policy' },
+        { href: '/contact.html', label: 'Contact Us' }
+      ]
+    },
+    {
+      title: 'Company',
+      links: [{ href: '/about/about-us.html', label: 'About ZYBAR' }]
+    }
   ];
 
   var SOCIAL_LINKS = [
+    {
+      type: 'instagram',
+      label: 'Instagram',
+      href: 'https://www.instagram.com/zybar.shop?igsh=ZWtrbzJvMWtheG82'
+    },
+    {
+      type: 'tiktok',
+      label: 'TikTok',
+      href: 'https://www.tiktok.com/@zybar.shop?_r=1&_t=ZS-986wLWv44xA'
+    },
+    {
+      type: 'facebook',
+      label: 'Facebook',
+      href: 'https://www.facebook.com/people/ZY-Bar/61552413785446/'
+    }
   ];
 
   function normalizePath(path) {
@@ -61,7 +93,7 @@
 
   function socialSvg(type) {
     if (type === 'instagram') {
-      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"></circle></svg>';
+      return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"></circle></svg>';
     }
     if (type === 'tiktok') {
       return '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 3a5.2 5.2 0 0 0 1 3.4V9a7.8 7.8 0 0 1-4.5-1.4v6.8a5.4 5.4 0 1 1-5.4-5.4c.3 0 .6 0 .9.1v2.4a3 3 0 1 0 2.1 2.9V3h2.9z"></path></svg>';
@@ -70,6 +102,30 @@
       return '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 8.5V6.8c0-.7.1-1 .9-1H17V3h-2.4C11.8 3 11 4.8 11 7.2V8.5H9v2.7h2V21h3v-9.8h2.6L17 11h-3z"></path></svg>';
     }
     return '';
+  }
+
+  function createNavLink(item) {
+    var link = document.createElement('a');
+    link.href = item.href;
+    link.className = 'nav-drawer-link';
+    link.textContent = item.label;
+    if (isActiveLink(item.href)) {
+      link.classList.add('is-active');
+      link.setAttribute('aria-current', 'page');
+    }
+    return link;
+  }
+
+  function buildFeaturedCard() {
+    var card = document.createElement('a');
+    card.className = 'nav-drawer-featured';
+    card.href = CUSTOM_MADE_HREF;
+    card.setAttribute('aria-label', 'Custom Made — Turn Your Own Car Into Light');
+    card.innerHTML =
+      '<p class="nav-drawer-featured-kicker">Custom Made</p>' +
+      '<p class="nav-drawer-featured-title">Turn Your Own Car Into Light</p>' +
+      '<span class="nav-drawer-featured-cta">Create Yours <span aria-hidden="true">→</span></span>';
+    return card;
   }
 
   function buildDrawer() {
@@ -109,39 +165,61 @@
     header.appendChild(logo);
     header.appendChild(closeBtn);
 
+    var scroll = document.createElement('div');
+    scroll.className = 'nav-drawer-scroll';
+
+    scroll.appendChild(buildFeaturedCard());
+
     var nav = document.createElement('nav');
     nav.className = 'nav-drawer-nav';
     nav.setAttribute('aria-label', 'Main');
 
-    DRAWER_LINKS.forEach(function (item) {
-      var link = document.createElement('a');
-      link.href = item.href;
-      link.textContent = item.label;
-      if (isActiveLink(item.href)) {
-        link.className = 'is-active';
-        link.setAttribute('aria-current', 'page');
-      }
-      nav.appendChild(link);
+    NAV_SECTIONS.forEach(function (section) {
+      var group = document.createElement('div');
+      group.className = 'nav-drawer-section';
+
+      var heading = document.createElement('h2');
+      heading.className = 'nav-drawer-section-title';
+      heading.textContent = section.title;
+      group.appendChild(heading);
+
+      var list = document.createElement('div');
+      list.className = 'nav-drawer-section-links';
+      section.links.forEach(function (item) {
+        list.appendChild(createNavLink(item));
+      });
+      group.appendChild(list);
+      nav.appendChild(group);
     });
 
-    panel.appendChild(header);
-    panel.appendChild(nav);
+    scroll.appendChild(nav);
 
-    if (SOCIAL_LINKS.length) {
-      var social = document.createElement('div');
-      social.className = 'nav-drawer-social';
-      SOCIAL_LINKS.forEach(function (item) {
-        var socialLink = document.createElement('a');
-        socialLink.href = item.href;
-        socialLink.className = 'nav-drawer-social-link';
-        socialLink.setAttribute('aria-label', item.label);
-        socialLink.target = '_blank';
-        socialLink.rel = 'noopener noreferrer';
-        socialLink.innerHTML = socialSvg(item.type);
-        social.appendChild(socialLink);
-      });
-      panel.appendChild(social);
-    }
+    var follow = document.createElement('div');
+    follow.className = 'nav-drawer-follow';
+
+    var followTitle = document.createElement('h2');
+    followTitle.className = 'nav-drawer-section-title';
+    followTitle.textContent = 'Follow Us';
+    follow.appendChild(followTitle);
+
+    var social = document.createElement('div');
+    social.className = 'nav-drawer-social';
+    social.setAttribute('aria-label', 'Social media');
+    SOCIAL_LINKS.forEach(function (item) {
+      var socialLink = document.createElement('a');
+      socialLink.href = item.href;
+      socialLink.className = 'nav-drawer-social-link';
+      socialLink.setAttribute('aria-label', item.label);
+      socialLink.target = '_blank';
+      socialLink.rel = 'noopener noreferrer';
+      socialLink.innerHTML = socialSvg(item.type);
+      social.appendChild(socialLink);
+    });
+    follow.appendChild(social);
+    scroll.appendChild(follow);
+
+    panel.appendChild(header);
+    panel.appendChild(scroll);
 
     root.appendChild(overlay);
     root.appendChild(panel);
@@ -212,7 +290,7 @@
     }
   }
 
-  function initDrawerBehavior(drawer, headers) {
+  function initDrawerBehavior(drawer) {
     var overlay = drawer.querySelector('.nav-drawer-overlay');
     var panel = drawer.querySelector('.nav-drawer-panel');
     var closeBtn = drawer.querySelector('.nav-drawer-close');
@@ -238,8 +316,10 @@
       drawer.setAttribute('aria-hidden', 'false');
       document.body.classList.add('nav-drawer-open');
       setExpanded(true);
-      var firstLink = panel.querySelector('.nav-drawer-nav a');
-      if (firstLink) firstLink.focus();
+      var firstFocus =
+        panel.querySelector('.nav-drawer-featured') ||
+        panel.querySelector('.nav-drawer-link');
+      if (firstFocus) firstFocus.focus();
     }
 
     function closeDrawer() {
@@ -278,7 +358,7 @@
     overlay.addEventListener('click', closeDrawer);
     closeBtn.addEventListener('click', closeDrawer);
 
-    panel.querySelectorAll('.nav-drawer-nav a').forEach(function (link) {
+    panel.querySelectorAll('a').forEach(function (link) {
       link.addEventListener('click', closeDrawer);
     });
 
@@ -412,11 +492,15 @@
     updateHeader();
 
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', function () {
-      heroElement = null;
-      measureHeader();
-      updateHeader();
-    }, { passive: true });
+    window.addEventListener(
+      'resize',
+      function () {
+        heroElement = null;
+        measureHeader();
+        updateHeader();
+      },
+      { passive: true }
+    );
     window.addEventListener('load', function () {
       heroElement = null;
       measureHeader();
@@ -433,7 +517,7 @@
     initHeaderScroll();
 
     var drawer = buildDrawer();
-    initDrawerBehavior(drawer, headers);
+    initDrawerBehavior(drawer);
     ensureSearchReady(function () {});
   }
 

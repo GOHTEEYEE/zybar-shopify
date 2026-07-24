@@ -1,17 +1,38 @@
 /**
- * Sitewide footer: social links + payment badges.
+ * Sitewide footer: grouped navigation + social links + payment badges.
  * Enhances existing .site-footer or injects one before </body>.
  */
 (function () {
   "use strict";
 
-  var SOCIAL = [
+  var CUSTOM_MADE_HREF = "/products/custom-led-car-wall-art/";
+  var CATALOG_HREF = "/collections/all/";
+
+  var FOOTER_SECTIONS = [
     {
-      name: "Facebook",
-      href: "https://www.facebook.com/people/ZY-Bar/61552413785446/",
-      svg:
-        '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 8.5h2.5V5.6c-.4-.1-1.6-.2-3-.2-3 0-5 1.8-5 5.2V13H5.8v3.3H8.5V22h3.4v-5.7h2.8l.4-3.3h-3.2v-2.2c0-1 .3-1.6 1.6-1.6z"/></svg>'
+      title: "Shop",
+      links: [
+        { href: CATALOG_HREF, label: "Ready Made Collection" },
+        { href: CUSTOM_MADE_HREF, label: "Custom Made Collection" },
+        { href: CATALOG_HREF, label: "All Products" }
+      ]
     },
+    {
+      title: "Support",
+      links: [
+        { href: "/policies/faq.html", label: "Shipping & FAQ" },
+        { href: "/policies/refund-policy.html", label: "Refund Policy" },
+        { href: "/policies/privacy-policy/", label: "Privacy Policy" },
+        { href: "/contact.html", label: "Contact Us" }
+      ]
+    },
+    {
+      title: "Company",
+      links: [{ href: "/about/about-us.html", label: "About ZYBAR" }]
+    }
+  ];
+
+  var SOCIAL = [
     {
       name: "Instagram",
       href: "https://www.instagram.com/zybar.shop?igsh=ZWtrbzJvMWtheG82",
@@ -23,6 +44,12 @@
       href: "https://www.tiktok.com/@zybar.shop?_r=1&_t=ZS-986wLWv44xA",
       svg:
         '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.6 7.3a5.7 5.7 0 0 1-3.4-1.1v7.3a5.5 5.5 0 1 1-4.7-5.4v2.8a2.7 2.7 0 1 0 1.9 2.6V2.5h2.8a5.7 5.7 0 0 0 3.4 3.3v1.5z"/></svg>'
+    },
+    {
+      name: "Facebook",
+      href: "https://www.facebook.com/people/ZY-Bar/61552413785446/",
+      svg:
+        '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 8.5h2.5V5.6c-.4-.1-1.6-.2-3-.2-3 0-5 1.8-5 5.2V13H5.8v3.3H8.5V22h3.4v-5.7h2.8l.4-3.3h-3.2v-2.2c0-1 .3-1.6 1.6-1.6z"/></svg>'
     }
   ];
 
@@ -36,6 +63,46 @@
     { name: "Klarna", className: "is-klarna", label: "Klarna" },
     { name: "Link", className: "is-link", label: "Link" }
   ];
+
+  function buildNavColumns() {
+    var grid = document.createElement("div");
+    grid.className = "footer-nav-grid";
+
+    FOOTER_SECTIONS.forEach(function (section) {
+      var col = document.createElement("div");
+      col.className = "footer-nav-col";
+
+      var title = document.createElement("h3");
+      title.className = "footer-nav-title";
+      title.textContent = section.title;
+      col.appendChild(title);
+
+      var list = document.createElement("ul");
+      list.className = "footer-nav-list";
+      section.links.forEach(function (item) {
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = item.href;
+        a.textContent = item.label;
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+      col.appendChild(list);
+      grid.appendChild(col);
+    });
+
+    var follow = document.createElement("div");
+    follow.className = "footer-nav-col footer-nav-col--follow";
+
+    var followTitle = document.createElement("h3");
+    followTitle.className = "footer-nav-title";
+    followTitle.textContent = "Follow Us";
+    follow.appendChild(followTitle);
+    follow.appendChild(buildSocial());
+    grid.appendChild(follow);
+
+    return grid;
+  }
 
   function buildSocial() {
     var nav = document.createElement("nav");
@@ -76,22 +143,6 @@
     return wrap;
   }
 
-  function buildPolicies() {
-    var nav = document.createElement("nav");
-    nav.className = "footer-policies footer-policies--inline";
-    nav.setAttribute("aria-label", "Site policies and information");
-    nav.innerHTML =
-      '<ul class="footer-policies-list footer-policies-list--inline">' +
-      '<li><a href="/policies/refund-policy.html">Refund policy</a></li>' +
-      '<li><a href="/policies/privacy-policy/">Privacy policy</a></li>' +
-      '<li><a href="/policies/tos.html">Terms of service</a></li>' +
-      '<li><a href="/policies/faq.html">Shipping &amp; FAQ</a></li>' +
-      '<li><a href="/contact.html">Contact</a></li>' +
-      '<li><a href="/about/about-us.html">About Us</a></li>' +
-      "</ul>";
-    return nav;
-  }
-
   function buildCopyright() {
     var div = document.createElement("div");
     div.className = "footer-copyright footer-copyright--center";
@@ -103,14 +154,8 @@
     if (document.documentElement.getAttribute("data-zybar-footer") === "off") return;
     var path = (window.location.pathname || "").toLowerCase();
     if (path.indexOf("/admin") === 0) return;
-    // Checkout has its own minimal footer and does not load styles.css —
-    // injecting social SVGs there makes them fill the viewport.
     if (path === "/checkout" || path.indexOf("/checkout/") === 0) return;
-    // Receipt / confirmation pages use standalone CSS — same SVG blowout risk.
-    if (
-      path.indexOf("receipt") !== -1 ||
-      path.indexOf("purchase-confirmation") !== -1
-    ) {
+    if (path.indexOf("receipt") !== -1 || path.indexOf("purchase-confirmation") !== -1) {
       return;
     }
 
@@ -140,10 +185,9 @@
     }
     wrap.classList.add("footer-wrap--premium");
     wrap.innerHTML = "";
-    wrap.appendChild(buildSocial());
+    wrap.appendChild(buildNavColumns());
     wrap.appendChild(buildPayments());
     wrap.appendChild(buildCopyright());
-    wrap.appendChild(buildPolicies());
   }
 
   if (document.readyState === "loading") {
