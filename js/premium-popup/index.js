@@ -86,9 +86,9 @@
       '<span class="zybar-popup-discount-pct">15% OFF</span>' +
       '<span class="zybar-popup-discount-label">Member Pricing</span>' +
       '</p>' +
-      '<p class="zybar-popup-offer">Join free — savings apply automatically on your first order.</p>' +
+      '<p class="zybar-popup-offer">Join free — Member pricing · valid 7 days after signup.</p>' +
       '<ul class="zybar-popup-benefits" aria-label="Member benefits">' +
-      '<li class="zybar-popup-benefit--highlight"><span aria-hidden="true">✓</span><strong>Extra 15% Member Discount</strong></li>' +
+      '<li class="zybar-popup-benefit--highlight"><span aria-hidden="true">✓</span><strong>Extra 15% for 7 Days</strong></li>' +
       '<li><span aria-hidden="true">✓</span>Early Access to New Collections</li>' +
       '<li><span aria-hidden="true">✓</span>Members-only Promotions</li>' +
       '</ul>' +
@@ -296,10 +296,12 @@
 
     if (payload && payload.alreadyMember) {
       title.textContent = "You're already a member.";
-      copy.innerHTML = 'Your <strong>15% Member Pricing</strong> is active and will be applied automatically.';
+      copy.innerHTML =
+        'Your <strong>15% Member Pricing</strong> is active for <strong>7 days after signup</strong> and applies automatically.';
     } else {
       title.textContent = '✓ Welcome to ZYBAR Garage';
-      copy.innerHTML = 'Your <strong>15% Member Pricing</strong> is active and will be applied automatically.';
+      copy.innerHTML =
+        'Your <strong>15% Member Pricing</strong> is active for <strong>7 days</strong> and will be applied automatically.';
     }
 
     if (formView) formView.hidden = true;

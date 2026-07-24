@@ -175,9 +175,9 @@
     list.setAttribute("aria-label", "Purchase assurances");
     var items = [
       { icon: "globe", text: "Worldwide Shipping" },
-      { icon: "craft", text: "Handcrafted in Japan" },
-      { icon: "shield", text: "30-Day Satisfaction Guarantee" },
-      { icon: "lock", text: "Secure Checkout" }
+      { icon: "shield", text: "30-Day Returns" },
+      { icon: "craft", text: "Damage Replacement within 48h" },
+      { icon: "lock", text: "2-Year LED Warranty" }
     ];
     items.forEach(function (item) {
       var li = document.createElement("li");
@@ -333,9 +333,9 @@
       },
       {
         id: "warranty",
-        title: "Warranty",
+        title: "Warranty & Returns",
         body:
-          "<p class=\"pdp-accordion-text\">Every ZYBAR piece is backed by a 30-day easy returns policy for eligible products, and we carefully inspect every piece before shipping. If your order arrives damaged, contact us within 48 hours of delivery with photos.</p>"
+          "<p class=\"pdp-accordion-text\">Every ZYBAR piece includes a <strong>2-year LED warranty</strong> covering manufacturing defects in the lighting system. You also have a <strong>30-day satisfaction return</strong> for eligible ready-made products. If your order arrives damaged, contact us within <strong>48 hours</strong> of delivery with photos and we will arrange a replacement.</p>"
       },
       {
         id: "installation",
@@ -415,8 +415,8 @@
 
   /**
    * Dynamic Add to Cart CTA: members see their extra savings baked into the
-   * button and a "Member Pricing Active" note above it. Non-members see the
-   * plain CTA. Re-runs whenever member status changes.
+   * button and a "Member Pricing Active" note above it. Non-members see a soft
+   * invite to unlock 7-day welcome pricing (works even if the popup was closed).
    */
   function syncMemberCta() {
     if (!isProductPage()) return;
@@ -439,7 +439,9 @@
 
     var buy = document.querySelector(".pdp-luxury-buy");
     var note = document.querySelector(".pdp-member-note");
+    var invite = document.querySelector(".pdp-member-invite");
     if (memberState && buy && mainCta) {
+      if (invite) invite.remove();
       if (!note) {
         note = document.createElement("p");
         note.className = "pdp-member-note";
@@ -449,9 +451,24 @@
       note.innerHTML =
         '<span class="pdp-member-note-check" aria-hidden="true">\u2713</span>' +
         '<span class="pdp-member-note-copy"><strong>Member Pricing Active</strong>' +
-        "<small>Extra " + memberState.percent + "% will be applied automatically.</small></span>";
-    } else if (note) {
-      note.remove();
+        "<small>Extra " +
+        memberState.percent +
+        "% · valid 7 days after signup.</small></span>";
+    } else if (buy && mainCta) {
+      if (note) note.remove();
+      if (!invite) {
+        invite = document.createElement("button");
+        invite.type = "button";
+        invite.className = "pdp-member-invite";
+        invite.addEventListener("click", function () {
+          var popup = window.ZYBAR && window.ZYBAR.PremiumPopup;
+          if (popup && typeof popup.show === "function") {
+            popup.show("pdp_cta", { force: true });
+          }
+        });
+        buy.insertBefore(invite, mainCta);
+      }
+      invite.textContent = "Unlock 15% Member Pricing · valid 7 days";
     }
   }
 

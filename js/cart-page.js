@@ -424,6 +424,10 @@
       "</dl>" +
       '<div class="cart-summary-actions">' +
       '<button type="button" class="cart-checkout-btn" id="cart-checkout-btn">Checkout Securely</button>' +
+      (discount > 0
+        ? ""
+        : '<button type="button" class="cart-member-invite" id="cart-member-invite">Unlock 15% Member Pricing · valid 7 days</button>') +
+      '<p class="cart-trust-line">Worldwide shipping · 30-day returns · Damage replacement within 48h · 2-year LED warranty</p>' +
       '<a href="/collections/all/" class="cart-continue-btn">Continue Shopping</a>' +
       "</div>" +
       "</div>" +
@@ -749,6 +753,15 @@
     if (checkoutBtn) {
       checkoutBtn.addEventListener("click", function () {
         beginCartCheckout(readCartItems(), checkoutBtn);
+      });
+    }
+    var memberInvite = document.getElementById("cart-member-invite");
+    if (memberInvite) {
+      memberInvite.addEventListener("click", function () {
+        var popup = window.ZYBAR && window.ZYBAR.PremiumPopup;
+        if (popup && typeof popup.show === "function") {
+          popup.show("cart_cta", { force: true });
+        }
       });
     }
   }

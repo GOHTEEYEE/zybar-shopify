@@ -93,6 +93,16 @@
     var countEl = section.querySelector('[data-saying-count]');
     if (avgEl) avgEl.textContent = avg.toFixed(2);
     if (countEl) countEl.textContent = String(count);
+    var trustDesc = document.getElementById('trust-bar-reviews-desc');
+    if (trustDesc && count > 0) {
+      trustDesc.textContent =
+        count +
+        ' verified collector review' +
+        (count === 1 ? '' : 's') +
+        ' · ' +
+        avg.toFixed(1) +
+        ' average rating.';
+    }
   }
 
   function buildCard(slide) {

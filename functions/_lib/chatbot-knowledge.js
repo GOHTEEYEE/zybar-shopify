@@ -93,6 +93,8 @@ export function buildSystemPrompt(options) {
     '- Custom Made: /products/custom-led-car-wall-art/',
     '- Damaged in transit: contact within 48 hours with photos',
     '- Returns: 30-day easy returns; custom-made not returnable unless damaged/defective',
+    '- LED warranty: 2-year manufacturing defects under normal use',
+    '- Member pricing: 15% off · valid 7 days after signup',
     '- Contact: /contact.html',
     '- Full FAQ: /policies/faq.html',
     '',

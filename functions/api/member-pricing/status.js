@@ -7,6 +7,9 @@ function json(data, status) {
   });
 }
 
+const WELCOME_OFFER_DAYS = 7;
+const TOKEN_TTL_SECONDS = WELCOME_OFFER_DAYS * 24 * 60 * 60;
+
 function decodeBase64Url(value) {
   var normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
   while (normalized.length % 4) normalized += '=';
@@ -22,6 +25,20 @@ function encodeBase64Url(bytes) {
     binary += String.fromCharCode(byte);
   });
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function welcomeOfferExpiresAt(subscriber) {
+  var createdMs = subscriber && subscriber.created_at
+    ? new Date(subscriber.created_at).getTime()
+    : Date.now();
+  var createdSec = Math.floor(
+    (Number.isFinite(createdMs) ? createdMs : Date.now()) / 1000
+  );
+  return createdSec + TOKEN_TTL_SECONDS;
+}
+
+function isWelcomeOfferActive(subscriber) {
+  return welcomeOfferExpiresAt(subscriber) > Math.floor(Date.now() / 1000);
 }
 
 async function verifyCredential(token, secret) {
@@ -51,16 +68,17 @@ async function verifyCredential(token, secret) {
   }
 }
 
-async function issueCredential(subscriberId, secret) {
+async function issueCredential(subscriber, secret) {
+  if (!isWelcomeOfferActive(subscriber)) return null;
   var now = Math.floor(Date.now() / 1000);
   var payload = encodeBase64Url(
     new TextEncoder().encode(
       JSON.stringify({
         v: 1,
-        sid: String(subscriberId),
+        sid: String(subscriber.id),
         tier: 'welcome',
         iat: now,
-        exp: now + 180 * 24 * 60 * 60
+        exp: welcomeOfferExpiresAt(subscriber)
       })
     )
   );
@@ -94,7 +112,7 @@ export async function onRequestPost(context) {
   });
   var query = supabase
     .from('newsletter_subscribers')
-    .select('id, status, discount_code');
+    .select('id, status, discount_code, created_at');
   if (verified) query = query.eq('id', verified.sid);
   else if (body.visitorId) query = query.eq('visitor_id', String(body.visitorId).slice(0, 80));
   else if (body.sessionId) query = query.eq('session_id', String(body.sessionId).slice(0, 80));
@@ -102,14 +120,20 @@ export async function onRequestPost(context) {
 
   var result = await query.eq('status', 'active').limit(1).maybeSingle();
   if (result.error || !result.data) return json({ active: false });
+  if (!isWelcomeOfferActive(result.data)) return json({ active: false, expired: true });
+  var credential = await issueCredential(result.data, secret);
+  if (!credential) return json({ active: false, expired: true });
   return json({
     active: true,
     tier: 'welcome',
     tierLabel: 'Welcome Member',
     eyebrow: 'Member Exclusive',
-    benefit: 'Extra 15% Savings Applied',
+    benefit: 'Extra 15% Savings · Valid 7 Days After Signup',
     percent: 15,
     discountCode: result.data.discount_code || 'ZYBAR15',
-    credential: await issueCredential(result.data.id, secret)
+    credential: credential,
+    expiresAt: welcomeOfferExpiresAt(result.data),
+    validityDays: WELCOME_OFFER_DAYS,
+    validityNote: 'Member pricing · valid 7 days after signup'
   });
 }

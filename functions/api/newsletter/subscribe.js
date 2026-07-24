@@ -8,7 +8,8 @@ function json(data, status) {
 }
 
 const DISCOUNT_CODE = 'ZYBAR15';
-const TOKEN_TTL_SECONDS = 180 * 24 * 60 * 60;
+const WELCOME_OFFER_DAYS = 7;
+const TOKEN_TTL_SECONDS = WELCOME_OFFER_DAYS * 24 * 60 * 60;
 const LANGUAGE_LABELS = {
   en: 'English',
   fr: 'Français',
@@ -59,6 +60,10 @@ async function memberPayload(subscriber, env) {
   var secret = String(env.MEMBER_PRICING_SECRET || env.SUPABASE_SERVICE_ROLE_KEY || '');
   if (!subscriber || !subscriber.id || !secret) return { active: false };
   var now = Math.floor(Date.now() / 1000);
+  var createdMs = subscriber.created_at ? new Date(subscriber.created_at).getTime() : Date.now();
+  var createdSec = Math.floor((Number.isFinite(createdMs) ? createdMs : Date.now()) / 1000);
+  var expiresAt = createdSec + TOKEN_TTL_SECONDS;
+  if (expiresAt <= now) return { active: false, expired: true };
   var encodedPayload = base64Url(
     new TextEncoder().encode(
       JSON.stringify({
@@ -66,7 +71,7 @@ async function memberPayload(subscriber, env) {
         sid: String(subscriber.id),
         tier: 'welcome',
         iat: now,
-        exp: now + TOKEN_TTL_SECONDS
+        exp: expiresAt
       })
     )
   );
@@ -87,10 +92,13 @@ async function memberPayload(subscriber, env) {
     tier: 'welcome',
     tierLabel: 'Welcome Member',
     eyebrow: 'Member Exclusive',
-    benefit: 'Extra 15% Savings Applied',
+    benefit: 'Extra 15% Savings · Valid 7 Days After Signup',
     percent: 15,
     discountCode: DISCOUNT_CODE,
-    credential: encodedPayload + '.' + base64Url(signature)
+    credential: encodedPayload + '.' + base64Url(signature),
+    expiresAt: expiresAt,
+    validityDays: WELCOME_OFFER_DAYS,
+    validityNote: 'Member pricing · valid 7 days after signup'
   };
 }
 
@@ -98,7 +106,7 @@ async function ensureDiscountCode(supabase) {
   await supabase.from('discount_codes').upsert(
     {
       code: DISCOUNT_CODE,
-      label: 'ZYBAR Garage welcome — 15% off first order',
+      label: 'ZYBAR Garage welcome — 15% off for 7 days after signup',
       discount_type: 'percent',
       value_usd: 15,
       min_order_usd: 0,

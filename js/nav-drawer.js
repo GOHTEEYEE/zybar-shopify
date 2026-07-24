@@ -5,6 +5,14 @@
 
   var CUSTOM_MADE_HREF = '/products/custom-led-car-wall-art/';
   var CATALOG_HREF = '/collections/all/';
+  var ABOUT_HREF = '/about/about-us.html';
+
+  var PRIMARY_NAV = [
+    { href: '/', label: 'Home' },
+    { href: CATALOG_HREF, label: 'Catalog' },
+    { href: ABOUT_HREF, label: 'About' },
+    { href: '/contact.html', label: 'Contact' }
+  ];
 
   var NAV_SECTIONS = [
     {
@@ -26,7 +34,7 @@
     },
     {
       title: 'Company',
-      links: [{ href: '/about/about-us.html', label: 'About ZYBAR' }]
+      links: [{ href: ABOUT_HREF, label: 'About ZYBAR' }]
     }
   ];
 
@@ -236,8 +244,19 @@
     var inlineNav = headerWrap.querySelector('.main-nav');
     if (inlineNav) {
       inlineNav.classList.add('header-inline-nav');
-      inlineNav.setAttribute('aria-hidden', 'true');
-      inlineNav.hidden = true;
+      inlineNav.innerHTML = PRIMARY_NAV.map(function (link) {
+        return (
+          '<a href="' +
+          link.href +
+          '"' +
+          (isActiveLink(link.href) ? ' aria-current="page" class="is-active"' : '') +
+          '>' +
+          link.label +
+          '</a>'
+        );
+      }).join('');
+      inlineNav.removeAttribute('aria-hidden');
+      inlineNav.hidden = false;
     }
 
     var currency = headerWrap.querySelector('.currency');

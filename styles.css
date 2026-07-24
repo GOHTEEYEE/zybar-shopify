@@ -181,6 +181,36 @@ body {
   display: none !important;
 }
 
+@media (min-width: 900px) {
+  .header-inline-nav {
+    display: flex !important;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+    gap: 1.25rem;
+    margin-top: 0.15rem;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .header-toolbar {
+    grid-template-rows: auto auto;
+  }
+
+  .header-inline-nav a {
+    color: inherit;
+    text-decoration: none;
+    opacity: 0.72;
+  }
+
+  .header-inline-nav a:hover,
+  .header-inline-nav a.is-active,
+  .header-inline-nav a[aria-current='page'] {
+    opacity: 1;
+  }
+}
+
 .header-icon-svg {
   display: block;
 }
@@ -3915,6 +3945,47 @@ body:has(.pdp-sticky-bar) .product-showcase-wrap {
   font-size: 0.76rem;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.62);
+}
+
+.pdp-member-invite,
+.cart-member-invite {
+  display: block;
+  width: 100%;
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(17, 17, 17, 0.16);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.84rem;
+  letter-spacing: 0.02em;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.pdp-member-invite:hover,
+.cart-member-invite:hover {
+  border-color: rgba(17, 17, 17, 0.4);
+  background: rgba(17, 17, 17, 0.03);
+}
+
+.pdp-luxury .pdp-member-invite {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.pdp-luxury .pdp-member-invite:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cart-trust-line {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #6b7280;
+  text-align: center;
 }
 
 .pdp-luxury-cta.product-add-cart:hover {
