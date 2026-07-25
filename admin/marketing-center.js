@@ -58,6 +58,210 @@ window.AdminMarketingCenter = (function () {
     return '<span class="' + cls + '">' + esc(label) + '</span>';
   }
 
+  function engagePill(label, cls) {
+    return '<span class="admin-engage-pill ' + cls + '">' + esc(label) + '</span>';
+  }
+
+  function openedCell(row) {
+    if (row.opened_at) {
+      return (
+        engagePill(
+          'Opened' + (Number(row.open_count) > 1 ? ' ×' + Number(row.open_count) : ''),
+          'admin-engage-open'
+        ) +
+        '<div class="admin-muted mkt-engage-time">' +
+        esc(when(row.opened_at)) +
+        '</div>'
+      );
+    }
+    return engagePill('Not opened', 'admin-engage-none');
+  }
+
+  function clickedCell(row) {
+    if (row.clicked_at) {
+      return (
+        engagePill(
+          'Clicked link' +
+            (Number(row.click_count) > 1 ? ' ×' + Number(row.click_count) : ''),
+          'admin-engage-click'
+        ) +
+        '<div class="admin-muted mkt-engage-time">' +
+        esc(when(row.clicked_at)) +
+        ' · visited site</div>'
+      );
+    }
+    return engagePill('No click', 'admin-engage-none');
+  }
+
+  function filterCompletedRows(rows, engageFilter) {
+    var list = rows || [];
+    if (engageFilter === 'opened') {
+      return list.filter(function (row) {
+        return !!row.opened_at;
+      });
+    }
+    if (engageFilter === 'not_opened') {
+      return list.filter(function (row) {
+        return !row.opened_at;
+      });
+    }
+    if (engageFilter === 'clicked') {
+      return list.filter(function (row) {
+        return !!row.clicked_at;
+      });
+    }
+    if (engageFilter === 'not_clicked') {
+      return list.filter(function (row) {
+        return !row.clicked_at;
+      });
+    }
+    return list;
+  }
+
+  function engagementSummary(rows) {
+    var total = (rows || []).length;
+    var opened = 0;
+    var clicked = 0;
+    (rows || []).forEach(function (row) {
+      if (row.opened_at) opened += 1;
+      if (row.clicked_at) clicked += 1;
+    });
+    return (
+      '<div class="mkt-engage-summary">' +
+      '<span><strong>' +
+      num(total) +
+      '</strong> sent</span>' +
+      '<span><strong>' +
+      num(opened) +
+      '</strong> opened (' +
+      (total ? Math.round((opened / total) * 100) : 0) +
+      '%)</span>' +
+      '<span><strong>' +
+      num(clicked) +
+      '</strong> clicked site (' +
+      (total ? Math.round((clicked / total) * 100) : 0) +
+      '%)</span>' +
+      '</div>'
+    );
+  }
+
+  function engagementFilters(activeFilter) {
+    return (
+      '<div class="mkt-engage-filters" role="group" aria-label="Engagement filter">' +
+      [
+        ['all', 'All'],
+        ['opened', 'Opened'],
+        ['not_opened', 'Not opened'],
+        ['clicked', 'Clicked site'],
+        ['not_clicked', 'No click']
+      ]
+        .map(function (item) {
+          return (
+            '<button type="button" class="mkt-engage-filter' +
+            (activeFilter === item[0] ? ' is-active' : '') +
+            '" data-engage-filter="' +
+            item[0] +
+            '">' +
+            esc(item[1]) +
+            '</button>'
+          );
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  function queueDetailsTable(rows, category, engageFilter) {
+    engageFilter = engageFilter || 'all';
+    var sourceRows = rows || [];
+    var sorted = (category === 'completed'
+      ? filterCompletedRows(sourceRows, engageFilter)
+      : sourceRows
+    )
+      .slice()
+      .sort(function (a, b) {
+        var aDate = category === 'completed' ? a.executed_at : a.scheduled_at;
+        var bDate = category === 'completed' ? b.executed_at : b.scheduled_at;
+        return category === 'completed'
+          ? String(bDate || '').localeCompare(String(aDate || ''))
+          : String(aDate || '').localeCompare(String(bDate || ''));
+      });
+    var emptyLabel =
+      category === 'due'
+        ? 'No emails are due.'
+        : category === 'waiting'
+          ? 'No emails are waiting.'
+          : engageFilter !== 'all'
+            ? 'No emails match this engagement filter.'
+            : 'No completed emails yet.';
+    var isCompleted = category === 'completed';
+    var colCount = isCompleted ? 8 : 7;
+
+    return (
+      (isCompleted
+        ? engagementSummary(sourceRows) + engagementFilters(engageFilter)
+        : '') +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+      '<th>' +
+      (isCompleted ? 'Sent' : 'Scheduled') +
+      '</th><th>Lead</th><th>Journey</th><th>Step</th><th>Template</th>' +
+      (isCompleted
+        ? '<th>Opened</th><th>Clicked / Visited site</th>'
+        : '<th>Status</th><th>Details</th>') +
+      '</tr></thead><tbody>' +
+      (sorted
+        .map(function (row) {
+          if (isCompleted) {
+            return (
+              '<tr><td>' +
+              esc(when(row.executed_at)) +
+              '</td><td>' +
+              esc(row.lead_email || row.recipient || '—') +
+              '</td><td>' +
+              esc(row.journey_name || '—') +
+              '</td><td>' +
+              esc((row.step_order ? row.step_order + '. ' : '') + (row.step_name || '—')) +
+              '</td><td>' +
+              esc(row.template_id || row.action_type || '—') +
+              '</td><td>' +
+              openedCell(row) +
+              '</td><td>' +
+              clickedCell(row) +
+              '</td></tr>'
+            );
+          }
+          var details = '—';
+          if (row.error_message) {
+            details = '<span class="admin-error">' + esc(row.error_message) + '</span>';
+          }
+          return (
+            '<tr><td>' +
+            esc(when(row.scheduled_at)) +
+            '</td><td>' +
+            esc(row.lead_email || row.recipient || '—') +
+            '</td><td>' +
+            esc(row.journey_name || '—') +
+            '</td><td>' +
+            esc((row.step_order ? row.step_order + '. ' : '') + (row.step_name || '—')) +
+            '</td><td>' +
+            esc(row.template_id || row.action_type || '—') +
+            '</td><td>' +
+            queueStatusPill(row) +
+            '</td><td>' +
+            details +
+            '</td></tr>'
+          );
+        })
+        .join('') ||
+        '<tr><td colspan="' +
+          colCount +
+          '" class="admin-cell-empty">' +
+          emptyLabel +
+          '</td></tr>') +
+      '</tbody></table></div>'
+    );
+  }
+
   function withFrom(target) {
     var U = window.AdminUtils || {};
     return U.withFrom ? U.withFrom(target) : String(target || '');
@@ -174,8 +378,6 @@ window.AdminMarketingCenter = (function () {
       var k = d.kpis || {};
       var life = d.lifecycle || [];
       var cats = d.journey_categories || [];
-      var up = d.upcoming || {};
-
       var kpis =
         '<div class="mkt-kpi-grid">' +
         kpiCard('Total Leads', num(k.total_leads), 'All subscribers', '#marketing/audience') +
@@ -245,58 +447,96 @@ window.AdminMarketingCenter = (function () {
           .join('') +
         '</div></section>';
 
+      var queueSummary = d.queue_summary || {};
       var buckets =
-        '<div class="mkt-upcoming-buckets">' +
+        '<div class="mkt-upcoming-buckets mkt-queue-categories" role="tablist" aria-label="Email queue status">' +
         [
-          ['Today', up.today],
-          ['Tomorrow', up.tomorrow],
-          ['Next 7 Days', up.next_7],
-          ['Future', up.future]
+          ['due', 'Due', queueSummary.due],
+          ['waiting', 'Waiting', queueSummary.waiting],
+          ['completed', 'Completed', queueSummary.completed]
         ]
-          .map(function (b) {
+          .map(function (b, index) {
             return (
-              '<div class="mkt-bucket"><div class="mkt-bucket-val">' +
-              num(b[1]) +
+              '<button type="button" class="mkt-bucket mkt-queue-category' +
+              (index === 0 ? ' is-active' : '') +
+              '" data-queue-category="' +
+              b[0] +
+              '" role="tab" aria-selected="' +
+              (index === 0 ? 'true' : 'false') +
+              '"><div class="mkt-bucket-val">' +
+              num(b[2]) +
               '</div><div class="mkt-bucket-label">' +
-              esc(b[0]) +
-              '</div></div>'
+              esc(b[1]) +
+              '</div></button>'
             );
           })
           .join('') +
         '</div>';
 
-      var rows = up.rows || [];
       var table =
         '<section class="admin-card mkt-card">' +
-        '<div class="mkt-card-head"><h3>Upcoming Emails</h3>' +
+        '<div class="mkt-card-head"><div><h3>Email Queue</h3>' +
+        '<p class="admin-muted mkt-queue-caption" id="mktQueueCaption">Emails ready to send now.</p></div>' +
         '<a href="#marketing/journeys">View in Journeys →</a></div>' +
         buckets +
-        '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
-        '<th>When</th><th>Lead</th><th>Journey</th><th>Template</th><th>Status</th></tr></thead><tbody>' +
-        (rows
-          .map(function (row) {
-            return (
-              '<tr><td>' +
-              esc(when(row.scheduled_at)) +
-              '</td><td>' +
-              esc(row.email || '—') +
-              '</td><td>' +
-              esc(row.journey) +
-              '</td><td>' +
-              esc(row.template_id || row.action_type || '—') +
-              '</td><td>' +
-              queueStatusPill(row) +
-              '</td></tr>'
-            );
-          })
-          .join('') ||
-          '<tr><td colspan="5" class="admin-cell-empty">No upcoming sends in the near window.</td></tr>') +
-        '</tbody></table></div></section>';
+        '<div id="mktQueueDetails"><div class="admin-loading">Loading due emails…</div></div></section>';
 
       var host = container.querySelector('.mkt-center');
       var loading = host.querySelector('.admin-loading');
       if (loading) loading.remove();
       host.insertAdjacentHTML('beforeend', kpis + categories + strip + table);
+
+      function loadQueueCategory(category, engageFilter) {
+        var detailsHost = document.getElementById('mktQueueDetails');
+        var caption = document.getElementById('mktQueueCaption');
+        if (!detailsHost) return;
+        engageFilter = engageFilter || 'all';
+        detailsHost.innerHTML = '<div class="admin-loading">Loading ' + esc(category) + ' emails…</div>';
+        if (caption) {
+          caption.textContent =
+            category === 'due'
+              ? 'Emails ready to send now.'
+              : category === 'waiting'
+                ? 'Emails scheduled for a future date and time.'
+                : 'See who opened the email and who clicked through to your website.';
+        }
+        var status = category === 'completed' ? 'completed' : 'pending';
+        fetchJson('/api/admin/journey-queue?status=' + status + '&limit=1000').then(function (queueResult) {
+          if (!detailsHost) return;
+          if (!queueResult.ok) {
+            detailsHost.innerHTML = '<p class="admin-error">Failed to load email queue.</p>';
+            return;
+          }
+          var rows = (queueResult.body && queueResult.body.queue) || [];
+          if (category === 'due' || category === 'waiting') {
+            rows = rows.filter(function (row) {
+              var scheduled = row.scheduled_at ? new Date(row.scheduled_at).getTime() : 0;
+              var isDue = !!scheduled && scheduled <= Date.now();
+              return category === 'due' ? isDue : !isDue;
+            });
+          }
+          detailsHost.innerHTML = queueDetailsTable(rows, category, engageFilter);
+          if (category === 'completed') {
+            detailsHost.querySelectorAll('[data-engage-filter]').forEach(function (filterBtn) {
+              filterBtn.addEventListener('click', function () {
+                loadQueueCategory('completed', filterBtn.getAttribute('data-engage-filter'));
+              });
+            });
+          }
+        });
+      }
+
+      host.querySelectorAll('[data-queue-category]').forEach(function (categoryButton) {
+        categoryButton.addEventListener('click', function () {
+          host.querySelectorAll('[data-queue-category]').forEach(function (button) {
+            var active = button === categoryButton;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+          loadQueueCategory(categoryButton.getAttribute('data-queue-category'), 'all');
+        });
+      });
+      loadQueueCategory('due', 'all');
 
       var btn = document.getElementById('mktExecReady');
       if (btn) {
