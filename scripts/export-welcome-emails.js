@@ -9,6 +9,7 @@ const WelcomeJourney = require('../lib/welcome-journey.js');
 const CartJourney = require('../lib/cart-journey.js');
 const PurchaseJourney = require('../lib/purchase-journey.js');
 const C = require('../lib/email-components.js');
+const Unsubscribe = require('../lib/unsubscribe.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -22,7 +23,8 @@ function writeJourney(folder, renderFn, storeUrl, storeName) {
   for (let day = 0; day <= 7; day++) {
     const rendered = renderFn(day, { storeUrl: storeUrl, storeName: storeName });
     const file = path.join(out, 'day' + day + '.html');
-    fs.writeFileSync(file, rendered.html, 'utf8');
+    // Previews have no recipient, so the unsubscribe placeholder resolves to the mailto fallback.
+    fs.writeFileSync(file, Unsubscribe.applyUrlToHtml(rendered.html, ''), 'utf8');
     console.log('Wrote', path.relative(ROOT, file), '—', rendered.subject);
   }
 }

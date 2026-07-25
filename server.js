@@ -678,6 +678,104 @@ app.post(
   }
 );
 
+// ----- Unsubscribe: public, no auth, must work straight from an email client -----
+const Unsubscribe = require('./lib/unsubscribe.js');
+
+function escapeUnsubscribeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function unsubscribePage(title, message) {
+  return (
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1"/>' +
+    '<meta name="robots" content="noindex"/>' +
+    '<title>' +
+    title +
+    ' · ZYBAR</title></head>' +
+    '<body style="margin:0;background:#0b0b0b;color:#fff;font-family:Helvetica,Arial,sans-serif;">' +
+    '<div style="max-width:520px;margin:0 auto;padding:96px 24px;text-align:center;">' +
+    '<div style="font-family:Georgia,serif;font-size:28px;letter-spacing:0.18em;">ZYBAR</div>' +
+    '<h1 style="margin:40px 0 16px;font-size:22px;font-weight:600;">' +
+    title +
+    '</h1>' +
+    '<p style="margin:0;font-size:15px;line-height:1.7;color:rgba(255,255,255,0.66);">' +
+    message +
+    '</p>' +
+    '<a href="https://www.zybar.shop" style="display:inline-block;margin-top:40px;padding:14px 28px;border:1px solid rgba(255,255,255,0.22);border-radius:12px;color:#fff;text-decoration:none;font-size:14px;">Return to ZYBAR</a>' +
+    '</div></body></html>'
+  );
+}
+
+async function handleUnsubscribe(req, res) {
+  const token = String((req.query && req.query.u) || '');
+  const email = Unsubscribe.verifyToken(token, process.env);
+  const isOneClick = req.method === 'POST';
+
+  if (!email) {
+    if (isOneClick) return res.status(400).json({ ok: false, error: 'Invalid unsubscribe token' });
+    return res
+      .status(400)
+      .type('html')
+      .send(
+        unsubscribePage(
+          'This link is not valid',
+          'The unsubscribe link is incomplete or has expired. Email support@zybar.shop and we will remove you right away.'
+        )
+      );
+  }
+
+  if (!supabase) {
+    if (isOneClick) return res.status(503).json({ ok: false, error: 'Unavailable' });
+    return res
+      .status(503)
+      .type('html')
+      .send(
+        unsubscribePage(
+          'Something went wrong',
+          'We could not reach our records just now. Email support@zybar.shop and we will remove you manually.'
+        )
+      );
+  }
+
+  try {
+    await Unsubscribe.unsubscribeLead(supabase, email);
+  } catch (err) {
+    console.error('unsubscribe:', err && err.message);
+    if (isOneClick) return res.status(500).json({ ok: false, error: 'Unsubscribe failed' });
+    return res
+      .status(500)
+      .type('html')
+      .send(
+        unsubscribePage(
+          'Something went wrong',
+          'We could not complete your request. Email support@zybar.shop and we will remove you manually.'
+        )
+      );
+  }
+
+  // RFC 8058 expects a plain success for the one-click POST, with no confirmation step.
+  if (isOneClick) return res.json({ ok: true });
+  return res
+    .status(200)
+    .type('html')
+    .send(
+      unsubscribePage(
+        'You have been unsubscribed',
+        'We removed <strong>' +
+          escapeUnsubscribeHtml(email) +
+          '</strong> from ZYBAR emails. You will not receive further marketing from us. Order and delivery updates are unaffected.'
+      )
+    );
+}
+
+app.get('/api/unsubscribe', handleUnsubscribe);
+app.post('/api/unsubscribe', express.urlencoded({ extended: false }), handleUnsubscribe);
+
 // ----- JSON body for other routes -----
 app.use(express.json({ limit: '3mb' }));
 
