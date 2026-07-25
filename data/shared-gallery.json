@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-25T14:57:54.765Z",
+  "updatedAt": "2026-07-25T15:19:06.301Z",
   "sourceFolder": "shared-gallery/",
   "items": [
     {
@@ -13,6 +13,10 @@
     },
     {
       "type": "image",
+      "src": "/shared-gallery/B01a-power-options.png"
+    },
+    {
+      "type": "image",
       "src": "/shared-gallery/B02-layer-protection.jpg"
     },
     {
@@ -21,7 +25,7 @@
     },
     {
       "type": "image",
-      "src": "/shared-gallery/B04-multi-layer-excellence.jpg"
+      "src": "/shared-gallery/B04-secret-behind-glow.jpg"
     },
     {
       "type": "image",
@@ -33,17 +37,7 @@
     },
     {
       "type": "image",
-      "src": "/shared-gallery/ChatGPT Image 2026年6月2日 21_58_15.png",
-      "role": "info"
-    },
-    {
-      "type": "image",
       "src": "/shared-gallery/ChatGPT Image 2026年6月2日 22_15_16.png",
-      "role": "info"
-    },
-    {
-      "type": "image",
-      "src": "/shared-gallery/ChatGPT Image 2026年6月2日 22_15_21.png",
       "role": "info"
     },
     {
