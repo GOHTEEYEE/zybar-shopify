@@ -3626,7 +3626,8 @@ function parseAnalyticsRange(req) {
     ? new Date(rawStart)
     : new Date(end.getTime() - (days - 1) * 86400000);
   start.setHours(0, 0, 0, 0);
-  const endExcl = new Date(end.getTime() + 86400000);
+  // Exclusive end = one ms past end-of-day (not +24h, which would double-count the next day).
+  const endExcl = new Date(end.getTime() + 1);
   return { start: start.toISOString(), end: endExcl.toISOString() };
 }
 
@@ -3634,7 +3635,8 @@ app.get('/api/analytics/dashboard', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    const [overview, leads, abandoned, customLeads] = await Promise.all([
+    // Count-only KPIs — never hydrate full lead/cart lists here (that was ~11s).
+    const [overview, emailLeads, abandonedCarts, customMadeLeads] = await Promise.all([
       AnalyticsFallback.rpcOrFallback(
         supabase,
         'get_shopify_analytics_overview',
@@ -3643,40 +3645,33 @@ app.get('/api/analytics/dashboard', async (req, res) => {
           return AnalyticsFallback.overviewFallback(supabase, range);
         }
       ),
-      CustomerActivity.listEmailLeads(supabase, {
+      CustomerActivity.countEmailLeads(supabase, {
         preset: 'custom',
         start: range.start,
         end: range.end
       }).catch(function () {
-        return [];
+        return 0;
       }),
-      CustomerActivity.listAbandoned(supabase, {
+      CustomerActivity.countAbandoned(supabase, {
         preset: 'custom',
         start: range.start,
         end: range.end
       }).catch(function () {
-        return [];
+        return 0;
       }),
-      CustomLeads.list(supabase, {
+      CustomLeads.count(supabase, {
         preset: 'custom',
         start: range.start,
-        end: range.end,
-        limit: 200,
-        offset: 0
+        end: range.end
       }).catch(function () {
-        return { rows: [], total: 0 };
+        return 0;
       })
     ]);
     return res.json({
       overview: overview || {},
-      email_leads: Array.isArray(leads) ? leads.length : 0,
-      abandoned_carts: Array.isArray(abandoned) ? abandoned.length : 0,
-      custom_made_leads:
-        customLeads && customLeads.total != null
-          ? customLeads.total
-          : customLeads && Array.isArray(customLeads.rows)
-            ? customLeads.rows.length
-            : 0,
+      email_leads: Number(emailLeads) || 0,
+      abandoned_carts: Number(abandonedCarts) || 0,
+      custom_made_leads: Number(customMadeLeads) || 0,
       range: range
     });
   } catch (err) {

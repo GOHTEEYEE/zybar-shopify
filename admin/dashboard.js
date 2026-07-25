@@ -20,37 +20,43 @@ window.renderAdmindashboard = function (container) {
   var charts = {};
   var cache = {};
   var CACHE_TTL = 45000;
+  var loadGeneration = 0;
+  var activeController = null;
 
   function apiBase() {
     return window.location.origin;
   }
 
-  function apiQuery() {
-    return U.apiQuery ? U.apiQuery(range) : 'days=' + (range.days || 30);
+  function apiQuery(forRange) {
+    var r = forRange || range;
+    return U.apiQuery ? U.apiQuery(r) : 'days=' + (r.days || 30);
   }
 
-  function granularityForRange() {
-    var days = Number(range.days) || 30;
+  function granularityForRange(forRange) {
+    var days = Number((forRange || range).days) || 30;
+    if (days <= 1) return 'hour';
     if (days <= 14) return 'day';
     if (days <= 90) return 'week';
     return 'month';
   }
 
-  function fetchJson(path) {
-    var key = path + '|' + range.startDate + '|' + range.endDate;
+  function fetchJson(path, forRange, signal) {
+    var r = forRange || range;
+    var key = path + '|' + r.startDate + '|' + r.endDate;
     var hit = cache[key];
     if (hit && Date.now() - hit.t < CACHE_TTL) return Promise.resolve(hit.data);
     var joiner = path.indexOf('?') === -1 ? '?' : '&';
-    return fetch(apiBase() + path + joiner + apiQuery())
-      .then(function (r) {
-        return r.ok ? r.json() : null;
+    return fetch(apiBase() + path + joiner + apiQuery(r), signal ? { signal: signal } : undefined)
+      .then(function (res) {
+        return res.ok ? res.json() : null;
       })
       .then(function (data) {
         if (!data || data.error) return null;
         cache[key] = { t: Date.now(), data: data };
         return data;
       })
-      .catch(function () {
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') throw err;
         return null;
       });
   }
@@ -177,16 +183,17 @@ window.renderAdmindashboard = function (container) {
     });
   }
 
-  function loadRecentOrders() {
+  function loadRecentOrders(forRange) {
     var sb = window.supabase;
+    var r = forRange || range;
     if (!sb) return Promise.resolve([]);
     return sb
       .from('orders')
       .select(
         'id,stripe_session_id,customer_name,customer_email,country,amount_total_cents,status,created_at'
       )
-      .gte('created_at', range.start)
-      .lt('created_at', range.end)
+      .gte('created_at', r.start)
+      .lt('created_at', r.end)
       .order('created_at', { ascending: false })
       .limit(12)
       .then(function (res) {
@@ -253,7 +260,7 @@ window.renderAdmindashboard = function (container) {
     }
   }
 
-  function renderBody(overview, trends, products, orders, extras, live) {
+  function renderBody(overview, trends, products, orders, extras, live, forRange, gran) {
     overview = overview || {};
     extras = extras || {};
     var visitors = overview.unique_visitors != null ? overview.unique_visitors : overview.visitors || 0;
@@ -318,8 +325,9 @@ window.renderAdmindashboard = function (container) {
     var liveEl = document.getElementById('adminLiveCount');
     if (liveEl) liveEl.textContent = liveCount != null ? String(liveCount) : '0';
 
-    var gran = granularityForRange();
-    var granLabel = gran === 'day' ? 'Daily' : gran === 'week' ? 'Weekly' : 'Monthly';
+    gran = gran || granularityForRange(forRange);
+    var granLabel =
+      gran === 'hour' ? 'Hourly' : gran === 'day' ? 'Daily' : gran === 'week' ? 'Weekly' : 'Monthly';
 
     return (
       '<div class="admin-kpi-cards admin-kpi-cards--dense">' +
@@ -357,67 +365,94 @@ window.renderAdmindashboard = function (container) {
   function loadAll() {
     var host = document.getElementById('dashHost');
     if (!host) return;
+
+    // Capture the range for THIS load so a later preset click cannot relabel or overwrite it.
+    var requestRange = {
+      preset: range.preset,
+      start: range.start,
+      end: range.end,
+      startDate: range.startDate,
+      endDate: range.endDate,
+      days: range.days
+    };
+    var gran = granularityForRange(requestRange);
+    var generation = ++loadGeneration;
+
+    if (activeController) {
+      try {
+        activeController.abort();
+      } catch (_) {}
+    }
+    activeController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var signal = activeController ? activeController.signal : null;
+
     host.innerHTML = U.skeletonCards
       ? U.skeletonCards(10) + (U.skeletonTable ? U.skeletonTable(5) : '')
       : '<div class="admin-loading">Loading…</div>';
     destroyCharts();
 
-    var gran = granularityForRange();
     Promise.all([
-      fetchJson('/api/analytics/dashboard'),
-      fetchJson('/api/analytics/trends?granularity=' + encodeURIComponent(gran)),
-      fetchJson('/api/analytics/products'),
-      loadRecentOrders(),
-      fetchJson('/api/analytics/realtime')
-    ]).then(function (res) {
-      var dash = res[0];
-      var overview;
-      var extras;
+      fetchJson('/api/analytics/dashboard', requestRange, signal),
+      fetchJson('/api/analytics/trends?granularity=' + encodeURIComponent(gran), requestRange, signal),
+      fetchJson('/api/analytics/products', requestRange, signal),
+      loadRecentOrders(requestRange),
+      fetchJson('/api/analytics/realtime', requestRange, signal)
+    ])
+      .then(function (res) {
+        if (generation !== loadGeneration) return;
 
-      function finish(ov, ex) {
-        host.innerHTML = renderBody(ov, res[1], res[2], res[3], ex, res[4]);
-        requestAnimationFrame(function () {
-          var rev = series((res[1] || {}).revenue);
-          var ord = series((res[1] || {}).orders);
-          drawLine(
-            'dashChartRevenue',
-            rev.labels,
-            rev.values.map(function (v) {
-              return (Number(v) || 0) / 100;
-            }),
-            true
-          );
-          drawLine('dashChartOrders', ord.labels, ord.values, false);
+        var dash = res[0];
+
+        function finish(ov, ex) {
+          if (generation !== loadGeneration) return;
+          host.innerHTML = renderBody(ov, res[1], res[2], res[3], ex, res[4], requestRange, gran);
+          requestAnimationFrame(function () {
+            if (generation !== loadGeneration) return;
+            var rev = series((res[1] || {}).revenue);
+            var ord = series((res[1] || {}).orders);
+            drawLine(
+              'dashChartRevenue',
+              rev.labels,
+              rev.values.map(function (v) {
+                return (Number(v) || 0) / 100;
+              }),
+              true
+            );
+            drawLine('dashChartOrders', ord.labels, ord.values, false);
+          });
+        }
+
+        if (dash && (dash.overview || dash.revenue_cents != null || dash.orders != null)) {
+          finish(dash.overview || dash, {
+            email_leads: dash.email_leads || 0,
+            abandoned_carts: dash.abandoned_carts || 0,
+            custom_made_leads: dash.custom_made_leads || 0
+          });
+          return;
+        }
+
+        Promise.all([
+          fetchJson('/api/analytics/overview', requestRange, signal),
+          fetchJson('/api/customer-activity/leads', requestRange, signal),
+          fetchJson('/api/customer-activity/abandoned', requestRange, signal),
+          fetchJson('/api/customer-activity/custom-leads', requestRange, signal)
+        ]).then(function (parts) {
+          if (generation !== loadGeneration) return;
+          finish(parts[0] || {}, {
+            email_leads: (parts[1] && parts[1].leads && parts[1].leads.length) || 0,
+            abandoned_carts: (parts[2] && parts[2].carts && parts[2].carts.length) || 0,
+            custom_made_leads:
+              (parts[3] && parts[3].total != null
+                ? parts[3].total
+                : parts[3] && parts[3].rows && parts[3].rows.length) || 0
+          });
         });
-      }
-
-      if (dash && (dash.overview || dash.revenue_cents != null || dash.orders != null)) {
-        overview = dash.overview || dash;
-        extras = {
-          email_leads: dash.email_leads || 0,
-          abandoned_carts: dash.abandoned_carts || 0,
-          custom_made_leads: dash.custom_made_leads || 0
-        };
-        finish(overview, extras);
-        return;
-      }
-
-      Promise.all([
-        fetchJson('/api/analytics/overview'),
-        fetchJson('/api/customer-activity/leads'),
-        fetchJson('/api/customer-activity/abandoned'),
-        fetchJson('/api/customer-activity/custom-leads')
-      ]).then(function (parts) {
-        finish(parts[0] || {}, {
-          email_leads: (parts[1] && parts[1].leads && parts[1].leads.length) || 0,
-          abandoned_carts: (parts[2] && parts[2].carts && parts[2].carts.length) || 0,
-          custom_made_leads:
-            (parts[3] && parts[3].total != null
-              ? parts[3].total
-              : parts[3] && parts[3].rows && parts[3].rows.length) || 0
-        });
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        if (generation !== loadGeneration) return;
+        host.innerHTML = '<p class="admin-error">Failed to load dashboard.</p>';
       });
-    });
   }
 
   renderShell();
