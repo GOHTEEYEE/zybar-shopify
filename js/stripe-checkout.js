@@ -517,6 +517,13 @@
     );
   }
 
+  /** Marketing / shared graphics: show full frame (no cover crop). */
+  function isContainFitGalleryItem(item) {
+    if (!item || item.type === "video") return false;
+    if (item.label === "shared") return true;
+    return String(item.src || "").toLowerCase().indexOf("/shared-gallery/") !== -1;
+  }
+
   function isGalleryShowcaseItem(item) {
     if (!item || !item.src) return false;
     if (item.gallery === false || item.role === "info" || item.kind === "info") return false;
@@ -661,7 +668,12 @@
     var stage = inner.closest(".pdp-gallery-stage");
     var zoomBtn = stage && stage.querySelector(".pdp-gallery-zoom");
     var callout = stage && stage.querySelector(".pdp-gallery-callout");
+    var fitContain = isContainFitGalleryItem(item);
+    inner.classList.toggle("is-fit-contain", fitContain);
+    if (stage) stage.classList.toggle("is-fit-contain", fitContain);
     if (item.type === "video") {
+      inner.classList.remove("is-fit-contain");
+      if (stage) stage.classList.remove("is-fit-contain");
       mainImage.style.display = "none";
       video.style.display = "block";
       if (video.getAttribute("src") !== item.src) {
@@ -682,7 +694,10 @@
     var stickyThumb = document.querySelector(".pdp-sticky-thumb img");
     if (stickyThumb) crossfadeSwapImage(stickyThumb, item.src, 220);
     if (zoomBtn) zoomBtn.hidden = false;
-    if (callout) callout.classList.remove("is-hidden");
+    if (callout) {
+      if (fitContain) callout.classList.add("is-hidden");
+      else callout.classList.remove("is-hidden");
+    }
   }
 
   function crossfadeSwapImage(imgEl, nextSrc, durationMs) {
@@ -961,6 +976,7 @@
         button.type = "button";
         button.className = "pdp-gallery-thumb";
         if (item.type === "video") button.classList.add("pdp-gallery-thumb--video");
+        if (isContainFitGalleryItem(item)) button.classList.add("pdp-gallery-thumb--contain");
         button.setAttribute("data-type", item.type);
         button.setAttribute("data-src", item.src);
         if (item.poster) button.setAttribute("data-poster", item.poster);

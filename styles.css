@@ -3445,6 +3445,12 @@ body:has(.pdp-sticky-bar) .site-footer {
   will-change: opacity, transform;
 }
 
+/* Shared marketing graphics: never crop text/infographics */
+.product-showcase-image-inner.is-fit-contain img {
+  object-fit: contain;
+  background: #0c0c10;
+}
+
 .product-showcase-image-inner .pdp-gallery-video {
   display: none;
   width: 100%;
@@ -3639,6 +3645,15 @@ body:has(.pdp-sticky-bar) .site-footer {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.pdp-gallery-thumb--contain {
+  height: var(--pdp-thumb-w);
+}
+
+.pdp-gallery-thumb--contain img {
+  object-fit: contain;
+  background: #0c0c10;
 }
 
 .pdp-gallery-thumb:hover {

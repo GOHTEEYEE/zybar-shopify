@@ -84,7 +84,7 @@ function productPageTemplate(slug, name, imagePath, price30) {
     '    <title>' + name + ' LED Wall Art | ZYBAR</title>',
     '    <meta name="description" content="' + safeName + ' LED wall art by ZYBAR. Premium automotive light painting available in 30x45 and 40x60 cm." />',
     '    <link rel="canonical" href="https://zybar-ledcar.pages.dev/products/' + slug + '/" />',
-    '    <link rel="stylesheet" href="/styles.css?v=nav-ia1" />',
+    '    <link rel="stylesheet" href="/styles.css?v=gallery1" />',
     '    <script src="/js/nav-drawer.js?v=conv1" defer></script>',
     '  </head>',
     '  <body>',
