@@ -299,7 +299,7 @@ function productPageTemplate(slug, name, imagePath, price30) {
     '    <script src="https://js.stripe.com/v3/"></script>',
     '    <script src="/js/stripe-config.js"></script>',
     '    <script src="/js/mini-cart-drawer.js"></script>',
-    '    <script src="/js/pdp-luxury-ui.js?v=conv1"></script>',
+    '    <script src="/js/pdp-luxury-ui.js?v=value1"></script>',
     '    <script src="/js/stripe-checkout.js"></script>',
     '    <script src="/js/customer-reviews.js?v=contact1"></script>',
     '    <script src="/js/image-hover-toggle.js"></script>',

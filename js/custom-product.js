@@ -612,7 +612,7 @@
     var buy = document.querySelector('.pdp-luxury-buy');
     if (!buy || document.getElementById('customPriceBreakdown')) return;
 
-    var priceRow = buy.querySelector('.pdp-price-row');
+    var priceRow = document.querySelector('.pdp-price-row');
     if (priceRow) priceRow.classList.add('pdp-luxury-hidden');
 
     var shippingNote = buy.querySelector('.pdp-shipping-note');

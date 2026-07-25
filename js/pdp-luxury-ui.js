@@ -53,9 +53,63 @@
       craftStep:
         '<svg class="pdp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>',
       ship:
-        '<svg class="pdp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true"><path d="M3 8h11v9H3z"/><path d="M14 10h4l3 4v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>'
+        '<svg class="pdp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true"><path d="M3 8h11v9H3z"/><path d="M14 10h4l3 4v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
+      handmade:
+        '<svg class="pdp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V7.5a1.5 1.5 0 0 1 3 0V12"/><path d="M11 11.5V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M14 10.5V7a1.5 1.5 0 0 1 3 0v8.2a4.8 4.8 0 0 1-4.3 4.8H12a5 5 0 0 1-4.6-3L5.2 12.4A1.6 1.6 0 0 1 8 11.2"/></svg>',
+      japan:
+        '<svg class="pdp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.25"/></svg>',
+      built:
+        '<svg class="pdp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5v-7Z"/><path d="M12 12v8M4 8.5l8 3.5 8-3.5"/></svg>',
+      led:
+        '<svg class="pdp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.55 1.1 1.3 1.2 2.2h4.8c.1-.9.5-1.65 1.2-2.2A6 6 0 0 0 12 3Z"/></svg>'
     };
     return icons[name] || icons.globe;
+  }
+
+  function buildValueHighlights() {
+    var list = document.createElement("ul");
+    list.className = "pdp-value-highlights";
+    list.setAttribute("aria-label", "Value highlights");
+    var items = [
+      {
+        icon: "handmade",
+        title: "Handmade",
+        text: "Crafted by skilled artisans."
+      },
+      {
+        icon: "japan",
+        title: "Made in Japan",
+        text: "Premium quality craftsmanship."
+      },
+      {
+        icon: "built",
+        title: "Built to Order",
+        text: "Every artwork is made just for you."
+      },
+      {
+        icon: "led",
+        title: "LED Included",
+        text: "Ready to display out of the box."
+      }
+    ];
+    items.forEach(function (item) {
+      var li = document.createElement("li");
+      li.className = "pdp-value-highlight";
+      li.innerHTML =
+        '<span class="pdp-value-highlight-icon" aria-hidden="true">' +
+        iconSvg(item.icon) +
+        "</span>" +
+        '<span class="pdp-value-highlight-copy">' +
+        '<span class="pdp-value-highlight-title">' +
+        item.title +
+        "</span>" +
+        '<span class="pdp-value-highlight-text">' +
+        item.text +
+        "</span>" +
+        "</span>";
+      list.appendChild(li);
+    });
+    return list;
   }
 
   function getProductSlug() {
@@ -591,7 +645,8 @@
     priceRow.appendChild(compareEl);
     priceRow.appendChild(price);
     priceRow.appendChild(saleBadge);
-    buy.appendChild(priceRow);
+
+    var valueHighlights = buildValueHighlights();
 
     var shippingNote = document.createElement("p");
     shippingNote.className = "pdp-shipping-note";
@@ -624,6 +679,8 @@
     details.innerHTML = "";
     details.appendChild(top);
     details.appendChild(lede);
+    details.appendChild(priceRow);
+    details.appendChild(valueHighlights);
     details.appendChild(optionsWrap);
     details.appendChild(lowStock);
     details.appendChild(buy);
