@@ -305,11 +305,15 @@ window.renderAdminactivity = function (container) {
           '>Previous</button>' +
           '<span class="admin-muted">Showing ' +
           rows.length +
+          ' of ' +
+          (res.body && res.body.total != null ? res.body.total : rows.length) +
           ' · offset ' +
           state.offset +
           '</span>' +
           '<button type="button" class="admin-btn-secondary" id="caNext"' +
-          (rows.length < 40 ? ' disabled' : '') +
+          (state.offset + rows.length >= ((res.body && res.body.total) || rows.length) || rows.length === 0
+            ? ' disabled'
+            : '') +
           '>Next</button>' +
           '</div></div>';
 
