@@ -13,6 +13,18 @@ window.AdminMarketingCenter = (function () {
     { id: 'settings', label: 'Settings', href: '#marketing/settings' }
   ];
 
+  /**
+   * Resend open/click tracking went live at this moment. Sends before it can never
+   * report opens or clicks, so they are hidden from the Completed queue view.
+   */
+  var EMAIL_TRACKING_START_MS = Date.parse('2026-07-25T03:32:00.000Z');
+
+  function isTrackableSend(row) {
+    if (!row || !row.executed_at) return false;
+    var at = Date.parse(String(row.executed_at).replace(' ', 'T'));
+    return !isNaN(at) && at >= EMAIL_TRACKING_START_MS;
+  }
+
   function esc(v) {
     return String(v == null ? '' : v)
       .replace(/&/g, '&amp;')
@@ -453,7 +465,13 @@ window.AdminMarketingCenter = (function () {
         [
           ['due', 'Due', queueSummary.due],
           ['waiting', 'Waiting', queueSummary.waiting],
-          ['completed', 'Completed', queueSummary.completed]
+          [
+            'completed',
+            'Completed',
+            queueSummary.completed_trackable != null
+              ? queueSummary.completed_trackable
+              : queueSummary.completed
+          ]
         ]
           .map(function (b, index) {
             return (
@@ -514,6 +532,8 @@ window.AdminMarketingCenter = (function () {
               var isDue = !!scheduled && scheduled <= Date.now();
               return category === 'due' ? isDue : !isDue;
             });
+          } else if (category === 'completed') {
+            rows = rows.filter(isTrackableSend);
           }
           detailsHost.innerHTML = queueDetailsTable(rows, category, engageFilter);
           if (category === 'completed') {
@@ -553,26 +573,41 @@ window.AdminMarketingCenter = (function () {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ limit: 25, promote_limit: 100, max_rounds: 20 })
-          }).then(function (res) {
-            btn.disabled = false;
-            btn.textContent = 'Execute Due Sends';
-            if (!res.ok) {
-              alert((res.body && res.body.error) || 'Execute failed');
-              return;
-            }
-            var b = res.body || {};
-            alert(
-              'Done.\nCompleted: ' +
-                (b.completed || 0) +
-                '\nFailed: ' +
-                (b.failed || 0) +
-                '\nCancelled: ' +
-                (b.cancelled || 0) +
-                '\nRounds: ' +
-                (b.rounds || 1)
-            );
-            renderOverview(container);
-          });
+          })
+            .then(function (res) {
+              btn.disabled = false;
+              btn.textContent = 'Execute Due Sends';
+              if (!res.ok) {
+                // Long sends can time out in the browser even after emails already went out.
+                // Always refresh so Due/Waiting/Completed match the database.
+                alert(
+                  ((res.body && res.body.error) || 'Execute timed out or returned an invalid response') +
+                    '\n\nRefreshing the queue now — check Completed to confirm what was sent.'
+                );
+                renderOverview(container);
+                return;
+              }
+              var b = res.body || {};
+              alert(
+                'Done.\nCompleted: ' +
+                  (b.completed || 0) +
+                  '\nFailed: ' +
+                  (b.failed || 0) +
+                  '\nCancelled: ' +
+                  (b.cancelled || 0) +
+                  '\nRounds: ' +
+                  (b.rounds || 1)
+              );
+              renderOverview(container);
+            })
+            .catch(function () {
+              btn.disabled = false;
+              btn.textContent = 'Execute Due Sends';
+              alert(
+                'Execute request failed or timed out.\n\nRefreshing the queue now — check Completed to confirm what was sent.'
+              );
+              renderOverview(container);
+            });
         });
       }
     });
