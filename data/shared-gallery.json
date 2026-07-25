@@ -1,11 +1,35 @@
 {
-  "updatedAt": "2026-07-21T12:52:39.511Z",
+  "updatedAt": "2026-07-25T14:57:54.765Z",
   "sourceFolder": "shared-gallery/",
   "items": [
     {
       "type": "video",
       "src": "/shared-gallery/A.mp4",
       "poster": "/shared-gallery/A-poster.jpg"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/B01-quality-levels.jpg"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/B02-layer-protection.jpg"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/B03-built-to-last.jpg"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/B04-multi-layer-excellence.jpg"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/B05-led-strip-light.jpg"
+    },
+    {
+      "type": "image",
+      "src": "/shared-gallery/B06-perfect-for-any-space.jpg"
     },
     {
       "type": "image",
@@ -24,12 +48,14 @@
     },
     {
       "type": "image",
-      "src": "/shared-gallery/IMG_3616.JPG"
+      "src": "/shared-gallery/IMG_3616.JPG",
+      "gallery": false
     },
     {
       "type": "video",
       "src": "/shared-gallery/zybar-homepage.mp4",
-      "poster": "/shared-gallery/zybar-homepage-poster.jpg"
+      "poster": "/shared-gallery/zybar-homepage-poster.jpg",
+      "gallery": false
     }
   ]
 }
