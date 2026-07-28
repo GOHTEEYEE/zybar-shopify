@@ -4,9 +4,16 @@
   var content = document.getElementById('lvAdminContent');
   var loading = document.getElementById('lvAdminLoading');
   var signOutBtn = document.getElementById('lvAdminSignOut');
-  var rangeDays = 30;
+  var rangeKey = '7';
   var chart = null;
   var cache = {};
+  var MYT_TZ = 'Asia/Kuala_Lumpur';
+  var RANGE_OPTIONS = [
+    { key: 'today', label: 'Today' },
+    { key: 'yesterday', label: 'Yesterday' },
+    { key: '7', label: '7 days' },
+    { key: '30', label: '30 days' }
+  ];
   var visitorState = {
     country: '',
     traffic: '',
@@ -72,9 +79,76 @@
     });
   }
 
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function mytParts(date) {
+    var year = 0;
+    var month = 0;
+    var day = 0;
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: MYT_TZ,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+      .formatToParts(date || new Date())
+      .forEach(function (part) {
+        if (part.type === 'year') year = Number(part.value);
+        if (part.type === 'month') month = Number(part.value);
+        if (part.type === 'day') day = Number(part.value);
+      });
+    return { year: year, month: month, day: day };
+  }
+
+  function mytMidnightIso(year, month, day) {
+    return new Date(
+      year + '-' + pad2(month) + '-' + pad2(day) + 'T00:00:00+08:00'
+    ).toISOString();
+  }
+
+  function addMytDays(parts, delta) {
+    var mid = new Date(
+      parts.year + '-' + pad2(parts.month) + '-' + pad2(parts.day) + 'T12:00:00+08:00'
+    );
+    mid.setDate(mid.getDate() + delta);
+    return mytParts(mid);
+  }
+
+  function buildRangeParams() {
+    var now = mytParts(new Date());
+    var tomorrow = addMytDays(now, 1);
+    var start;
+    var end = mytMidnightIso(tomorrow.year, tomorrow.month, tomorrow.day);
+
+    if (rangeKey === 'today') {
+      start = mytMidnightIso(now.year, now.month, now.day);
+    } else if (rangeKey === 'yesterday') {
+      var yesterday = addMytDays(now, -1);
+      start = mytMidnightIso(yesterday.year, yesterday.month, yesterday.day);
+      end = mytMidnightIso(now.year, now.month, now.day);
+    } else if (rangeKey === '7') {
+      var weekStart = addMytDays(now, -6);
+      start = mytMidnightIso(weekStart.year, weekStart.month, weekStart.day);
+    } else {
+      var monthStart = addMytDays(now, -29);
+      start = mytMidnightIso(monthStart.year, monthStart.month, monthStart.day);
+    }
+
+    return { start: start, end: end };
+  }
+
+  function rangeQueryString() {
+    var range = buildRangeParams();
+    return (
+      'start=' + encodeURIComponent(range.start) + '&end=' + encodeURIComponent(range.end)
+    );
+  }
+
   function api(path, opts) {
     var options = opts || {};
-    var query = '?days=' + rangeDays;
+    var query = '?' + rangeQueryString();
     if (options.country) query += '&country=' + encodeURIComponent(options.country);
     if (options.traffic) query += '&traffic=' + encodeURIComponent(options.traffic);
     if (options.search) query += '&search=' + encodeURIComponent(options.search);
@@ -204,17 +278,17 @@
       esc(title) +
       '</h1><p>' +
       esc(subtitle) +
-      '</p></div>' +
+      '</p><p class="lv-admin__range-note">Date ranges use Malaysia time (GMT+8), resetting at 12:00&nbsp;a.m.</p></div>' +
       '<div class="lv-admin__filters">' +
-      [7, 30, 90].map(function (d) {
+      RANGE_OPTIONS.map(function (opt) {
         return (
-          '<button type="button" data-days="' +
-          d +
+          '<button type="button" data-range="' +
+          esc(opt.key) +
           '" class="' +
-          (rangeDays === d ? 'is-active' : '') +
+          (rangeKey === opt.key ? 'is-active' : '') +
           '">' +
-          d +
-          ' days</button>'
+          esc(opt.label) +
+          '</button>'
         );
       }).join('') +
       '</div></div>'
@@ -277,7 +351,7 @@
       kpi('Checkout started', esc(o.begin_checkout || 0)) +
       kpi('Purchases', esc(o.purchases || 0)) +
       kpi('Revenue', esc(moneyCents(o.revenue_cents))) +
-      kpi('Emails', esc(o.emails_collected || 0)) +
+      kpi('Emails collected', esc(o.emails_collected || 0)) +
       kpi('Conversion', esc((o.conversion_rate || 0) + '%')) +
       '</div>' +
       '<div class="lv-admin__grid">' +
@@ -487,11 +561,20 @@
     bindRangeButtons();
   }
 
+  function customerSourceLabel(row) {
+    if ((row.orders || 0) > 0) return 'Purchased';
+    if (row.source === 'checkout_email') return 'Checkout email';
+    return 'Lead';
+  }
+
   function renderCustomers(data) {
     var customers = (data && data.customers) || [];
     content.innerHTML =
-      header('Emails & customers', 'Emails from LUNEVA purchases in this date range.') +
-      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Email</th><th>Name</th><th>Orders</th><th>Revenue</th><th>Last order</th></tr></thead><tbody>' +
+      header(
+        'Emails & customers',
+        'Checkout emails and completed orders in the selected period.'
+      ) +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Email</th><th>Name</th><th>Source</th><th>Orders</th><th>Revenue</th><th>Last activity</th></tr></thead><tbody>' +
       (customers.length
         ? customers
             .map(function (c) {
@@ -501,16 +584,18 @@
                 '</td><td>' +
                 esc(c.name || '—') +
                 '</td><td>' +
+                esc(customerSourceLabel(c)) +
+                '</td><td>' +
                 esc(c.orders || 0) +
                 '</td><td>' +
                 esc(moneyCents(c.revenue_cents)) +
                 '</td><td>' +
-                esc(fmtDate(c.last_order_at)) +
+                esc(fmtDate(c.last_order_at || c.last_seen_at)) +
                 '</td></tr>'
               );
             })
             .join('')
-        : '<tr><td colspan="5">No customer emails yet.</td></tr>') +
+        : '<tr><td colspan="6">No emails or customers in this range.</td></tr>') +
       '</tbody></table></section>';
     bindRangeButtons();
   }
@@ -548,9 +633,9 @@
   }
 
   function bindRangeButtons() {
-    document.querySelectorAll('[data-days]').forEach(function (btn) {
+    document.querySelectorAll('[data-range]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        rangeDays = Number(btn.getAttribute('data-days')) || 30;
+        rangeKey = btn.getAttribute('data-range') || '7';
         visitorState.offset = 0;
         cache = {};
         render();

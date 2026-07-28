@@ -122,6 +122,12 @@ body {
   flex-wrap: wrap;
 }
 
+.lv-admin__range-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--lv-muted);
+}
+
 .lv-admin__filters button {
   border: 1px solid var(--lv-line);
   background: var(--lv-surface);
