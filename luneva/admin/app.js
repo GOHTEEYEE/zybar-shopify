@@ -7,6 +7,23 @@
   var rangeDays = 30;
   var chart = null;
   var cache = {};
+  var visitorState = {
+    country: '',
+    traffic: '',
+    search: '',
+    offset: 0,
+    limit: 50
+  };
+  var TRAFFIC_SOURCES = [
+    'Direct',
+    'Facebook',
+    'Instagram',
+    'Google',
+    'TikTok',
+    'YouTube',
+    'Referral',
+    'Unknown'
+  ];
 
   function esc(v) {
     return String(v == null ? '' : v)
@@ -55,10 +72,17 @@
     });
   }
 
-  function api(path) {
-    var key = path + '|' + rangeDays;
+  function api(path, opts) {
+    var options = opts || {};
+    var query = '?days=' + rangeDays;
+    if (options.country) query += '&country=' + encodeURIComponent(options.country);
+    if (options.traffic) query += '&traffic=' + encodeURIComponent(options.traffic);
+    if (options.search) query += '&search=' + encodeURIComponent(options.search);
+    if (options.offset != null) query += '&offset=' + encodeURIComponent(options.offset);
+    if (options.limit != null) query += '&limit=' + encodeURIComponent(options.limit);
+    var key = path + query;
     if (cache[key]) return Promise.resolve(cache[key]);
-    return fetch(path + '?days=' + rangeDays)
+    return fetch(path + query)
       .then(function (res) {
         return res.ok ? res.json() : Promise.reject(new Error('Request failed'));
       })
@@ -66,6 +90,77 @@
         cache[key] = data;
         return data;
       });
+  }
+
+  function statusLabel(status) {
+    var map = {
+      purchased: 'Purchased',
+      checkout_started: 'Checkout',
+      added_to_cart: 'Added to cart',
+      browsing: 'Browsing',
+      visited: 'Visited'
+    };
+    return map[status] || status || '—';
+  }
+
+  function renderVisitorFilters() {
+    return (
+      '<div class="lv-admin__toolbar">' +
+      '<input type="search" class="lv-admin__input" id="lvVisitorSearch" placeholder="Search email, country, visitor…" value="' +
+      esc(visitorState.search) +
+      '" />' +
+      '<input type="text" class="lv-admin__input lv-admin__input--short" id="lvVisitorCountry" placeholder="Country (e.g. US)" value="' +
+      esc(visitorState.country) +
+      '" />' +
+      '<select class="lv-admin__input" id="lvVisitorTraffic"><option value="">All traffic</option>' +
+      TRAFFIC_SOURCES.map(function (source) {
+        return (
+          '<option value="' +
+          esc(source) +
+          '"' +
+          (visitorState.traffic === source ? ' selected' : '') +
+          '>' +
+          esc(source) +
+          '</option>'
+        );
+      }).join('') +
+      '</select></div>'
+    );
+  }
+
+  function bindVisitorFilters(reload) {
+    var searchEl = document.getElementById('lvVisitorSearch');
+    var countryEl = document.getElementById('lvVisitorCountry');
+    var trafficEl = document.getElementById('lvVisitorTraffic');
+    var searchTimer;
+    if (searchEl) {
+      searchEl.addEventListener('input', function () {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function () {
+          visitorState.search = searchEl.value.trim();
+          visitorState.offset = 0;
+          reload();
+        }, 280);
+      });
+    }
+    if (countryEl) {
+      var countryTimer;
+      countryEl.addEventListener('input', function () {
+        clearTimeout(countryTimer);
+        countryTimer = setTimeout(function () {
+          visitorState.country = countryEl.value.trim().toUpperCase();
+          visitorState.offset = 0;
+          reload();
+        }, 280);
+      });
+    }
+    if (trafficEl) {
+      trafficEl.addEventListener('change', function () {
+        visitorState.traffic = trafficEl.value;
+        visitorState.offset = 0;
+        reload();
+      });
+    }
   }
 
   function renderLogin() {
@@ -229,6 +324,137 @@
     bindRangeButtons();
   }
 
+  function renderVisitors(data) {
+    var rows = (data && data.rows) || [];
+    var total = (data && data.total) || rows.length;
+    content.innerHTML =
+      header('Visitors', 'Country, traffic source, and last activity for LUNEVA storefront visitors.') +
+      renderVisitorFilters() +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Visitor</th><th>Email</th><th>Country</th><th>Traffic source</th><th>Status</th><th>Last active</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>' +
+      (rows.length
+        ? rows
+            .map(function (row) {
+              return (
+                '<tr><td><span class="lv-admin__pill">' +
+                esc((row.visitor_id || '').slice(0, 8)) +
+                '</span></td><td>' +
+                esc(row.email || '—') +
+                '</td><td>' +
+                esc(row.country || '—') +
+                '</td><td>' +
+                esc(row.traffic_source || '—') +
+                '</td><td>' +
+                esc(statusLabel(row.status)) +
+                '</td><td>' +
+                esc(fmtDate(row.last_active_at)) +
+                '</td><td>' +
+                esc(row.orders || 0) +
+                '</td><td>' +
+                esc(moneyCents(row.revenue_cents)) +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="8">No visitors in this range.</td></tr>') +
+      '</tbody></table>' +
+      '<div class="lv-admin__pager">' +
+      '<button type="button" class="lv-admin__pager-btn" id="lvVisitorPrev"' +
+      (visitorState.offset <= 0 ? ' disabled' : '') +
+      '>Previous</button>' +
+      '<span>Showing ' +
+      rows.length +
+      ' of ' +
+      total +
+      '</span>' +
+      '<button type="button" class="lv-admin__pager-btn" id="lvVisitorNext"' +
+      (visitorState.offset + rows.length >= total || !rows.length ? ' disabled' : '') +
+      '>Next</button>' +
+      '</div></section>';
+    bindRangeButtons();
+    bindVisitorFilters(function () {
+      cache = {};
+      render();
+    });
+    var prev = document.getElementById('lvVisitorPrev');
+    var next = document.getElementById('lvVisitorNext');
+    if (prev) {
+      prev.addEventListener('click', function () {
+        visitorState.offset = Math.max(0, visitorState.offset - visitorState.limit);
+        cache = {};
+        render();
+      });
+    }
+    if (next) {
+      next.addEventListener('click', function () {
+        visitorState.offset += visitorState.limit;
+        cache = {};
+        render();
+      });
+    }
+  }
+
+  function renderCountries(data) {
+    var rows = (data && data.countries) || [];
+    content.innerHTML =
+      header('Countries', 'Where your LUNEVA visitors and customers are coming from.') +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Country</th><th>Visitors</th><th>Customers</th><th>Orders</th><th>Revenue</th><th>Conversion</th><th>AOV</th></tr></thead><tbody>' +
+      (rows.length
+        ? rows
+            .map(function (row) {
+              return (
+                '<tr><td>' +
+                esc(row.country || '—') +
+                '</td><td>' +
+                esc(row.visitors || 0) +
+                '</td><td>' +
+                esc(row.customers || 0) +
+                '</td><td>' +
+                esc(row.orders || 0) +
+                '</td><td>' +
+                esc(moneyCents(row.revenue_cents)) +
+                '</td><td>' +
+                esc((row.conversion_rate || 0) + '%') +
+                '</td><td>' +
+                esc(moneyCents(row.aov_cents)) +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="7">No country data yet.</td></tr>') +
+      '</tbody></table></section>';
+    bindRangeButtons();
+  }
+
+  function renderTraffic(data) {
+    var rows = (data && data.sources) || [];
+    content.innerHTML =
+      header('Traffic sources', 'How visitors discovered LUNEVA.') +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Source</th><th>Visitors</th><th>Add to cart</th><th>Checkout</th><th>Purchases</th><th>Revenue</th></tr></thead><tbody>' +
+      (rows.length
+        ? rows
+            .map(function (row) {
+              return (
+                '<tr><td>' +
+                esc(row.label || '—') +
+                '</td><td>' +
+                esc(row.visitors || 0) +
+                '</td><td>' +
+                esc(row.add_to_cart || 0) +
+                '</td><td>' +
+                esc(row.checkout || 0) +
+                '</td><td>' +
+                esc(row.purchase || 0) +
+                '</td><td>' +
+                esc(moneyCents(row.revenue_cents)) +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="6">No traffic data yet.</td></tr>') +
+      '</tbody></table></section>';
+    bindRangeButtons();
+  }
+
   function renderOrders(data) {
     var orders = (data && data.orders) || [];
     content.innerHTML =
@@ -293,7 +519,7 @@
     var rows = (data && data.recent_activity) || [];
     content.innerHTML =
       header('Activity', 'Recent LUNEVA storefront events.') +
-      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>When</th><th>Event</th><th>Product</th><th>Page</th><th>Visitor</th></tr></thead><tbody>' +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>When</th><th>Event</th><th>Product</th><th>Country</th><th>Traffic source</th><th>Page</th><th>Visitor</th></tr></thead><tbody>' +
       (rows.length
         ? rows
             .map(function (ev) {
@@ -305,6 +531,10 @@
                 '</td><td>' +
                 esc(slugLabel(ev.product_id) || '—') +
                 '</td><td>' +
+                esc(ev.country || '—') +
+                '</td><td>' +
+                esc(ev.traffic_source || '—') +
+                '</td><td>' +
                 esc(ev.page_url || '—') +
                 '</td><td><span class="lv-admin__pill">' +
                 esc((ev.visitor_id || '').slice(0, 8)) +
@@ -312,7 +542,7 @@
               );
             })
             .join('')
-        : '<tr><td colspan="5">No LUNEVA events yet. Browse /luneva/ to start collecting data.</td></tr>') +
+        : '<tr><td colspan="7">No LUNEVA events yet. Browse /luneva/ to start collecting data.</td></tr>') +
       '</tbody></table></section>';
     bindRangeButtons();
   }
@@ -321,6 +551,7 @@
     document.querySelectorAll('[data-days]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         rangeDays = Number(btn.getAttribute('data-days')) || 30;
+        visitorState.offset = 0;
         cache = {};
         render();
       });
@@ -331,6 +562,36 @@
     setActiveNav();
     setLoading(true);
     var tab = currentTab();
+    if (tab === 'visitors') {
+      return api('/api/admin/luneva/visitors', {
+        country: visitorState.country,
+        traffic: visitorState.traffic,
+        search: visitorState.search,
+        offset: visitorState.offset,
+        limit: visitorState.limit
+      })
+        .then(renderVisitors)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
+    if (tab === 'countries') {
+      return api('/api/admin/luneva/countries')
+        .then(renderCountries)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
+    if (tab === 'traffic') {
+      return api('/api/admin/luneva/traffic')
+        .then(renderTraffic)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
     if (tab === 'orders') {
       return api('/api/admin/luneva/orders')
         .then(renderOrders)
@@ -381,6 +642,7 @@
       };
     }
     window.addEventListener('hashchange', function () {
+      visitorState.offset = 0;
       cache = {};
       render();
     });

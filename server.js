@@ -923,6 +923,42 @@ app.get('/api/admin/luneva/customers', async (req, res) => {
   }
 });
 
+app.get('/api/admin/luneva/visitors', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const data = await LunevaAnalytics.getVisitors(supabase, range, req.query || {});
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/luneva/visitors error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA visitors' });
+  }
+});
+
+app.get('/api/admin/luneva/countries', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const countries = await LunevaAnalytics.getCountryAnalytics(supabase, range);
+    return res.json({ countries: countries, range: range });
+  } catch (err) {
+    console.error('GET /api/admin/luneva/countries error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA countries' });
+  }
+});
+
+app.get('/api/admin/luneva/traffic', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const sources = await LunevaAnalytics.getTrafficAnalytics(supabase, range);
+    return res.json({ sources: sources, range: range });
+  } catch (err) {
+    console.error('GET /api/admin/luneva/traffic error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA traffic' });
+  }
+});
+
 app.get('/api/admin-reviews', async (req, res) => {
   if (!supabase) {
     return res.status(503).json({ error: 'Supabase is not configured for reviews yet.' });
