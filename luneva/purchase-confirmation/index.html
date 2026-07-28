@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order confirmed | LUNEVA</title>
+  <meta name="description" content="Thank you for your LUNEVA order. Your kit is being prepared with care." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="canonical" href="https://www.zybar.shop/luneva/purchase-confirmation/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/luneva.css?v=lv-confirm1" />
+</head>
+<body class="luneva-body lv-confirm-page">
+<div class="lv-announcement" aria-label="Announcement"><div class="lv-announcement__track"><span>Lighting effects $39 · Lighting + Mechanical Butterfly $49</span><span>Worldwide shipping available</span><span>Lighting effects $39 · Lighting + Mechanical Butterfly $49</span><span>Worldwide shipping available</span></div></div>
+<header class="lv-header"><div class="lv-container lv-header__inner">
+<nav class="lv-nav" aria-label="LUNEVA"><a href="/luneva/shop/">Shop</a><a href="/luneva/reviews/">Reviews</a><a href="/luneva/faqs/">FAQs</a></nav>
+<a class="lv-brand" href="/luneva/">LUNEVA</a>
+<div class="lv-header__cta"><a href="/luneva/shop/" class="lv-btn lv-btn-primary">Shop now</a></div>
+</div></header>
+
+<main class="lv-confirm">
+  <div class="lv-container lv-confirm__shell">
+    <div class="lv-confirm__hero">
+      <div class="lv-confirm__icon" aria-hidden="true">✓</div>
+      <p class="lv-eyebrow">Order confirmed</p>
+      <h1>Thank you — your kit is on its way.</h1>
+      <p class="lv-confirm__lead">We’re preparing your LUNEVA display with care. You’ll receive a confirmation email shortly, and we’ll share tracking once your order ships.</p>
+      <p id="lv-confirm-status" class="lv-confirm__status" hidden>Loading your order…</p>
+      <p id="lv-confirm-error" class="lv-confirm__error" hidden></p>
+    </div>
+
+    <div class="lv-confirm__card" id="lv-confirm-card" hidden>
+      <div class="lv-confirm__meta">
+        <div>
+          <span class="lv-confirm__label">Order</span>
+          <strong id="lv-confirm-order">—</strong>
+        </div>
+        <div>
+          <span class="lv-confirm__label">Estimated delivery</span>
+          <strong>7–14 days</strong>
+        </div>
+        <div>
+          <span class="lv-confirm__label">Email</span>
+          <strong id="lv-confirm-email">—</strong>
+        </div>
+      </div>
+
+      <div class="lv-confirm__grid">
+        <section class="lv-confirm__panel" aria-labelledby="lv-confirm-ship-title">
+          <h2 id="lv-confirm-ship-title">Shipping to</h2>
+          <p class="lv-confirm__value" id="lv-confirm-ship-name">—</p>
+          <p class="lv-confirm__muted" id="lv-confirm-ship-address">—</p>
+          <p class="lv-confirm__muted" id="lv-confirm-ship-phone">—</p>
+        </section>
+        <section class="lv-confirm__panel" aria-labelledby="lv-confirm-pay-title">
+          <h2 id="lv-confirm-pay-title">Payment</h2>
+          <p class="lv-confirm__value" id="lv-confirm-payment">—</p>
+        </section>
+      </div>
+
+      <section class="lv-confirm__items" aria-labelledby="lv-confirm-items-title">
+        <h2 id="lv-confirm-items-title">Your kits</h2>
+        <div id="lv-confirm-items"></div>
+      </section>
+
+      <section class="lv-confirm__totals" aria-label="Order totals">
+        <div class="lv-confirm__total-row"><span>Subtotal</span><strong id="lv-confirm-subtotal">—</strong></div>
+        <div class="lv-confirm__total-row"><span>Shipping</span><strong id="lv-confirm-shipping">—</strong></div>
+        <div class="lv-confirm__total-row lv-confirm__total-row--grand"><span>Total</span><strong id="lv-confirm-total">—</strong></div>
+      </section>
+
+      <div class="lv-confirm__note">
+        <p>Every LUNEVA kit arrives gift-ready — display case, USB cable, guide, and a thank-you card inside.</p>
+      </div>
+
+      <div class="lv-confirm__actions">
+        <a class="lv-btn lv-btn-primary" href="/luneva/shop/">Continue shopping</a>
+        <a class="lv-btn lv-btn-outline" href="/luneva/">Back to LUNEVA</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="lv-footer"><div class="lv-container">
+<div class="lv-footer__brand">LUNEVA</div>
+<p>Beauty in motion. Made to inspire.</p>
+</div></footer>
+<script src="/js/stripe-config.js"></script>
+<script src="/js/analytics-config.js"></script>
+<script src="/js/analytics.js?v=luneva1"></script>
+<script src="/js/luneva-purchase-confirmation.js?v=1"></script>
+</body>
+</html>

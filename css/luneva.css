@@ -927,3 +927,254 @@ button {
     letter-spacing: 0.22em;
   }
 }
+
+/* Purchase confirmation */
+.lv-confirm-page {
+  background: var(--lv-bg);
+}
+
+.lv-confirm {
+  padding: 4rem 0 6rem;
+}
+
+.lv-confirm__shell {
+  max-width: 760px;
+}
+
+.lv-confirm__hero {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.lv-confirm__icon {
+  width: 5.6rem;
+  height: 5.6rem;
+  margin: 0 auto 1.6rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 2.4rem;
+  color: #fff;
+  background: linear-gradient(145deg, #a8894f, var(--lv-gold));
+  box-shadow: 0 12px 30px rgba(146, 113, 53, 0.22);
+}
+
+.lv-confirm__hero h1 {
+  margin: 0 0 1rem;
+  font-family: var(--lv-font-display);
+  font-size: clamp(3rem, 5vw, 4.2rem);
+  font-weight: 400;
+  line-height: 1.08;
+}
+
+.lv-confirm__lead {
+  margin: 0 auto;
+  max-width: 54rem;
+  color: var(--lv-muted);
+  font-size: 1.55rem;
+  line-height: 1.65;
+}
+
+.lv-confirm__status,
+.lv-confirm__error {
+  margin-top: 1.4rem;
+  font-size: 1.4rem;
+}
+
+.lv-confirm__error {
+  color: #a34432;
+}
+
+.lv-confirm__card {
+  background: var(--lv-white);
+  border: 1px solid var(--lv-line);
+  border-radius: 18px;
+  padding: 2.4rem;
+  box-shadow: 0 18px 50px rgba(26, 23, 20, 0.05);
+}
+
+.lv-confirm__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2rem;
+  padding-bottom: 2rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--lv-line);
+}
+
+.lv-confirm__label {
+  display: block;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lv-muted);
+  margin-bottom: 0.35rem;
+}
+
+.lv-confirm__meta strong {
+  font-size: 1.45rem;
+  font-weight: 500;
+}
+
+.lv-confirm__grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.lv-confirm__panel {
+  background: var(--lv-soft);
+  border-radius: 14px;
+  padding: 1.4rem 1.5rem;
+}
+
+.lv-confirm__panel h2 {
+  margin: 0 0 0.8rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lv-muted);
+  font-weight: 500;
+}
+
+.lv-confirm__value {
+  margin: 0 0 0.35rem;
+  font-size: 1.55rem;
+}
+
+.lv-confirm__muted {
+  margin: 0;
+  color: var(--lv-muted);
+  font-size: 1.35rem;
+  line-height: 1.55;
+}
+
+.lv-confirm__items h2 {
+  margin: 0 0 1rem;
+  font-family: var(--lv-font-display);
+  font-size: 2.2rem;
+  font-weight: 400;
+}
+
+.lv-confirm__item {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 1.2rem;
+  align-items: center;
+  padding: 1.2rem 0;
+  border-top: 1px solid var(--lv-line);
+}
+
+.lv-confirm__thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: var(--lv-soft);
+}
+
+.lv-confirm__thumb--empty {
+  border: 1px dashed var(--lv-line);
+}
+
+.lv-confirm__item-body h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.55rem;
+  font-weight: 500;
+}
+
+.lv-confirm__item-body p {
+  margin: 0;
+  color: var(--lv-muted);
+  font-size: 1.3rem;
+}
+
+.lv-confirm__item-price {
+  font-size: 1.45rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.lv-confirm__totals {
+  margin-top: 1.6rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--lv-line);
+}
+
+.lv-confirm__total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  color: var(--lv-muted);
+  font-size: 1.35rem;
+}
+
+.lv-confirm__total-row strong {
+  color: var(--lv-ink);
+  font-weight: 500;
+}
+
+.lv-confirm__total-row--grand {
+  margin-top: 0.6rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--lv-line);
+  font-size: 1.5rem;
+  color: var(--lv-ink);
+}
+
+.lv-confirm__total-row--grand strong {
+  font-size: 1.8rem;
+  color: var(--lv-gold);
+}
+
+.lv-confirm__note {
+  margin: 2rem 0 0;
+  padding: 1.2rem 1.4rem;
+  border-radius: 12px;
+  background: var(--lv-soft);
+}
+
+.lv-confirm__note p {
+  margin: 0;
+  color: var(--lv-muted);
+  font-size: 1.35rem;
+  line-height: 1.6;
+}
+
+.lv-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.lv-confirm__actions .lv-btn {
+  min-width: 180px;
+  justify-content: center;
+}
+
+@media (max-width: 720px) {
+  .lv-confirm__meta,
+  .lv-confirm__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lv-confirm__item {
+    grid-template-columns: 64px 1fr;
+  }
+
+  .lv-confirm__item-price {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .lv-confirm__actions {
+    flex-direction: column;
+  }
+
+  .lv-confirm__actions .lv-btn {
+    width: 100%;
+  }
+}

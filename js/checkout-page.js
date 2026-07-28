@@ -883,7 +883,9 @@
     var successUrl =
       pending.successUrl ||
       config.successUrl ||
-      origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}";
+      (IS_LUNEVA_CHECKOUT
+        ? origin + "/luneva/purchase-confirmation/?session_id={CHECKOUT_SESSION_ID}"
+        : origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}");
     var returnUrl =
       successUrl.indexOf("{CHECKOUT_SESSION_ID}") !== -1
         ? successUrl
@@ -1764,7 +1766,9 @@
     var successUrl =
       pending.successUrl ||
       config.successUrl ||
-      origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}";
+      (IS_LUNEVA_CHECKOUT
+        ? origin + "/luneva/purchase-confirmation/?session_id={CHECKOUT_SESSION_ID}"
+        : origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}");
     state.returnUrl =
       successUrl.indexOf("{CHECKOUT_SESSION_ID}") !== -1
         ? successUrl

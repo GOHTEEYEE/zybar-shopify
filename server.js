@@ -2214,6 +2214,24 @@ function formatSizeLabel(size) {
   return normalized + ' cm';
 }
 
+function formatLunevaKitLabel(slug, size) {
+  const s = String(slug || '');
+  const rawSize = String(size || '').trim();
+  if (s.indexOf('luneva-') !== 0) return formatSizeLabel(size);
+  if (rawSize === '30x45') return 'Lighting effects';
+  if (rawSize === '40x60') return 'Lighting + Mechanical butterfly';
+  return rawSize || 'LUNEVA kit';
+}
+
+function formatProductImageUrl(slug) {
+  const s = String(slug || '').trim();
+  if (!s) return '';
+  if (s.indexOf('luneva-') === 0) {
+    return '/luneva/assets/' + s.replace(/^luneva-/, '') + '/hero.png';
+  }
+  return '/Image/' + s + '-1-on.webp';
+}
+
 function formatMoneyFromCents(cents, currency) {
   const cur = String(currency || 'usd').toUpperCase();
   const amount = (Number(cents) || 0) / 100;
@@ -2601,9 +2619,9 @@ app.get('/api/checkout-session', async (req, res) => {
         name: name,
         slug: slug,
         size: size,
-        sizeLabel: formatSizeLabel(size),
+        sizeLabel: formatLunevaKitLabel(slug, size) || formatSizeLabel(size),
         quantity: row.quantity || 1,
-        imageUrl: slug ? '/Image/' + slug + '-1-on.webp' : '',
+        imageUrl: formatProductImageUrl(slug),
         amountCents: amountCents,
         amountFormatted: formatMoneyFromCents(amountCents, currency)
       };
@@ -3292,10 +3310,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
     '';
   if (forwarded) metadata.clientIp = CheckoutSnapshots.truncateMeta(forwarded, 64);
   const storeUrl = String(process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '');
-  metadata.eventSourceUrl = CheckoutSnapshots.truncateMeta(
-    storeUrl + '/purchase-confirmation.html',
-    200
-  );
+  const confirmPath =
+    collection && String(collection).toLowerCase() === 'luneva'
+      ? '/luneva/purchase-confirmation/'
+      : '/purchase-confirmation.html';
+  metadata.eventSourceUrl = CheckoutSnapshots.truncateMeta(storeUrl + confirmPath, 200);
 
   try {
     CheckoutSnapshots.assertMetadataSafe(metadata);

@@ -433,7 +433,7 @@
       collection: "luneva",
       successUrl:
         origin +
-        "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}&collection=luneva",
+        "/luneva/purchase-confirmation/?session_id={CHECKOUT_SESSION_ID}",
       cancelUrl: origin + "/luneva/checkout/"
     };
   }
