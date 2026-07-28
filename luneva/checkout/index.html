@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LUNEVA Checkout</title>
+  <meta name="description" content="Complete your LUNEVA order securely with Stripe." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="canonical" href="https://www.zybar.shop/luneva/checkout/" />
+  <link rel="stylesheet" href="/css/luneva.css" />
+</head>
+<body class="luneva-body">
+<div class="lv-announcement" aria-label="Announcement"><div class="lv-announcement__track"><span>Secure Stripe checkout for LUNEVA only</span><span>Secure Stripe checkout for LUNEVA only</span></div></div>
+<header class="lv-header"><div class="lv-container lv-header__inner">
+<nav class="lv-nav" aria-label="LUNEVA"><a href="/luneva/shop/">Shop</a><a href="/luneva/cart/">Cart</a></nav>
+<a class="lv-brand" href="/luneva/">LUNEVA</a>
+<div class="lv-header__cta"><a href="/luneva/cart/" data-luneva-cart-count>Cart</a></div>
+</div></header>
+<div class="lv-page-hero"><div class="lv-container"><p class="lv-eyebrow">LUNEVA Checkout</p><h1>Complete your order</h1><p>Pay securely with Stripe. This checkout never mixes Automotive ZYBAR items.</p></div></div>
+<section class="lv-section">
+  <div class="lv-container">
+    <div data-luneva-checkout-empty class="lv-empty" hidden>
+      <h2 class="lv-section-title">Nothing to checkout</h2>
+      <p class="lv-section-text">Your LUNEVA cart is empty.</p>
+      <p style="margin-top:2rem"><a class="lv-btn lv-btn-primary" href="/luneva/shop/">Shop LUNEVA</a></p>
+    </div>
+    <div class="lv-checkout-layout" data-luneva-checkout-form>
+      <div class="lv-checkout-card">
+        <h2>Your kits</h2>
+        <div data-luneva-checkout-list></div>
+        <div class="lv-checkout-total-row"><span>Subtotal</span><strong data-luneva-checkout-total>$0.00</strong></div>
+        <p class="lv-cart-summary__note">Shipping is added in the next Stripe step based on your delivery choice.</p>
+      </div>
+      <div class="lv-checkout-card">
+        <h2>Delivery & pay</h2>
+        <div class="lv-field">
+          <label for="luneva-email">Email</label>
+          <input id="luneva-email" type="email" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <p class="lv-eyebrow">Delivery</p>
+        <div class="lv-ship" role="radiogroup" aria-label="Delivery">
+          <label><input type="radio" name="luneva-shipping" value="standard" checked /><span><strong>Standard</strong><br /><span style="color:var(--lv-muted)">Tracked worldwide delivery</span></span></label>
+          <label><input type="radio" name="luneva-shipping" value="priority" /><span><strong>Priority</strong><br /><span style="color:var(--lv-muted)">Faster delivery when available</span></span></label>
+        </div>
+        <button class="lv-btn lv-btn-primary lv-btn-block" type="button" data-luneva-pay>Pay with Stripe</button>
+        <p style="margin-top:1.2rem;color:var(--lv-muted);font-size:1.3rem"><a href="/luneva/cart/">Back to LUNEVA cart</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+<footer class="lv-footer"><div class="lv-container"><div class="lv-footer__brand">LUNEVA</div><p>A collection by ZYBAR · Stripe checkout isolated from Automotive cart</p></div></footer>
+<script src="/js/stripe-config.js"></script>
+<script src="/js/luneva.js"></script>
+</body>
+</html>
