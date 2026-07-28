@@ -4,6 +4,109 @@
   var CART_KEY = "luneva.cart.items";
   var ZYBAR_CART_KEY = "zybar.cart.items";
 
+  var LUNEVA_REVIEWS = {
+    "luneva-cyan-blue": {
+      folder: "cyan-blue",
+      name: "Cyan Blue",
+      items: [
+        {
+          image: "01.png",
+          quote:
+            "The cyan butterfly against the glittery night base is stunning. Colors pop even more with the LEDs on.",
+          author: "Mia T.",
+          location: "Amsterdam, NL"
+        },
+        {
+          image: "02.png",
+          quote: "Blue roses, purple blooms, and that glowing box — feels premium on the shelf.",
+          author: "James W.",
+          location: "London, UK"
+        },
+        {
+          image: "03.png",
+          quote: "The moving wings and cool blue glow make it the centerpiece of my desk setup.",
+          author: "Sophie R.",
+          location: "Toronto, CA"
+        }
+      ]
+    },
+    "luneva-dreamy-garden": {
+      folder: "dreamy-garden",
+      name: "Dreamy Garden",
+      items: [
+        {
+          image: "01.png",
+          quote:
+            "The soft pink glow is unreal. Cotton clouds, tiny trees, and butterflies — it looks like a fairy tale on my shelf.",
+          author: "Maya L.",
+          location: "Los Angeles, US"
+        },
+        {
+          image: "02.png",
+          quote: "Obsessed with the glitter and pastel vibes. Lights on and the whole room feels calmer instantly.",
+          author: "Grace H.",
+          location: "Edinburgh, UK"
+        },
+        {
+          image: "03.png",
+          quote: "Built it in one evening — the mechanical butterfly is mesmerizing to watch.",
+          author: "Chloe P.",
+          location: "Sydney, AU"
+        }
+      ]
+    },
+    "luneva-glowing-garden": {
+      folder: "glowing-garden",
+      name: "Glowing Garden",
+      items: [
+        {
+          image: "01.png",
+          quote:
+            "Absolutely magical on my nightstand. The glow is so soothing — it looks even better in person.",
+          author: "Ava M.",
+          location: "Portland, US"
+        },
+        {
+          image: "02.png",
+          quote: "The blue butterfly looks so lifelike, and the moss feels like a tiny fairy forest.",
+          author: "Lena K.",
+          location: "Vienna, AT"
+        },
+        {
+          image: "03.png",
+          quote: "Gifted this to my sister — she keeps sending me photos of it lit up every night.",
+          author: "Noah S.",
+          location: "Dublin, IE"
+        }
+      ]
+    },
+    "luneva-starlit-garden": {
+      folder: "starlit-garden",
+      name: "Starlit Garden",
+      items: [
+        {
+          image: "01.png",
+          quote:
+            "Finished the miniature landscape and I'm obsessed. Soft flowers look so charming on my desk.",
+          author: "Ellie R.",
+          location: "Austin, US"
+        },
+        {
+          image: "03.png",
+          quote: "Surprised my partner with this — the gift moment was perfect.",
+          author: "Isabella C.",
+          location: "Milan, IT"
+        },
+        {
+          image: "04.png",
+          quote: "The infinity mirror effect is mesmerizing at night. Endless stars, warm glow.",
+          author: "Daniel M.",
+          location: "Chicago, US"
+        }
+      ]
+    }
+  };
+
   function isLunevaSlug(slug) {
     return String(slug || "").indexOf("luneva-") === 0;
   }
@@ -197,6 +300,55 @@
         });
       });
     });
+  }
+
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function renderReviewCard(folder, productName, review) {
+    var base = "/luneva/assets/" + folder + "/reviews/";
+    var alt = productName + " from " + review.author;
+    return (
+      '<article class="lv-review-card">' +
+      '<div class="lv-review-card__media"><img src="' +
+      base +
+      review.image +
+      '" alt="' +
+      escapeHtml(alt) +
+      '" loading="lazy" /></div>' +
+      '<div class="lv-review-card__body"><div aria-hidden="true">★★★★★</div>' +
+      "<p>\u201C" +
+      escapeHtml(review.quote) +
+      "\u201D</p>" +
+      "<footer>" +
+      escapeHtml(review.author) +
+      " · " +
+      escapeHtml(review.location) +
+      "</footer></div></article>"
+    );
+  }
+
+  function initProductReviews() {
+    var section = document.querySelector("[data-luneva-reviews]");
+    if (!section) return;
+    var root = document.querySelector("[data-luneva-product]");
+    var slug = root ? root.getAttribute("data-slug") : "";
+    var data = LUNEVA_REVIEWS[slug];
+    var grid = section.querySelector("[data-luneva-reviews-grid]");
+    if (!data || !grid || !data.items.length) {
+      section.hidden = true;
+      return;
+    }
+    grid.innerHTML = data.items
+      .map(function (review) {
+        return renderReviewCard(data.folder, data.name, review);
+      })
+      .join("");
   }
 
   function initKits() {
@@ -502,6 +654,7 @@
     initHero();
     initGallery();
     initKits();
+    initProductReviews();
     initCartButtons();
     updateHeaderCount();
     renderCartPage();

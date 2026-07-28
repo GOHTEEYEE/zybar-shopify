@@ -679,6 +679,26 @@ button {
   font-size: 1.25rem;
 }
 
+.lv-pdp-reviews {
+  padding-top: 0;
+  padding-bottom: 5.6rem;
+}
+
+.lv-pdp-reviews .lv-section-text {
+  max-width: 52rem;
+  margin-bottom: 2.4rem;
+}
+
+.lv-pdp-reviews__more {
+  margin-top: 2.4rem;
+  text-align: center;
+  font-size: 1.35rem;
+}
+
+.lv-pdp-reviews__more a {
+  color: var(--lv-gold);
+}
+
 .lv-empty {
   text-align: center;
   padding: 4rem 0;
