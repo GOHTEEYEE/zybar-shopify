@@ -138,6 +138,12 @@
     var slides = document.querySelectorAll(".lv-hero__slide");
     var dots = document.querySelectorAll(".lv-hero__dots button");
     if (!slides.length) return;
+
+    slides.forEach(function (slide) {
+      var focus = slide.getAttribute("data-focus");
+      if (focus) slide.style.setProperty("--lv-focus", focus);
+    });
+
     var index = 0;
     function show(next) {
       index = (next + slides.length) % slides.length;

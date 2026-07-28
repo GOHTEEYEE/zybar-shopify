@@ -155,17 +155,29 @@ button {
 
 .lv-hero {
   position: relative;
-  min-height: min(78vh, 720px);
+  display: grid;
+  grid-template-columns: 1fr;
+  background: #1a1714;
+  color: #fff;
+  overflow: hidden;
+}
+
+.lv-hero__stage {
+  position: relative;
+  /* Square lifestyle photos: keep the frame closer to square so cover doesn't butcher the crop. */
+  aspect-ratio: 4 / 3;
+  max-height: min(88svh, 900px);
+  min-height: 420px;
   overflow: hidden;
   background: #111;
-  color: #fff;
 }
 
 .lv-hero__slide {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity 0.8s ease;
+  transition: opacity 0.85s ease;
+  pointer-events: none;
 }
 
 .lv-hero__slide.is-active {
@@ -177,22 +189,34 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: var(--lv-focus, 58% 42%);
+  transform: scale(1.02);
 }
 
 .lv-hero__shade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.18));
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(18, 14, 10, 0.72) 0%, rgba(18, 14, 10, 0.35) 42%, rgba(18, 14, 10, 0.08) 72%, transparent 100%),
+    linear-gradient(180deg, rgba(18, 14, 10, 0.2) 0%, transparent 28%, rgba(18, 14, 10, 0.35) 100%);
 }
 
 .lv-hero__content {
-  position: relative;
-  z-index: 2;
-  min-height: min(78vh, 720px);
+  position: absolute;
+  z-index: 3;
+  inset: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   width: min(1120px, calc(100% - 3.2rem));
-  margin-inline: auto;
+  max-width: 48rem;
+  margin: 0 auto;
+  margin-left: max(1.6rem, calc((100vw - 1120px) / 2 + 1.6rem));
+  padding: 4rem 0 5.5rem;
+  box-sizing: border-box;
 }
 
 .lv-hero__eyebrow,
@@ -205,7 +229,7 @@ button {
 }
 
 .lv-hero__eyebrow {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .lv-hero h1,
@@ -217,14 +241,14 @@ button {
 }
 
 .lv-hero h1 {
-  font-size: clamp(4rem, 8vw, 7.2rem);
-  white-space: pre-line;
+  font-size: clamp(3.6rem, 6.5vw, 6.4rem);
+  max-width: 12ch;
 }
 
 .lv-hero p {
-  max-width: 42rem;
+  max-width: 38rem;
   font-size: 1.55rem;
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(255, 255, 255, 0.88);
   margin: 0 0 2rem;
 }
 
@@ -234,20 +258,28 @@ button {
   gap: 1rem;
 }
 
+.lv-hero__ghost {
+  border-color: rgba(255, 255, 255, 0.85) !important;
+  color: #fff !important;
+}
+
 .lv-hero__dots {
   position: absolute;
-  z-index: 3;
+  z-index: 4;
   left: 50%;
-  bottom: 2rem;
+  bottom: 1.6rem;
   transform: translateX(-50%);
   display: flex;
   gap: 0.6rem;
 }
 
 .lv-hero__dots button {
-  width: 0.8rem;
-  height: 0.8rem;
+  width: 0.75rem;
+  height: 0.75rem;
   border-radius: 50%;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
   background: rgba(255, 255, 255, 0.35);
 }
 
@@ -785,6 +817,73 @@ button {
     display: none;
   }
 
+  .lv-header__cta .lv-btn {
+    display: none;
+  }
+
+  .lv-hero {
+    background: var(--lv-bg);
+    color: var(--lv-ink);
+  }
+
+  .lv-hero__stage {
+    aspect-ratio: 1 / 1;
+    max-height: none;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .lv-hero__shade {
+    background: linear-gradient(180deg, transparent 55%, rgba(18, 14, 10, 0.28) 100%);
+  }
+
+  .lv-hero__content {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 2.8rem 1.6rem 3.2rem;
+    background: var(--lv-bg);
+    color: var(--lv-ink);
+  }
+
+  .lv-hero__eyebrow {
+    color: var(--lv-gold);
+  }
+
+  .lv-hero h1 {
+    font-size: clamp(3.4rem, 11vw, 4.6rem);
+    max-width: none;
+    color: var(--lv-ink);
+  }
+
+  .lv-hero p {
+    max-width: none;
+    font-size: 1.45rem;
+    color: var(--lv-muted);
+  }
+
+  .lv-hero__ghost {
+    border-color: var(--lv-line) !important;
+    color: var(--lv-ink) !important;
+  }
+
+  .lv-hero__dots {
+    top: auto;
+    bottom: 1.4rem;
+    margin-top: 0;
+  }
+
+  .lv-hero__dots button {
+    background: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  }
+
+  .lv-hero__dots button.is-active {
+    background: #fff;
+  }
+
   .lv-grid,
   .lv-grid-4,
   .lv-benefits,
@@ -793,5 +892,25 @@ button {
   .lv-cart-layout,
   .lv-checkout-layout {
     grid-template-columns: 1fr;
+  }
+
+  .lv-section {
+    padding: 4.8rem 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .lv-hero__actions {
+    flex-direction: column;
+  }
+
+  .lv-hero__actions .lv-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lv-brand {
+    font-size: 1.7rem;
+    letter-spacing: 0.22em;
   }
 }
