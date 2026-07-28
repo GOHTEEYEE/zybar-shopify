@@ -68,6 +68,22 @@
     "audi-r8-gt3": {
       "30x45": 118,
       "40x60": 128
+    },
+    "luneva-dreamy-garden": {
+      "30x45": 39,
+      "40x60": 49
+    },
+    "luneva-cyan-blue": {
+      "30x45": 39,
+      "40x60": 49
+    },
+    "luneva-glowing-garden": {
+      "30x45": 39,
+      "40x60": 49
+    },
+    "luneva-starlit-garden": {
+      "30x45": 39,
+      "40x60": 49
     }
   },
   "products": [
@@ -257,6 +273,30 @@
       "slug": "xd-bmw-headlights-motorcycle",
       "name": "Xd Bmw Headlights Motorcycle",
       "ledColor": "Yellow"
+    },
+    {
+      "slug": "luneva-dreamy-garden",
+      "name": "LUNEVA Dreamy Garden",
+      "ledColor": "Warm",
+      "collection": "luneva"
+    },
+    {
+      "slug": "luneva-cyan-blue",
+      "name": "LUNEVA Cyan Blue",
+      "ledColor": "Cyan",
+      "collection": "luneva"
+    },
+    {
+      "slug": "luneva-glowing-garden",
+      "name": "LUNEVA Glowing Garden",
+      "ledColor": "Warm",
+      "collection": "luneva"
+    },
+    {
+      "slug": "luneva-starlit-garden",
+      "name": "LUNEVA Starlit Garden",
+      "ledColor": "Warm",
+      "collection": "luneva"
     }
   ]
 }

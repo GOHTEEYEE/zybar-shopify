@@ -80,6 +80,22 @@
       "audi-r8-gt3": {
         "30x45": 118,
         "40x60": 128
+      },
+      "luneva-dreamy-garden": {
+        "30x45": 39,
+        "40x60": 49
+      },
+      "luneva-cyan-blue": {
+        "30x45": 39,
+        "40x60": 49
+      },
+      "luneva-glowing-garden": {
+        "30x45": 39,
+        "40x60": 49
+      },
+      "luneva-starlit-garden": {
+        "30x45": 39,
+        "40x60": 49
       }
     },
     sharedPriceIdsBySize: {
