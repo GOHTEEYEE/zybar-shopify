@@ -1,0 +1,211 @@
+.lv-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.6rem;
+  background: rgba(18, 14, 10, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.lv-popup-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.lv-popup {
+  position: relative;
+  width: min(44rem, 100%);
+  max-height: calc(100vh - 3.2rem);
+  overflow: auto;
+  background: var(--lv-white, #fff);
+  border: 1px solid var(--lv-line, #e8e2d8);
+  box-shadow: 0 2.4rem 6rem rgba(26, 23, 20, 0.18);
+}
+
+.lv-popup__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 3.2rem;
+  height: 3.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--lv-muted, #7a7168);
+  font-size: 2.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lv-popup__body {
+  padding: 3.2rem 2.4rem 2.4rem;
+  text-align: center;
+}
+
+.lv-popup__eyebrow {
+  margin: 0 0 0.8rem;
+  color: var(--lv-gold, #927135);
+  font-size: 1.2rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lv-popup__title {
+  margin: 0 0 0.8rem;
+  font-family: var(--lv-font-display, Georgia, serif);
+  font-size: 3rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.lv-popup__offer {
+  margin: 0 0 2rem;
+  color: var(--lv-muted, #7a7168);
+  font-size: 1.45rem;
+  line-height: 1.5;
+}
+
+.lv-popup__discount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.6rem;
+  padding: 0.8rem 1.2rem;
+  background: var(--lv-soft, #faf6f0);
+  border: 1px solid var(--lv-line, #e8e2d8);
+}
+
+.lv-popup__discount strong {
+  font-family: var(--lv-font-display, Georgia, serif);
+  font-size: 2.4rem;
+  color: var(--lv-gold, #927135);
+}
+
+.lv-popup__form {
+  display: grid;
+  gap: 1rem;
+}
+
+.lv-popup__input {
+  width: 100%;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid var(--lv-line, #e8e2d8);
+  background: #fff;
+  font: inherit;
+  font-size: 1.45rem;
+}
+
+.lv-popup__input:focus {
+  outline: none;
+  border-color: var(--lv-gold, #927135);
+}
+
+.lv-popup__input.is-invalid {
+  border-color: #b42318;
+}
+
+.lv-popup__error {
+  min-height: 1.6rem;
+  margin: 0;
+  color: #b42318;
+  font-size: 1.25rem;
+  text-align: left;
+}
+
+.lv-popup__cta {
+  width: 100%;
+  padding: 1.2rem 1.6rem;
+  border: 0;
+  background: var(--lv-gold, #927135);
+  color: #fff;
+  font: inherit;
+  font-size: 1.45rem;
+  cursor: pointer;
+}
+
+.lv-popup__cta:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.lv-popup__note {
+  margin: 0.8rem 0 0;
+  color: var(--lv-muted, #7a7168);
+  font-size: 1.2rem;
+}
+
+.lv-popup__success {
+  padding: 3.2rem 2.4rem;
+  text-align: center;
+}
+
+.lv-popup__success-icon {
+  width: 4.8rem;
+  height: 4.8rem;
+  margin: 0 auto 1.2rem;
+  border-radius: 50%;
+  background: var(--lv-soft, #faf6f0);
+  color: var(--lv-gold, #927135);
+  font-size: 2.4rem;
+  line-height: 4.8rem;
+}
+
+.lv-popup-teaser {
+  position: fixed;
+  right: 1.2rem;
+  bottom: 1.2rem;
+  z-index: 11000;
+  opacity: 0;
+  transform: translateY(0.8rem);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.lv-popup-teaser.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lv-popup-teaser__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 1.4rem;
+  border: 0;
+  background: var(--lv-gold, #927135);
+  color: #fff;
+  font: inherit;
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 1rem 2.4rem rgba(146, 113, 53, 0.28);
+}
+
+.lv-popup-teaser__close {
+  position: absolute;
+  top: -0.6rem;
+  right: -0.6rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--lv-muted, #7a7168);
+  box-shadow: 0 0.4rem 1.2rem rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .lv-popup__body,
+  .lv-popup__success {
+    padding: 2.4rem 1.6rem 1.6rem;
+  }
+
+  .lv-popup__title {
+    font-size: 2.4rem;
+  }
+}

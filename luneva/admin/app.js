@@ -62,6 +62,22 @@
       });
   }
 
+  function inquiryTopicLabel(topic) {
+    var map = {
+      order_shipping: 'Order & shipping',
+      product: 'Product question',
+      gift: 'Gift help',
+      assembly: 'Assembly / DIY',
+      other: 'Other'
+    };
+    return map[String(topic || '').toLowerCase()] || topic || '—';
+  }
+
+  function inquiryKitLabel(kit) {
+    if (!kit) return '—';
+    return slugLabel(kit);
+  }
+
   function setLoading(on) {
     if (loading) loading.hidden = !on;
     if (content) content.hidden = on;
@@ -600,6 +616,40 @@
     bindRangeButtons();
   }
 
+  function renderInquiries(data) {
+    var inquiries = (data && data.inquiries) || [];
+    content.innerHTML =
+      header('Inquiries', 'Messages from the LUNEVA contact form.') +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>When</th><th>Name</th><th>Email</th><th>Phone</th><th>Topic</th><th>Kit</th><th>Order #</th><th>Message</th></tr></thead><tbody>' +
+      (inquiries.length
+        ? inquiries
+            .map(function (row) {
+              return (
+                '<tr><td>' +
+                esc(fmtDate(row.created_at)) +
+                '</td><td>' +
+                esc(row.name || '—') +
+                '</td><td>' +
+                esc(row.email || '—') +
+                '</td><td>' +
+                esc(row.phone || '—') +
+                '</td><td>' +
+                esc(inquiryTopicLabel(row.topic)) +
+                '</td><td>' +
+                esc(inquiryKitLabel(row.kit_interest)) +
+                '</td><td>' +
+                esc(row.order_number || '—') +
+                '</td><td class="lv-admin__message">' +
+                esc(row.message || '—') +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="8">No inquiries in this range.</td></tr>') +
+      '</tbody></table></section>';
+    bindRangeButtons();
+  }
+
   function renderActivity(data) {
     var rows = (data && data.recent_activity) || [];
     content.innerHTML =
@@ -688,6 +738,14 @@
     if (tab === 'customers') {
       return api('/api/admin/luneva/customers')
         .then(renderCustomers)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
+    if (tab === 'inquiries') {
+      return api('/api/admin/luneva/inquiries')
+        .then(renderInquiries)
         .catch(showError)
         .finally(function () {
           setLoading(false);

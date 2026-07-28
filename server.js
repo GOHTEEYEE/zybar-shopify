@@ -26,6 +26,7 @@ const CustomLeads = require('./lib/custom-leads.js');
 const CheckoutSnapshots = require('./lib/checkout-snapshots.js');
 const DevtestDiscount = require('./lib/devtest-discount.js');
 const LunevaAnalytics = require('./lib/luneva-analytics.js');
+const LunevaInquiries = require('./lib/luneva-inquiries.js');
 const SearchIndexBuilder = require('./lib/search-index-builder.js');
 
 const app = express();
@@ -962,6 +963,18 @@ app.get('/api/admin/luneva/traffic', async (req, res) => {
   } catch (err) {
     console.error('GET /api/admin/luneva/traffic error:', err);
     return res.status(500).json({ error: err.message || 'Failed to load LUNEVA traffic' });
+  }
+});
+
+app.get('/api/admin/luneva/inquiries', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const data = await LunevaInquiries.listInquiriesForAdmin(supabase, range);
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/luneva/inquiries error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA inquiries' });
   }
 });
 
@@ -2159,6 +2172,34 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
   } catch (err) {
     console.error('POST /api/newsletter/subscribe error:', err);
     return res.status(500).json({ error: 'Unable to join right now. Please try again.' });
+  }
+});
+
+app.post('/api/luneva/newsletter/subscribe', async (req, res) => {
+  try {
+    const lunevaNewsletter = require('./lib/luneva-newsletter.js');
+    const result = await lunevaNewsletter.subscribeLunevaNewsletter(
+      {
+        supabase: supabase,
+        body: req.body || {},
+        req: req
+      },
+      process.env
+    );
+    return res.status(result.status || 200).json(result.json || {});
+  } catch (err) {
+    console.error('POST /api/luneva/newsletter/subscribe error:', err);
+    return res.status(500).json({ error: 'Unable to join right now. Please try again.' });
+  }
+});
+
+app.post('/api/luneva/contact', async (req, res) => {
+  try {
+    const result = await LunevaInquiries.submitInquiry(supabase, req.body || {}, req);
+    return res.status(result.status || 200).json(result.json || {});
+  } catch (err) {
+    console.error('POST /api/luneva/contact error:', err);
+    return res.status(500).json({ error: 'Unable to send your message. Please try again.' });
   }
 });
 

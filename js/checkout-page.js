@@ -670,7 +670,7 @@
       "</p>" +
       customHtml +
       "</div>",
-      '<p class="checkout-line-price">' + formatUsdLuxury(lineTotal) + "</p>",
+      '<p class="checkout-line-price">' + buildLineItemPriceHtml(item, lineTotal, safeUnit, safeQty) + "</p>",
       "</article>"
     ].join("");
   }
@@ -734,10 +734,59 @@
   }
 
   function calcLaunchSavings() {
+    if (IS_LUNEVA_CHECKOUT) {
+      var savings = 0;
+      (state.displayItems || []).forEach(function (item) {
+        var qty = Number(item.quantity);
+        var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+        var unit = Number(item.unitPriceUSD);
+        var compare = Number(item.compareAtUnitUSD);
+        if (!Number.isFinite(compare) || compare <= 0) {
+          var pricing = getPricing();
+          if (pricing && typeof pricing.calculateProductCompareAtPrice === "function") {
+            compare = pricing.calculateProductCompareAtPrice({
+              slug: item.slug || item.productSlug,
+              productSlug: item.slug || item.productSlug,
+              size: item.size,
+              powerType: item.powerType
+            });
+          }
+        }
+        if (Number.isFinite(compare) && compare > unit) {
+          savings += (compare - unit) * safeQty;
+        }
+      });
+      return Math.round(savings * 100) / 100;
+    }
     var summary = getPricingSummary();
     if (!summary) return 0;
     var breakdown = summary.computeCartBreakdown(state.displayItems);
     return breakdown.launchSavings || 0;
+  }
+
+  function buildLineItemPriceHtml(item, lineTotal, safeUnit, safeQty) {
+    var compareUnit = Number(item.compareAtUnitUSD);
+    if (!Number.isFinite(compareUnit) || compareUnit <= 0) {
+      var pricing = getPricing();
+      if (pricing && typeof pricing.calculateProductCompareAtPrice === "function") {
+        compareUnit = pricing.calculateProductCompareAtPrice({
+          slug: item.slug || item.productSlug,
+          productSlug: item.slug || item.productSlug,
+          size: item.size,
+          powerType: item.powerType
+        });
+      }
+    }
+    if (IS_LUNEVA_CHECKOUT && Number.isFinite(compareUnit) && compareUnit > safeUnit) {
+      return (
+        '<span class="checkout-line-compare">' +
+        formatUsdLuxury(compareUnit * safeQty) +
+        '</span><span class="checkout-line-sale">' +
+        formatUsdLuxury(lineTotal) +
+        "</span>"
+      );
+    }
+    return formatUsdLuxury(lineTotal);
   }
 
   function renderTotalsHtml() {
@@ -751,10 +800,14 @@
     var member = window.ZYBAR && window.ZYBAR.MemberPricing;
     var discountLabel = isDevtestCode(state.discountCode)
       ? "Internal Test Discount"
-      : (member && member.isActive()) || isWelcomeCode(state.discountCode)
-        ? "Member Savings"
-        : "Savings";
-    var totalSavings = Math.round((calcLaunchSavings() + state.discount) * 100) / 100;
+      : IS_LUNEVA_CHECKOUT && String(state.discountCode || "").toUpperCase() === "LUNEVA5"
+        ? "Welcome savings (5% off)"
+        : (member && member.isActive()) || isWelcomeCode(state.discountCode)
+          ? "Member Savings"
+          : "Savings";
+    var launchSavings = calcLaunchSavings();
+    var totalSavings = Math.round((launchSavings + state.discount) * 100) / 100;
+    var savingsLabel = IS_LUNEVA_CHECKOUT ? "You save" : "You Saved Today";
 
     return [
       '<div class="checkout-total-row"><span>Subtotal</span><span class="checkout-money" data-total="subtotal" data-value="' +
@@ -776,7 +829,9 @@
           "</span></div>"
         : "",
       totalSavings > 0
-        ? '<div class="checkout-total-row checkout-total-row--savings"><span>You Saved Today</span><span>' +
+        ? '<div class="checkout-total-row checkout-total-row--savings"><span>' +
+          escapeHtml(savingsLabel) +
+          "</span><span>" +
           formatUsdLuxury(totalSavings) +
           "</span></div>"
         : "",

@@ -42,6 +42,7 @@
     var defaults = json.pricesBySize || {};
     var compareDefaults = json.compareAtPricesBySize || {};
     var perProduct = json.perProductPricesBySize || {};
+    var perProductCompare = json.perProductCompareAtPricesBySize || {};
     catalog.products = catalog.products || {};
     if (!catalog.compareAtPricesBySize || !Object.keys(catalog.compareAtPricesBySize).length) {
       catalog.compareAtPricesBySize = {
@@ -53,20 +54,27 @@
       if (!product || !product.slug) return;
       var slug = String(product.slug);
       var priceMap = perProduct[slug] || defaults;
+      var compareMap = perProductCompare[slug] || compareDefaults;
       var existing = catalog.products[slug];
       var prices = {
         '30x45': Number(priceMap['30x45']) || 0,
         '40x60': Number(priceMap['40x60']) || 0
       };
+      var comparePrices = {
+        '30x45': Number(compareMap['30x45']) || 0,
+        '40x60': Number(compareMap['40x60']) || 0
+      };
       if (!existing) {
         catalog.products[slug] = {
           slug: slug,
           name: product.name || slug,
-          prices: prices
+          prices: prices,
+          compareAtPrices: comparePrices
         };
         return;
       }
       existing.prices = existing.prices || {};
+      existing.compareAtPrices = existing.compareAtPrices || {};
       // perProductPricesBySize is an intentional override (e.g. sale tiers) — always win.
       if (perProduct[slug]) {
         existing.prices['30x45'] = prices['30x45'];
@@ -74,6 +82,17 @@
       } else {
         if (!Number(existing.prices['30x45'])) existing.prices['30x45'] = prices['30x45'];
         if (!Number(existing.prices['40x60'])) existing.prices['40x60'] = prices['40x60'];
+      }
+      if (perProductCompare[slug]) {
+        existing.compareAtPrices['30x45'] = comparePrices['30x45'];
+        existing.compareAtPrices['40x60'] = comparePrices['40x60'];
+      } else {
+        if (!Number(existing.compareAtPrices['30x45']) && comparePrices['30x45']) {
+          existing.compareAtPrices['30x45'] = comparePrices['30x45'];
+        }
+        if (!Number(existing.compareAtPrices['40x60']) && comparePrices['40x60']) {
+          existing.compareAtPrices['40x60'] = comparePrices['40x60'];
+        }
       }
     });
     return catalog;
@@ -102,6 +121,14 @@
       catalog.powerUpgrades = {
         usb: { label: 'USB Only', priceUsd: 0 },
         dual: { label: 'USB + Battery', priceUsd: 12 }
+      };
+    }
+    catalog.discountCodes = catalog.discountCodes || {};
+    if (!catalog.discountCodes.luneva5) {
+      catalog.discountCodes.luneva5 = {
+        discountType: 'percent',
+        valueUsd: 5,
+        minOrderUsd: 0
       };
     }
     return catalog;

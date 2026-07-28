@@ -470,9 +470,57 @@ button {
 }
 
 .lv-price {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
   font-family: var(--lv-font-display);
   font-size: 3.2rem;
   margin: 1.2rem 0 1.6rem;
+}
+
+.lv-price__compare,
+.lv-price-compare {
+  color: var(--lv-muted);
+  text-decoration: line-through;
+  font-size: 0.72em;
+  font-weight: 400;
+}
+
+.lv-price__sale,
+.lv-price-sale {
+  color: var(--lv-ink);
+}
+
+.lv-kit__price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+  font-family: var(--lv-font-display);
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.lv-kit__price .lv-price__compare,
+.lv-kit__price .lv-price-compare {
+  font-size: 1.35rem;
+}
+
+.lv-cart-item__price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.lv-cart-summary__row--compare .lv-price__compare {
+  font-size: 1.4rem;
+}
+
+.lv-cart-summary__row--savings strong {
+  color: var(--lv-gold);
 }
 
 .lv-kits {
@@ -522,11 +570,6 @@ button {
 .lv-kit__sub {
   color: var(--lv-muted);
   font-size: 1.25rem;
-}
-
-.lv-kit__price {
-  font-family: var(--lv-font-display);
-  font-size: 2rem;
 }
 
 .lv-kit__badge {
@@ -677,6 +720,32 @@ button {
 .lv-review-card footer {
   color: var(--lv-muted);
   font-size: 1.25rem;
+}
+
+.lv-review-card--text {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.lv-review-card--text .lv-review-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem 1.8rem;
+  background: linear-gradient(180deg, #fff 0%, var(--lv-soft) 100%);
+}
+
+.lv-review-card--text .lv-review-card__body p {
+  font-size: 1.65rem;
+  line-height: 1.55;
+}
+
+.lv-review-card__stars {
+  color: var(--lv-gold);
+  letter-spacing: 0.08em;
+  font-size: 1.2rem;
 }
 
 .lv-pdp-reviews {
@@ -1226,5 +1295,116 @@ button {
 
   .lv-confirm__actions .lv-btn {
     width: 100%;
+  }
+}
+
+/* Contact form */
+.lv-contact {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr);
+  gap: 3rem;
+  align-items: start;
+}
+
+.lv-contact__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.lv-contact__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.lv-contact__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+}
+
+.lv-contact__field--full {
+  grid-column: 1 / -1;
+}
+
+.lv-contact__field span em {
+  color: var(--lv-gold);
+  font-style: normal;
+}
+
+.lv-contact__field span small {
+  color: var(--lv-muted);
+  font-weight: 400;
+}
+
+.lv-contact__field input,
+.lv-contact__field select,
+.lv-contact__field textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--lv-text);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+}
+
+.lv-contact__field textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+.lv-contact__field input:focus,
+.lv-contact__field select:focus,
+.lv-contact__field textarea:focus {
+  outline: none;
+  border-color: var(--lv-gold);
+}
+
+.lv-contact__status {
+  min-height: 1.25rem;
+  font-size: 0.92rem;
+}
+
+.lv-contact__status.is-error {
+  color: #f2a3a3;
+}
+
+.lv-contact__status.is-success {
+  color: #9fd4b0;
+}
+
+.lv-contact__aside {
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lv-contact__aside h2 {
+  font-family: var(--lv-font-display);
+  font-size: 1.35rem;
+  margin: 0 0 0.75rem;
+}
+
+.lv-contact__aside p {
+  color: var(--lv-muted);
+  line-height: 1.6;
+  margin: 0 0 0.75rem;
+}
+
+.lv-contact__aside a {
+  color: var(--lv-gold);
+}
+
+@media (max-width: 900px) {
+  .lv-contact {
+    grid-template-columns: 1fr;
+  }
+
+  .lv-contact__grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -214,6 +214,12 @@ body {
   letter-spacing: 0.06em;
 }
 
+.lv-admin__message {
+  max-width: 28rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .lv-admin__login {
   max-width: 420px;
   margin: 4rem auto;

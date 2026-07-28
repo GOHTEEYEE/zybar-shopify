@@ -90,6 +90,24 @@
   color: var(--co-muted);
 }
 
+.checkout-page.luneva-checkout .checkout-line-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.checkout-page.luneva-checkout .checkout-line-compare {
+  color: var(--co-muted);
+  text-decoration: line-through;
+  font-size: 0.82em;
+  font-weight: 400;
+}
+
+.checkout-page.luneva-checkout .checkout-total-row--savings span:last-child {
+  color: var(--co-accent);
+}
+
 .checkout-page.luneva-checkout .checkout-shipping-option {
   background: var(--co-bg);
   border: 1px solid var(--co-line);

@@ -3,6 +3,10 @@
 
   var CART_KEY = "luneva.cart.items";
   var ZYBAR_CART_KEY = "zybar.cart.items";
+  var LUNEVA_COMPARE_BY_SIZE = {
+    "30x45": 109,
+    "40x60": 119
+  };
 
   var LUNEVA_REVIEWS = {
     "luneva-cyan-blue": {
@@ -17,16 +21,38 @@
           location: "Amsterdam, NL"
         },
         {
+          quote:
+            "Arrived faster than expected and the instructions were easy to follow. My first DIY kit and it turned out beautiful.",
+          author: "Kate L.",
+          location: "Brisbane, AU"
+        },
+        {
           image: "02.png",
           quote: "Blue roses, purple blooms, and that glowing box — feels premium on the shelf.",
           author: "James W.",
           location: "London, UK"
         },
         {
+          quote:
+            "The mechanical butterfly is the wow factor. Guests always ask where I got it.",
+          author: "Nina R.",
+          location: "Stockholm, SE"
+        },
+        {
           image: "03.png",
           quote: "The moving wings and cool blue glow make it the centerpiece of my desk setup.",
           author: "Sophie R.",
           location: "Toronto, CA"
+        },
+        {
+          quote: "Bought two — one for me and one as a gift. Both recipients loved the packaging.",
+          author: "David C.",
+          location: "Hong Kong"
+        },
+        {
+          quote: "Soft LED glow is perfect for evening. Not too bright, just dreamy.",
+          author: "Aisha M.",
+          location: "Dubai, AE"
         }
       ]
     },
@@ -42,6 +68,11 @@
           location: "Los Angeles, US"
         },
         {
+          quote: "Assembly took about two hours and was genuinely relaxing. Great weekend project.",
+          author: "Tara S.",
+          location: "Dublin, IE"
+        },
+        {
           image: "02.png",
           quote: "Obsessed with the glitter and pastel vibes. Lights on and the whole room feels calmer instantly.",
           author: "Grace H.",
@@ -52,6 +83,28 @@
           quote: "Built it in one evening — the mechanical butterfly is mesmerizing to watch.",
           author: "Chloe P.",
           location: "Sydney, AU"
+        },
+        {
+          quote: "Gifted this to my mom for Mother's Day. She cried — in a good way.",
+          author: "Jenny K.",
+          location: "Vancouver, CA"
+        },
+        {
+          image: "04.png",
+          quote: "The packaging was beautiful and the finished display looks even softer in person.",
+          author: "Hannah K.",
+          location: "Seattle, US"
+        },
+        {
+          quote: "Quality feels way above the price point. USB cable included, no extra fuss.",
+          author: "Marco V.",
+          location: "Rome, IT"
+        },
+        {
+          image: "05.png",
+          quote: "Perfect bedside glow. My daughter keeps turning the lights on before bed every night.",
+          author: "Priya N.",
+          location: "Singapore"
         }
       ]
     },
@@ -67,6 +120,11 @@
           location: "Portland, US"
         },
         {
+          quote: "The moss and florals look so real once you finish. Photos online do not do it justice.",
+          author: "Helen W.",
+          location: "Manchester, UK"
+        },
+        {
           image: "02.png",
           quote: "The blue butterfly looks so lifelike, and the moss feels like a tiny fairy forest.",
           author: "Lena K.",
@@ -77,6 +135,28 @@
           quote: "Gifted this to my sister — she keeps sending me photos of it lit up every night.",
           author: "Noah S.",
           location: "Dublin, IE"
+        },
+        {
+          quote: "Shipping was tracked the whole way. Arrived safely and well packed.",
+          author: "Carlos D.",
+          location: "Madrid, ES"
+        },
+        {
+          image: "04.png",
+          quote: "The cyan tones and tiny florals look incredible once assembled — very premium.",
+          author: "Olivia B.",
+          location: "Vancouver, CA"
+        },
+        {
+          quote: "My boyfriend assembled it for our anniversary. Such a romantic keepsake.",
+          author: "Zoe F.",
+          location: "Auckland, NZ"
+        },
+        {
+          image: "05.png",
+          quote: "Easy to follow and so satisfying to finish. The moving butterfly is the highlight.",
+          author: "Lucas F.",
+          location: "Berlin, DE"
         }
       ]
     },
@@ -92,16 +172,48 @@
           location: "Austin, US"
         },
         {
+          quote: "The infinity mirror effect is hard to describe — you have to see it in person.",
+          author: "Ryan T.",
+          location: "Phoenix, US"
+        },
+        {
+          image: "02.png",
+          quote: "The starry details and warm lighting make it feel magical from every angle.",
+          author: "Rachel D.",
+          location: "Denver, US"
+        },
+        {
           image: "03.png",
           quote: "Surprised my partner with this — the gift moment was perfect.",
           author: "Isabella C.",
           location: "Milan, IT"
         },
         {
+          quote: "Clear step-by-step guide. Even with no craft experience I got a gorgeous result.",
+          author: "Mei L.",
+          location: "Taipei, TW"
+        },
+        {
           image: "04.png",
           quote: "The infinity mirror effect is mesmerizing at night. Endless stars, warm glow.",
           author: "Daniel M.",
           location: "Chicago, US"
+        },
+        {
+          quote: "Stays on my bookshelf and everyone who visits comments on it.",
+          author: "Tom H.",
+          location: "Glasgow, UK"
+        },
+        {
+          image: "05.png",
+          quote: "Assembly was fun and the final piece looks like a tiny glowing garden.",
+          author: "Sofia G.",
+          location: "Barcelona, ES"
+        },
+        {
+          quote: "Worth every penny for the ambiance alone. Cozy, warm, and unique.",
+          author: "Julia N.",
+          location: "Oslo, NO"
         }
       ]
     }
@@ -195,6 +307,9 @@
   function normalizeCartItem(item) {
     if (!item || !isLunevaSlug(item.slug || item.productSlug)) return item;
     item.imageUrl = lunevaImageUrl(item);
+    if (!Number(item.compareAtUSD)) {
+      item.compareAtUSD = lunevaCompareAtUSD(item);
+    }
     return item;
   }
 
@@ -207,6 +322,7 @@
         found = true;
         row.quantity = (Number(row.quantity) || 0) + (Number(item.quantity) || 1);
         row.unitAmountUSD = item.unitAmountUSD;
+        row.compareAtUSD = item.compareAtUSD || lunevaCompareAtUSD(item);
         row.name = item.name;
         row.imageUrl = lunevaImageUrl(item);
         row.sizeLabel = item.sizeLabel;
@@ -311,17 +427,25 @@
   }
 
   function renderReviewCard(folder, productName, review) {
-    var base = "/luneva/assets/" + folder + "/reviews/";
-    var alt = productName + " from " + review.author;
+    var hasImage = !!(review && review.image);
+    var mediaHtml = "";
+    if (hasImage) {
+      var base = "/luneva/assets/" + folder + "/reviews/";
+      var alt = productName + " from " + review.author;
+      mediaHtml =
+        '<div class="lv-review-card__media"><img src="' +
+        base +
+        review.image +
+        '" alt="' +
+        escapeHtml(alt) +
+        '" loading="lazy" /></div>';
+    }
     return (
-      '<article class="lv-review-card">' +
-      '<div class="lv-review-card__media"><img src="' +
-      base +
-      review.image +
-      '" alt="' +
-      escapeHtml(alt) +
-      '" loading="lazy" /></div>' +
-      '<div class="lv-review-card__body"><div aria-hidden="true">★★★★★</div>' +
+      '<article class="lv-review-card' +
+      (hasImage ? "" : " lv-review-card--text") +
+      '">' +
+      mediaHtml +
+      '<div class="lv-review-card__body"><div class="lv-review-card__stars" aria-hidden="true">★★★★★</div>' +
       "<p>\u201C" +
       escapeHtml(review.quote) +
       "\u201D</p>" +
@@ -351,20 +475,76 @@
       .join("");
   }
 
+  function money(n) {
+    return "$" + (Math.round(Number(n || 0) * 100) / 100).toFixed(2);
+  }
+
+  function lunevaCompareAtUSD(item) {
+    var stored = Number(item && item.compareAtUSD);
+    if (Number.isFinite(stored) && stored > 0) return stored;
+    var size = String((item && item.size) || "30x45");
+    return LUNEVA_COMPARE_BY_SIZE[size] || LUNEVA_COMPARE_BY_SIZE["30x45"];
+  }
+
+  function formatSalePriceHtml(sale, compare) {
+    var saleNum = Number(sale);
+    var compareNum = Number(compare);
+    if (!Number.isFinite(saleNum)) saleNum = 0;
+    if (!Number.isFinite(compareNum) || compareNum <= saleNum) {
+      return '<span class="lv-price__sale">$' + Math.round(saleNum) + "</span>";
+    }
+    return (
+      '<span class="lv-price__compare">$' +
+      Math.round(compareNum) +
+      '</span><span class="lv-price__sale">$' +
+      Math.round(saleNum) +
+      "</span>"
+    );
+  }
+
+  function cartCompareTotal(items) {
+    return (items || readCart()).reduce(function (sum, item) {
+      var qty = Number(item.quantity) || 0;
+      if (qty < 1) return sum;
+      return sum + lunevaCompareAtUSD(item) * qty;
+    }, 0);
+  }
+
+  function cartSavings(items) {
+    return Math.max(0, cartCompareTotal(items) - cartTotal(items));
+  }
+
+  function updateMainPriceFromKit(kit) {
+    if (!kit) return;
+    var price = kit.getAttribute("data-price");
+    var compare = kit.getAttribute("data-compare-price");
+    var wrap = document.querySelector("[data-luneva-price-wrap]");
+    if (wrap) wrap.innerHTML = formatSalePriceHtml(price, compare);
+    var buy = document.querySelector("[data-luneva-buy-label]");
+    if (buy) buy.textContent = "Buy now — $" + price;
+  }
+
   function initKits() {
     var kits = document.querySelectorAll(".lv-kit");
-    var priceEl = document.querySelector("[data-luneva-price]");
     if (!kits.length) return;
     kits.forEach(function (kit) {
+      var priceEl = kit.querySelector(".lv-kit__price");
+      if (priceEl) {
+        priceEl.innerHTML = formatSalePriceHtml(
+          kit.getAttribute("data-price"),
+          kit.getAttribute("data-compare-price")
+        );
+      }
       kit.addEventListener("click", function () {
         kits.forEach(function (k) {
           k.classList.toggle("is-active", k === kit);
         });
-        if (priceEl) priceEl.textContent = "$" + kit.getAttribute("data-price");
-        var buy = document.querySelector("[data-luneva-buy-label]");
-        if (buy) buy.textContent = "Buy now — $" + kit.getAttribute("data-price");
+        updateMainPriceFromKit(kit);
       });
     });
+    updateMainPriceFromKit(
+      document.querySelector(".lv-kit.is-active") || kits[0]
+    );
   }
 
   function getActiveKit() {
@@ -381,6 +561,7 @@
     var kitId = kit.getAttribute("data-kit");
     var kitTitle = kit.getAttribute("data-title");
     var price = Number(kit.getAttribute("data-price"));
+    var compareAt = Number(kit.getAttribute("data-compare-price"));
     var size = kitId === "full" ? "40x60" : "30x45";
     return {
       slug: slug,
@@ -392,6 +573,7 @@
       powerTypeLabel: "USB",
       quantity: 1,
       unitAmountUSD: price,
+      compareAtUSD: Number.isFinite(compareAt) && compareAt > 0 ? compareAt : lunevaCompareAtUSD({ size: size }),
       imageUrl: image,
       productType: "standard",
       collection: "luneva"
@@ -422,10 +604,6 @@
         goToLunevaCheckout();
       });
     }
-  }
-
-  function money(n) {
-    return "$" + (Math.round(Number(n || 0) * 100) / 100).toFixed(2);
   }
 
   function analyticsApi() {
@@ -487,7 +665,7 @@
           (item.sizeLabel || "") +
           "</p>" +
           '<p class="lv-cart-item__price">' +
-          money(catalogUnitPrice(item)) +
+          formatSalePriceHtml(catalogUnitPrice(item), lunevaCompareAtUSD(item)) +
           "</p>" +
           '<div class="lv-cart-item__qty">' +
           '<button type="button" data-qty-delta="-1" aria-label="Decrease">−</button>' +
@@ -502,12 +680,26 @@
       })
       .join("");
 
+    var subtotal = cartTotal(items);
+    var compareTotal = cartCompareTotal(items);
+    var savings = cartSavings(items);
+    var savingsRow =
+      savings > 0
+        ? '<div class="lv-cart-summary__row lv-cart-summary__row--compare"><span>Original price</span><span class="lv-price__compare">' +
+          money(compareTotal) +
+          "</span></div>" +
+          '<div class="lv-cart-summary__row lv-cart-summary__row--savings"><span>You save</span><strong>' +
+          money(savings) +
+          "</strong></div>"
+        : "";
+
     root.innerHTML =
       '<div class="lv-cart-layout"><div class="lv-cart-list">' +
       rows +
       '</div><aside class="lv-cart-summary"><h2>Order summary</h2>' +
+      savingsRow +
       '<div class="lv-cart-summary__row"><span>Subtotal</span><strong>' +
-      money(cartTotal(items)) +
+      money(subtotal) +
       "</strong></div>" +
       '<button class="lv-btn lv-btn-primary lv-btn-block" type="button" data-luneva-go-checkout>Checkout</button>' +
       '<a class="lv-btn lv-btn-outline lv-btn-block" href="/luneva/shop/" style="margin-top:1rem">Continue shopping</a>' +
@@ -593,7 +785,8 @@
         powerTypeLabel: "USB",
         slug: String(item.slug || ""),
         quantity: Number(item.quantity) || 1,
-        unitPriceUSD: unit
+        unitPriceUSD: unit,
+        compareAtUnitUSD: lunevaCompareAtUSD(item)
       };
     });
     return {
@@ -649,6 +842,34 @@
     }
   }
 
+  function initLunevaPopup() {
+    var path = String(window.location.pathname || "").toLowerCase();
+    var onLuneva =
+      path.indexOf("/luneva") === 0 || path.indexOf("/products/luneva-") === 0;
+    if (!onLuneva) return;
+    if (path.indexOf("/luneva/admin") === 0) return;
+    if (path.indexOf("/luneva/checkout") === 0) return;
+    if (path.indexOf("/luneva/cart") === 0) return;
+    if (path.indexOf("/luneva/purchase-confirmation") === 0) return;
+
+    function bootPopup() {
+      if (window.LunevaPopup && typeof window.LunevaPopup.start === "function") {
+        window.LunevaPopup.start();
+      }
+    }
+
+    if (window.LunevaPopup) {
+      bootPopup();
+      return;
+    }
+
+    var script = document.createElement("script");
+    script.src = "/js/luneva-popup.js?v=1";
+    script.defer = true;
+    script.onload = bootPopup;
+    document.head.appendChild(script);
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     sanitizeCarts();
     initHero();
@@ -659,6 +880,7 @@
     updateHeaderCount();
     renderCartPage();
     renderCheckoutPage();
+    initLunevaPopup();
   });
 
   window.addEventListener("luneva:cart-updated", updateHeaderCount);
