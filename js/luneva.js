@@ -253,6 +253,10 @@
     }
   }
 
+  function money(n) {
+    return "$" + (Math.round(Number(n || 0) * 100) / 100).toFixed(2);
+  }
+
   function analyticsApi() {
     return window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics : null;
   }
@@ -334,7 +338,6 @@
       '<div class="lv-cart-summary__row"><span>Subtotal</span><strong>' +
       money(cartTotal(items)) +
       "</strong></div>" +
-      '<p class="lv-cart-summary__note">LUNEVA only — Automotive LED wall art stays in the separate ZYBAR cart at /cart/.</p>' +
       '<button class="lv-btn lv-btn-primary lv-btn-block" type="button" data-luneva-go-checkout>Checkout</button>' +
       '<a class="lv-btn lv-btn-outline lv-btn-block" href="/luneva/shop/" style="margin-top:1rem">Continue shopping</a>' +
       "</aside></div>";
