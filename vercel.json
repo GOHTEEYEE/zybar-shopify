@@ -1,6 +1,23 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "redirects": [
+    {
+      "source": "/LUNEVA",
+      "destination": "/luneva/",
+      "permanent": true
+    },
+    {
+      "source": "/LUNEVA/",
+      "destination": "/luneva/",
+      "permanent": true
+    },
+    {
+      "source": "/LUNEVA/:path*",
+      "destination": "/luneva/:path*",
+      "permanent": true
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/cleanup-checkout-snapshots",
