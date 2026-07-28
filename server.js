@@ -2923,9 +2923,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
     discountCode,
     customerEmail,
     email,
+    customerName,
     memberCredential,
     unitAmountUSD,
     name,
+    collection,
     visitorId,
     sessionId,
     cartId,
@@ -3134,6 +3136,13 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (resolvedDevtest && resolvedDevtest.email) {
     metadata.devtestEmail = CheckoutSnapshots.truncateMeta(resolvedDevtest.email, 120);
   }
+  const buyerName = String(customerName || name || '').trim();
+  if (buyerName) {
+    metadata.customerName = CheckoutSnapshots.truncateMeta(buyerName, 120);
+  }
+  if (collection) {
+    metadata.collection = CheckoutSnapshots.truncateMeta(String(collection), 40);
+  }
   if (productSlug) metadata.productSlug = CheckoutSnapshots.truncateMeta(productSlug, 120);
   if (size) metadata.size = CheckoutSnapshots.truncateMeta(size, 32);
   if (powerType) metadata.powerType = CheckoutSnapshots.truncateMeta(powerType, 32);
@@ -3285,7 +3294,31 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (resolvedDevtest && resolvedDevtest.email) {
     // Prefill + lock intent to the authorized tester email for this coupon.
     sessionBase.customer_email = resolvedDevtest.email;
+  } else if (checkoutEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(checkoutEmail)) {
+    // Prefill email on Hosted / Embedded Checkout (LUNEVA + guest Automotive).
+    sessionBase.customer_email = checkoutEmail;
   }
+
+  // Hosted Checkout (LUNEVA) must collect shipping name + address for fulfillment.
+  // Embedded/Custom Automotive checkout collects address in our own UI instead.
+  function stripeShippingAllowedCountries() {
+    const unsupported = {
+      AQ: 1, BV: 1, IO: 1, CU: 1, TF: 1, HM: 1, IR: 1, KP: 1, MH: 1,
+      FM: 1, NF: 1, MP: 1, PW: 1, SD: 1, SS: 1, SY: 1, UM: 1, VI: 1,
+      EH: 1, AS: 1, GU: 1, PR: 1, XK: 1
+    };
+    try {
+      const data = require('./data/countries.json');
+      const codes = (data.countries || [])
+        .map(function (c) { return c && c.code; })
+        .filter(function (code) { return code && !unsupported[code]; });
+      if (codes.length) return codes;
+    } catch (e) {
+      // fall through
+    }
+    return ['US', 'CA', 'GB', 'AU', 'NZ', 'MY', 'SG', 'DE', 'FR', 'JP', 'KR', 'HK', 'TW'];
+  }
+
   const embeddedOnlySettings = {
     branding_settings: {
       background_color: '#111111',
@@ -3383,7 +3416,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     const session = await stripe.checkout.sessions.create(Object.assign({}, sessionBase, embeddedOnlySettings, {
       success_url: successUrl,
-      cancel_url: cancelUrl
+      cancel_url: cancelUrl,
+      billing_address_collection: 'required',
+      shipping_address_collection: {
+        allowed_countries: stripeShippingAllowedCountries()
+      }
     }));
     await afterCheckoutSessionCreated(session);
     return res.json({

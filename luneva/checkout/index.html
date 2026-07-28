@@ -34,9 +34,14 @@
       <div class="lv-checkout-card">
         <h2>Delivery & pay</h2>
         <div class="lv-field">
-          <label for="luneva-email">Email</label>
-          <input id="luneva-email" type="email" placeholder="you@email.com" autocomplete="email" />
+          <label for="luneva-name">Full name</label>
+          <input id="luneva-name" type="text" placeholder="Name for shipping" autocomplete="name" required />
         </div>
+        <div class="lv-field">
+          <label for="luneva-email">Email</label>
+          <input id="luneva-email" type="email" placeholder="you@email.com" autocomplete="email" required />
+        </div>
+        <p class="lv-cart-summary__note">Next Stripe step collects shipping address, phone, and payment.</p>
         <p class="lv-eyebrow">Delivery</p>
         <div class="lv-ship" role="radiogroup" aria-label="Delivery">
           <label><input type="radio" name="luneva-shipping" value="standard" checked /><span><strong>Standard</strong><br /><span style="color:var(--lv-muted)">Tracked worldwide delivery</span></span></label>
@@ -50,6 +55,6 @@
 </section>
 <footer class="lv-footer"><div class="lv-container"><div class="lv-footer__brand">LUNEVA</div><p>A collection by ZYBAR · Stripe checkout isolated from Automotive cart</p></div></footer>
 <script src="/js/stripe-config.js"></script>
-<script src="/js/luneva.js?v=lv-cart3"></script>
+<script src="/js/luneva.js?v=lv-cart4"></script>
 </body>
 </html>

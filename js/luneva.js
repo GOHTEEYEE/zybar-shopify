@@ -381,7 +381,20 @@
     var shipping =
       (document.querySelector('input[name="luneva-shipping"]:checked') || {}).value ||
       "standard";
+    var buyerName = ((document.getElementById("luneva-name") || {}).value || "").trim();
     var email = ((document.getElementById("luneva-email") || {}).value || "").trim();
+    if (!buyerName || buyerName.length < 2) {
+      alert("Please enter your full name.");
+      var nameInput = document.getElementById("luneva-name");
+      if (nameInput) nameInput.focus();
+      return;
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      alert("Please enter a valid email.");
+      var emailInput = document.getElementById("luneva-email");
+      if (emailInput) emailInput.focus();
+      return;
+    }
     var origin = window.location.origin;
     var lineItems = items.map(function (item) {
       return {
@@ -409,7 +422,9 @@
         custom: false,
         lineItems: lineItems,
         shippingMethod: shipping,
-        customerEmail: email || null,
+        customerEmail: email,
+        customerName: buyerName,
+        collection: "luneva",
         successUrl: origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}&collection=luneva",
         cancelUrl: origin + "/luneva/checkout/"
       })
