@@ -62,6 +62,16 @@
       "src": "/.well-known/apple-developer-merchantid-domain-association",
       "dest": "/.well-known/apple-developer-merchantid-domain-association"
     },
+    {
+      "src": "/LUNEVA",
+      "status": 308,
+      "headers": { "Location": "/luneva/" }
+    },
+    {
+      "src": "/LUNEVA/(.*)",
+      "status": 308,
+      "headers": { "Location": "/luneva/$1" }
+    },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
