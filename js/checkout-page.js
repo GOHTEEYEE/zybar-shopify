@@ -815,6 +815,34 @@
   }
 
   function getAppearance() {
+    if (IS_LUNEVA_CHECKOUT) {
+      return {
+        theme: "stripe",
+        variables: {
+          colorPrimary: "#927135",
+          colorBackground: "#ffffff",
+          colorText: "#1a1714",
+          colorDanger: "#a34432",
+          fontFamily: "Jost, system-ui, sans-serif",
+          borderRadius: "10px",
+          spacingUnit: "4px"
+        },
+        rules: {
+          ".Input": {
+            backgroundColor: "#ffffff",
+            border: "1px solid #e6dfd6"
+          },
+          ".Tab": {
+            backgroundColor: "#f7f3ee",
+            border: "1px solid #e6dfd6"
+          },
+          ".Tab--selected": {
+            borderColor: "#927135",
+            color: "#1a1714"
+          }
+        }
+      };
+    }
     return {
       theme: "night",
       variables: {
