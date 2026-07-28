@@ -1,0 +1,394 @@
+(function () {
+  'use strict';
+
+  var content = document.getElementById('lvAdminContent');
+  var loading = document.getElementById('lvAdminLoading');
+  var signOutBtn = document.getElementById('lvAdminSignOut');
+  var rangeDays = 30;
+  var chart = null;
+  var cache = {};
+
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function moneyCents(cents) {
+    return 'US$' + ((Number(cents) || 0) / 100).toFixed(2);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleString();
+    } catch (_) {
+      return String(iso);
+    }
+  }
+
+  function slugLabel(slug) {
+    return String(slug || '')
+      .replace(/^luneva-/, '')
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, function (c) {
+        return c.toUpperCase();
+      });
+  }
+
+  function setLoading(on) {
+    if (loading) loading.hidden = !on;
+    if (content) content.hidden = on;
+  }
+
+  function currentTab() {
+    var hash = (location.hash || '#dashboard').replace('#', '');
+    return hash || 'dashboard';
+  }
+
+  function setActiveNav() {
+    var tab = currentTab();
+    document.querySelectorAll('[data-tab]').forEach(function (link) {
+      link.classList.toggle('is-active', link.getAttribute('data-tab') === tab);
+    });
+  }
+
+  function api(path) {
+    var key = path + '|' + rangeDays;
+    if (cache[key]) return Promise.resolve(cache[key]);
+    return fetch(path + '?days=' + rangeDays)
+      .then(function (res) {
+        return res.ok ? res.json() : Promise.reject(new Error('Request failed'));
+      })
+      .then(function (data) {
+        cache[key] = data;
+        return data;
+      });
+  }
+
+  function renderLogin() {
+    setLoading(false);
+    if (content) {
+      content.hidden = false;
+      content.innerHTML =
+        '<div class="lv-admin__login">' +
+        '<h2>LUNEVA Admin</h2>' +
+        '<p>Sign in with your ZYBAR admin code. This dashboard only shows LUNEVA visitors, carts, emails, and orders.</p>' +
+        '<form id="lvAdminLoginForm">' +
+        '<div class="lv-admin__field"><label for="lvAdminEmail">Email</label><input id="lvAdminEmail" type="email" required /></div>' +
+        '<div class="lv-admin__field"><label for="lvAdminCode">Admin code</label><input id="lvAdminCode" type="password" autocomplete="off" required /></div>' +
+        '<button class="lv-admin__btn" type="submit">Sign in</button>' +
+        '<p class="lv-admin__error" id="lvAdminLoginError" hidden></p>' +
+        '</form></div>';
+      var form = document.getElementById('lvAdminLoginForm');
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var email = document.getElementById('lvAdminEmail').value.trim();
+        var code = document.getElementById('lvAdminCode').value.trim();
+        var err = document.getElementById('lvAdminLoginError');
+        err.hidden = true;
+        window.LunevaAdminAuth.login(email, code).then(function (result) {
+          if (!result.ok || !window.LunevaAdminAuth.storeSession(result.body)) {
+            err.textContent = (result.body && result.body.error) || 'Invalid code.';
+            err.hidden = false;
+            return;
+          }
+          boot();
+        });
+      });
+    }
+    if (signOutBtn) signOutBtn.hidden = true;
+  }
+
+  function header(title, subtitle) {
+    return (
+      '<div class="lv-admin__header">' +
+      '<div><h1>' +
+      esc(title) +
+      '</h1><p>' +
+      esc(subtitle) +
+      '</p></div>' +
+      '<div class="lv-admin__filters">' +
+      [7, 30, 90].map(function (d) {
+        return (
+          '<button type="button" data-days="' +
+          d +
+          '" class="' +
+          (rangeDays === d ? 'is-active' : '') +
+          '">' +
+          d +
+          ' days</button>'
+        );
+      }).join('') +
+      '</div></div>'
+    );
+  }
+
+  function kpi(label, value) {
+    return '<div class="lv-admin__kpi"><span>' + esc(label) + '</span><strong>' + value + '</strong></div>';
+  }
+
+  function drawChart(trends) {
+    var canvas = document.getElementById('lvAdminTrendChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (chart) chart.destroy();
+    var rows = Array.isArray(trends) ? trends : [];
+    chart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: rows.map(function (r) {
+          return r.date;
+        }),
+        datasets: [
+          {
+            label: 'Visitors',
+            data: rows.map(function (r) {
+              return r.visitors;
+            }),
+            borderColor: '#927135',
+            tension: 0.3
+          },
+          {
+            label: 'Orders',
+            data: rows.map(function (r) {
+              return r.orders;
+            }),
+            borderColor: '#1a1714',
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+  }
+
+  function renderDashboard(data) {
+    var o = (data && data.overview) || {};
+    var orders = (data && data.recent_orders) || [];
+    var products = (data && data.top_products) || [];
+    content.innerHTML =
+      header('Dashboard', 'LUNEVA-only metrics — not mixed with Automotive ZYBAR.') +
+      '<div class="lv-admin__kpis">' +
+      kpi('Visitors', esc(o.unique_visitors || 0)) +
+      kpi('Page views', esc(o.page_views || 0)) +
+      kpi('Add to cart', esc(o.add_to_cart || 0)) +
+      kpi('Checkout started', esc(o.begin_checkout || 0)) +
+      kpi('Purchases', esc(o.purchases || 0)) +
+      kpi('Revenue', esc(moneyCents(o.revenue_cents))) +
+      kpi('Emails', esc(o.emails_collected || 0)) +
+      kpi('Conversion', esc((o.conversion_rate || 0) + '%')) +
+      '</div>' +
+      '<div class="lv-admin__grid">' +
+      '<section class="lv-admin__card"><h2>Visitors &amp; orders</h2><div style="height:260px"><canvas id="lvAdminTrendChart"></canvas></div></section>' +
+      '<section class="lv-admin__card"><h2>Top kits (add to cart)</h2>' +
+      (products.length
+        ? '<table class="lv-admin__table"><thead><tr><th>Kit</th><th>Adds</th></tr></thead><tbody>' +
+          products
+            .map(function (p) {
+              return (
+                '<tr><td>' +
+                esc(slugLabel(p.product_slug)) +
+                '</td><td>' +
+                esc(p.add_to_cart || 0) +
+                '</td></tr>'
+              );
+            })
+            .join('') +
+          '</tbody></table>'
+        : '<p class="lv-admin__pill">No add-to-cart events yet.</p>') +
+      '</section></div>' +
+      '<section class="lv-admin__card"><h2>Recent LUNEVA orders</h2>' +
+      (orders.length
+        ? '<table class="lv-admin__table"><thead><tr><th>When</th><th>Customer</th><th>Email</th><th>Total</th></tr></thead><tbody>' +
+          orders
+            .map(function (order) {
+              return (
+                '<tr><td>' +
+                esc(fmtDate(order.created_at)) +
+                '</td><td>' +
+                esc(order.customer_name || '—') +
+                '</td><td>' +
+                esc(order.customer_email || '—') +
+                '</td><td>' +
+                esc(moneyCents(order.amount_total_cents)) +
+                '</td></tr>'
+              );
+            })
+            .join('') +
+          '</tbody></table>'
+        : '<p class="lv-admin__pill">No LUNEVA orders in this range.</p>') +
+      '</section>';
+    drawChart(data.trends || []);
+    bindRangeButtons();
+  }
+
+  function renderOrders(data) {
+    var orders = (data && data.orders) || [];
+    content.innerHTML =
+      header('Orders', 'Paid LUNEVA kit orders only.') +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>When</th><th>Name</th><th>Email</th><th>Phone</th><th>Country</th><th>Total</th><th>Status</th></tr></thead><tbody>' +
+      (orders.length
+        ? orders
+            .map(function (order) {
+              return (
+                '<tr><td>' +
+                esc(fmtDate(order.created_at)) +
+                '</td><td>' +
+                esc(order.customer_name || '—') +
+                '</td><td>' +
+                esc(order.customer_email || '—') +
+                '</td><td>' +
+                esc(order.customer_phone || '—') +
+                '</td><td>' +
+                esc(order.country || '—') +
+                '</td><td>' +
+                esc(moneyCents(order.amount_total_cents)) +
+                '</td><td>' +
+                esc(order.fulfillment_status || order.status || '—') +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="7">No orders in this range.</td></tr>') +
+      '</tbody></table></section>';
+    bindRangeButtons();
+  }
+
+  function renderCustomers(data) {
+    var customers = (data && data.customers) || [];
+    content.innerHTML =
+      header('Emails & customers', 'Emails from LUNEVA purchases in this date range.') +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Email</th><th>Name</th><th>Orders</th><th>Revenue</th><th>Last order</th></tr></thead><tbody>' +
+      (customers.length
+        ? customers
+            .map(function (c) {
+              return (
+                '<tr><td>' +
+                esc(c.email) +
+                '</td><td>' +
+                esc(c.name || '—') +
+                '</td><td>' +
+                esc(c.orders || 0) +
+                '</td><td>' +
+                esc(moneyCents(c.revenue_cents)) +
+                '</td><td>' +
+                esc(fmtDate(c.last_order_at)) +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="5">No customer emails yet.</td></tr>') +
+      '</tbody></table></section>';
+    bindRangeButtons();
+  }
+
+  function renderActivity(data) {
+    var rows = (data && data.recent_activity) || [];
+    content.innerHTML =
+      header('Activity', 'Recent LUNEVA storefront events.') +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>When</th><th>Event</th><th>Product</th><th>Page</th><th>Visitor</th></tr></thead><tbody>' +
+      (rows.length
+        ? rows
+            .map(function (ev) {
+              return (
+                '<tr><td>' +
+                esc(fmtDate(ev.created_at)) +
+                '</td><td>' +
+                esc(ev.event_type) +
+                '</td><td>' +
+                esc(slugLabel(ev.product_id) || '—') +
+                '</td><td>' +
+                esc(ev.page_url || '—') +
+                '</td><td><span class="lv-admin__pill">' +
+                esc((ev.visitor_id || '').slice(0, 8)) +
+                '</span></td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="5">No LUNEVA events yet. Browse /luneva/ to start collecting data.</td></tr>') +
+      '</tbody></table></section>';
+    bindRangeButtons();
+  }
+
+  function bindRangeButtons() {
+    document.querySelectorAll('[data-days]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        rangeDays = Number(btn.getAttribute('data-days')) || 30;
+        cache = {};
+        render();
+      });
+    });
+  }
+
+  function render() {
+    setActiveNav();
+    setLoading(true);
+    var tab = currentTab();
+    if (tab === 'orders') {
+      return api('/api/admin/luneva/orders')
+        .then(renderOrders)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
+    if (tab === 'customers') {
+      return api('/api/admin/luneva/customers')
+        .then(renderCustomers)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
+    if (tab === 'activity') {
+      return api('/api/admin/luneva/dashboard')
+        .then(renderActivity)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
+    return api('/api/admin/luneva/dashboard')
+      .then(renderDashboard)
+      .catch(showError)
+      .finally(function () {
+        setLoading(false);
+      });
+  }
+
+  function showError(err) {
+    if (!content) return;
+    content.hidden = false;
+    content.innerHTML =
+      '<div class="lv-admin__card"><h2>Could not load dashboard</h2><p>' +
+      esc((err && err.message) || 'Unknown error') +
+      '</p></div>';
+  }
+
+  function boot() {
+    if (signOutBtn) {
+      signOutBtn.hidden = false;
+      signOutBtn.onclick = function () {
+        window.LunevaAdminAuth.clearSession();
+        renderLogin();
+      };
+    }
+    window.addEventListener('hashchange', function () {
+      cache = {};
+      render();
+    });
+    render();
+  }
+
+  window.LunevaAdminAuth.validateSession().then(function (ok) {
+    if (ok) boot();
+    else renderLogin();
+  });
+})();

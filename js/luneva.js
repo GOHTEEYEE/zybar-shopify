@@ -237,6 +237,7 @@
         var item = buildCartItem();
         if (!item || !isLunevaSlug(item.slug)) return;
         addItem(item);
+        trackLunevaAdd(item, readCart());
         window.location.href = "/luneva/cart/";
       });
     }
@@ -246,13 +247,37 @@
         var item = buildCartItem();
         if (!item || !isLunevaSlug(item.slug)) return;
         addItem(item);
+        trackLunevaAdd(item, readCart());
         goToLunevaCheckout();
       });
     }
   }
 
-  function money(n) {
-    return "$" + (Math.round(Number(n || 0) * 100) / 100).toFixed(2);
+  function analyticsApi() {
+    return window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics : null;
+  }
+
+  function trackLunevaAdd(item, items) {
+    var a = analyticsApi();
+    if (!a || !item) return;
+    a.trackAddToCart(
+      {
+        slug: item.slug,
+        name: item.name,
+        size: item.size,
+        powerType: item.powerType || "usb",
+        quantity: item.quantity || 1,
+        unitPriceUSD: item.unitAmountUSD,
+        collection: "luneva"
+      },
+      items || readCart()
+    );
+  }
+
+  function trackLunevaCheckout(items) {
+    var a = analyticsApi();
+    if (!a) return;
+    a.trackBeginCheckout(items || readCart(), cartTotal(items || readCart()));
   }
 
   function renderCartPage() {
@@ -427,6 +452,7 @@
       alert("Could not start checkout. Please try again.");
       return;
     }
+    trackLunevaCheckout(payload.lineItems);
     window.location.href = "/luneva/checkout/";
   }
 

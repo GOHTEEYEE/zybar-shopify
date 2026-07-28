@@ -1731,6 +1731,27 @@
     emailInput.addEventListener("input", schedule);
   }
 
+  function wireLunevaEmailCapture() {
+    if (!IS_LUNEVA_CHECKOUT) return;
+    var emailInput = document.getElementById("checkout-email");
+    if (!emailInput) return;
+    var sent = false;
+    function maybeTrack() {
+      if (sent) return;
+      var email = String(emailInput.value || '').trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+      var analytics = window.ZYBAR && window.ZYBAR.Analytics;
+      if (!analytics || typeof analytics.track !== 'function') return;
+      sent = true;
+      analytics.track('email_submitted', {
+        collection_id: 'luneva',
+        metadata: { collection: 'luneva', email: email, source: 'luneva_checkout' }
+      });
+    }
+    emailInput.addEventListener('blur', maybeTrack);
+    emailInput.addEventListener('change', maybeTrack);
+  }
+
   function init() {
     var pending = readPendingCheckout();
     if (!pending) {
@@ -1753,6 +1774,7 @@
 
     state.pending = pending;
     wireDevtestDiscount();
+    wireLunevaEmailCapture();
     if (isDevtestCode(state.requestedDevtestCode)) {
       pending.discountCode = DEVTEST_CODE;
     }

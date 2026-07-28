@@ -237,7 +237,9 @@
 
   function getCollectionIdFromPath() {
     try {
-      var m = (location.pathname || '').match(/\/collections\/([^/]+)/);
+      var path = location.pathname || '';
+      if (path.indexOf('/luneva') === 0) return 'luneva';
+      var m = path.match(/\/collections\/([^/]+)/);
       return m ? m[1] : null;
     } catch (e) { return null; }
   }
@@ -464,13 +466,15 @@
     var qty = Number(item && item.quantity) || 1;
     track('add_to_cart', {
       product_id: productId,
+      collection_id: (item && (item.collection_id || item.collection)) || getCollectionIdFromPath() || null,
       quantity: qty,
       metadata: {
         product_name: item && item.name,
         size: item && item.size,
         power_type: item && item.powerType,
         led_color: item && (item.ledColor || item.led_color),
-        unit_price_usd: item && item.unitPriceUSD
+        unit_price_usd: item && item.unitPriceUSD,
+        collection: (item && item.collection) || getCollectionIdFromPath() || null
       }
     });
     syncCartSession({ items: cartItems || [], status: 'active' });
@@ -497,7 +501,14 @@
   }
 
   function trackBeginCheckout(items, cartValueUSD) {
-    track('begin_checkout', { metadata: { item_count: (items || []).length } });
+    track('begin_checkout', {
+      collection_id: getCollectionIdFromPath() || null,
+      metadata: {
+        item_count: (items || []).length,
+        collection: getCollectionIdFromPath() || null,
+        cart_value_usd: cartValueUSD
+      }
+    });
     syncCartSession({ items: items || [], cartValueUSD: cartValueUSD, status: 'checkout_started' });
     fireMetaPixel('trackInitiateCheckout', [items, cartValueUSD]);
   }
@@ -621,7 +632,9 @@
 
     trackPageView();
     if (productId) trackProductView(productId);
-    if (collectionId || path.indexOf('/collections/') === 0) {
+    if (collectionId || path.indexOf('/luneva') === 0) {
+      trackCollectionView(collectionId || 'luneva');
+    } else if (path.indexOf('/collections/') === 0) {
       trackCollectionView(collectionId || 'all');
     }
     if (path.indexOf('/cart') === 0) {

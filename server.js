@@ -25,6 +25,7 @@ const CustomOrders = require('./lib/custom-orders.js');
 const CustomLeads = require('./lib/custom-leads.js');
 const CheckoutSnapshots = require('./lib/checkout-snapshots.js');
 const DevtestDiscount = require('./lib/devtest-discount.js');
+const LunevaAnalytics = require('./lib/luneva-analytics.js');
 const SearchIndexBuilder = require('./lib/search-index-builder.js');
 
 const app = express();
@@ -884,6 +885,42 @@ app.use(function protectAdminApis(req, res, next) {
 
 app.get('/api/admin/auth/session', function (req, res) {
   return res.json({ ok: true, email: req.adminSession.email });
+});
+
+app.get('/api/admin/luneva/dashboard', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const data = await LunevaAnalytics.getDashboard(supabase, range);
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/luneva/dashboard error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA dashboard' });
+  }
+});
+
+app.get('/api/admin/luneva/orders', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const orders = await LunevaAnalytics.fetchLunevaOrders(supabase, range);
+    return res.json({ orders: orders, range: range });
+  } catch (err) {
+    console.error('GET /api/admin/luneva/orders error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA orders' });
+  }
+});
+
+app.get('/api/admin/luneva/customers', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const range = parseAnalyticsRange(req);
+  try {
+    const customers = await LunevaAnalytics.getCustomers(supabase, range);
+    return res.json({ customers: customers, range: range });
+  } catch (err) {
+    console.error('GET /api/admin/luneva/customers error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA customers' });
+  }
 });
 
 app.get('/api/admin-reviews', async (req, res) => {

@@ -1,0 +1,288 @@
+:root {
+  --lv-bg: #f7f3ee;
+  --lv-surface: #ffffff;
+  --lv-ink: #1a1714;
+  --lv-muted: #6b645c;
+  --lv-line: #e6dfd6;
+  --lv-gold: #927135;
+  --lv-soft: #efe8df;
+  --lv-danger: #a34432;
+  --lv-sidebar: #1a1714;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Jost", system-ui, sans-serif;
+  background: var(--lv-bg);
+  color: var(--lv-ink);
+}
+
+.lv-admin {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+.lv-admin__sidebar {
+  background: var(--lv-sidebar);
+  color: #fff;
+  padding: 2rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.lv-admin__brand {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #fff;
+  text-decoration: none;
+}
+
+.lv-admin__eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.lv-admin__nav {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.lv-admin__nav a {
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration: none;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.lv-admin__nav a.is-active,
+.lv-admin__nav a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.lv-admin__footer {
+  margin-top: auto;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.lv-admin__footer a,
+.lv-admin__footer button {
+  background: none;
+  border: 0;
+  color: rgba(255, 255, 255, 0.65);
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.lv-admin__main {
+  padding: 2rem;
+}
+
+.lv-admin__loading {
+  color: var(--lv-muted);
+}
+
+.lv-admin__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.6rem;
+  flex-wrap: wrap;
+}
+
+.lv-admin__header h1 {
+  margin: 0 0 0.35rem;
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 400;
+  font-size: 2rem;
+}
+
+.lv-admin__header p {
+  margin: 0;
+  color: var(--lv-muted);
+}
+
+.lv-admin__filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lv-admin__filters button {
+  border: 1px solid var(--lv-line);
+  background: var(--lv-surface);
+  color: var(--lv-ink);
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.lv-admin__filters button.is-active {
+  background: var(--lv-gold);
+  border-color: var(--lv-gold);
+  color: #fff;
+}
+
+.lv-admin__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.lv-admin__kpi {
+  background: var(--lv-surface);
+  border: 1px solid var(--lv-line);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.lv-admin__kpi span {
+  display: block;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lv-muted);
+  margin-bottom: 0.45rem;
+}
+
+.lv-admin__kpi strong {
+  font-size: 1.55rem;
+  font-weight: 500;
+}
+
+.lv-admin__grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.lv-admin__card {
+  background: var(--lv-surface);
+  border: 1px solid var(--lv-line);
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem;
+}
+
+.lv-admin__card h2 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.lv-admin__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.lv-admin__table th,
+.lv-admin__table td {
+  text-align: left;
+  padding: 0.65rem 0.4rem;
+  border-bottom: 1px solid var(--lv-line);
+  vertical-align: top;
+}
+
+.lv-admin__table th {
+  color: var(--lv-muted);
+  font-weight: 500;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lv-admin__login {
+  max-width: 420px;
+  margin: 4rem auto;
+  background: var(--lv-surface);
+  border: 1px solid var(--lv-line);
+  border-radius: 14px;
+  padding: 2rem;
+}
+
+.lv-admin__login h2 {
+  margin: 0 0 0.5rem;
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 400;
+}
+
+.lv-admin__login p {
+  color: var(--lv-muted);
+  margin: 0 0 1.4rem;
+}
+
+.lv-admin__field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.lv-admin__field label {
+  font-size: 0.82rem;
+  color: var(--lv-muted);
+}
+
+.lv-admin__field input {
+  border: 1px solid var(--lv-line);
+  border-radius: 8px;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+}
+
+.lv-admin__btn {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  background: var(--lv-gold);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lv-admin__error {
+  color: var(--lv-danger);
+  font-size: 0.9rem;
+  margin-top: 0.8rem;
+}
+
+.lv-admin__pill {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--lv-soft);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 900px) {
+  .lv-admin {
+    grid-template-columns: 1fr;
+  }
+
+  .lv-admin__sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .lv-admin__grid {
+    grid-template-columns: 1fr;
+  }
+}
