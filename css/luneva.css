@@ -155,21 +155,20 @@ button {
 
 .lv-hero {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr;
-  background: #1a1714;
+  display: block;
+  width: 100%;
+  background: var(--lv-bg);
   color: #fff;
   overflow: hidden;
 }
 
 .lv-hero__stage {
   position: relative;
-  /* Square lifestyle photos: keep the frame closer to square so cover doesn't butcher the crop. */
-  aspect-ratio: 4 / 3;
-  max-height: min(88svh, 900px);
-  min-height: 420px;
+  width: 100%;
+  /* Full-bleed desktop band — never shrink width (that caused the black right gap). */
+  height: clamp(560px, 72svh, 820px);
   overflow: hidden;
-  background: #111;
+  background: #1a1714;
 }
 
 .lv-hero__slide {
@@ -189,8 +188,7 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: var(--lv-focus, 58% 42%);
-  transform: scale(1.02);
+  object-position: var(--lv-focus, 50% 45%);
 }
 
 .lv-hero__shade {
@@ -827,7 +825,8 @@ button {
   }
 
   .lv-hero__stage {
-    aspect-ratio: 1 / 1;
+    height: auto;
+    aspect-ratio: 4 / 3;
     max-height: none;
     min-height: 0;
     width: 100%;
