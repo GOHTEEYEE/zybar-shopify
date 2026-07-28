@@ -1309,20 +1309,22 @@ button {
 .lv-contact__form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .lv-contact__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem 1.25rem;
+  gap: 1.25rem 1.35rem;
 }
 
 .lv-contact__field {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  font-size: 0.92rem;
+  gap: 0.55rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--lv-ink);
 }
 
 .lv-contact__field--full {
@@ -1337,23 +1339,45 @@ button {
 .lv-contact__field span small {
   color: var(--lv-muted);
   font-weight: 400;
+  font-size: 0.95em;
 }
 
 .lv-contact__field input,
 .lv-contact__field select,
 .lv-contact__field textarea {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--lv-text);
-  border-radius: 10px;
-  padding: 0.75rem 0.9rem;
-  font: inherit;
+  border: 1.5px solid #c9bfb2;
+  background: var(--lv-white);
+  color: var(--lv-ink);
+  border-radius: 12px;
+  padding: 0.95rem 1.05rem;
+  font-family: var(--lv-font-body);
+  font-size: 1.08rem;
+  font-weight: 400;
+  line-height: 1.45;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.lv-contact__field select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--lv-ink) 50%),
+    linear-gradient(135deg, var(--lv-ink) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 2.4rem;
+}
+
+.lv-contact__field input::placeholder,
+.lv-contact__field textarea::placeholder {
+  color: #8a8278;
+  opacity: 1;
 }
 
 .lv-contact__field textarea {
   resize: vertical;
-  min-height: 140px;
+  min-height: 168px;
 }
 
 .lv-contact__field input:focus,
@@ -1361,42 +1385,50 @@ button {
 .lv-contact__field textarea:focus {
   outline: none;
   border-color: var(--lv-gold);
+  box-shadow: 0 0 0 3px rgba(146, 113, 53, 0.18);
 }
 
 .lv-contact__status {
-  min-height: 1.25rem;
-  font-size: 0.92rem;
+  min-height: 1.35rem;
+  font-size: 1.02rem;
 }
 
 .lv-contact__status.is-error {
-  color: #f2a3a3;
+  color: #a33b3b;
 }
 
 .lv-contact__status.is-success {
-  color: #9fd4b0;
+  color: #2f6b45;
 }
 
 .lv-contact__aside {
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.65rem 1.5rem;
+  border: 1.5px solid var(--lv-line);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--lv-white);
 }
 
 .lv-contact__aside h2 {
   font-family: var(--lv-font-display);
-  font-size: 1.35rem;
+  font-size: 1.45rem;
   margin: 0 0 0.75rem;
 }
 
 .lv-contact__aside p {
   color: var(--lv-muted);
-  line-height: 1.6;
-  margin: 0 0 0.75rem;
+  line-height: 1.65;
+  font-size: 1.02rem;
+  margin: 0 0 0.85rem;
 }
 
 .lv-contact__aside a {
   color: var(--lv-gold);
+}
+
+.lv-contact__form .lv-btn {
+  font-size: 1.05rem;
+  padding: 0.95rem 1.4rem;
+  align-self: flex-start;
 }
 
 @media (max-width: 900px) {
@@ -1406,5 +1438,20 @@ button {
 
   .lv-contact__grid {
     grid-template-columns: 1fr;
+  }
+
+  .lv-contact__field {
+    font-size: 1.08rem;
+  }
+
+  .lv-contact__field input,
+  .lv-contact__field select,
+  .lv-contact__field textarea {
+    font-size: 1.12rem;
+    padding: 1.05rem 1.1rem;
+  }
+
+  .lv-contact__form .lv-btn {
+    width: 100%;
   }
 }
