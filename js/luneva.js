@@ -4,9 +4,13 @@
   var CART_KEY = "luneva.cart.items";
   var ZYBAR_CART_KEY = "zybar.cart.items";
 
-  function readCart() {
+  function isLunevaSlug(slug) {
+    return String(slug || "").indexOf("luneva-") === 0;
+  }
+
+  function readRaw(key) {
     try {
-      var raw = window.localStorage.getItem(CART_KEY);
+      var raw = window.localStorage.getItem(key);
       var parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
@@ -14,8 +18,42 @@
     }
   }
 
+  function writeRaw(key, items) {
+    window.localStorage.setItem(key, JSON.stringify(items || []));
+  }
+
+  /** Keep the two carts strictly separated (also cleans older mixed carts). */
+  function sanitizeCarts() {
+    var zybarItems = readRaw(ZYBAR_CART_KEY);
+    var lunevaItems = readRaw(CART_KEY);
+    var zybarClean = zybarItems.filter(function (item) {
+      return item && !isLunevaSlug(item.slug || item.productSlug);
+    });
+    var lunevaClean = lunevaItems.filter(function (item) {
+      return item && isLunevaSlug(item.slug || item.productSlug);
+    });
+    // Move any LUNEVA rows that were wrongly saved into the Automotive cart.
+    zybarItems.forEach(function (item) {
+      if (!item || !isLunevaSlug(item.slug || item.productSlug)) return;
+      lunevaClean.push(item);
+    });
+    writeRaw(ZYBAR_CART_KEY, zybarClean);
+    writeRaw(CART_KEY, lunevaClean);
+  }
+
+  function readCart() {
+    return readRaw(CART_KEY).filter(function (item) {
+      return item && isLunevaSlug(item.slug || item.productSlug);
+    });
+  }
+
   function writeCart(items) {
-    window.localStorage.setItem(CART_KEY, JSON.stringify(items || []));
+    writeRaw(
+      CART_KEY,
+      (items || []).filter(function (item) {
+        return item && isLunevaSlug(item.slug || item.productSlug);
+      })
+    );
     window.dispatchEvent(new Event("luneva:cart-updated"));
   }
 
@@ -191,22 +229,16 @@
     if (addBtn) {
       addBtn.addEventListener("click", function () {
         var item = buildCartItem();
-        if (!item) return;
-        // Never write into the Automotive ZYBAR cart.
-        try {
-          // Keep automotive cart untouched intentionally.
-          void ZYBAR_CART_KEY;
-        } catch (e) {}
+        if (!item || !isLunevaSlug(item.slug)) return;
         addItem(item);
-        if (toast) toast.textContent = "Added to LUNEVA cart — " + item.name;
-        updateHeaderCount();
+        window.location.href = "/luneva/cart/";
       });
     }
 
     if (buyBtn) {
       buyBtn.addEventListener("click", function () {
         var item = buildCartItem();
-        if (!item) return;
+        if (!item || !isLunevaSlug(item.slug)) return;
         addItem(item);
         window.location.href = "/luneva/checkout/";
       });
@@ -271,7 +303,7 @@
       '<div class="lv-cart-summary__row"><span>Subtotal</span><strong>' +
       money(cartTotal(items)) +
       "</strong></div>" +
-      '<p class="lv-cart-summary__note">Shipping is calculated at LUNEVA checkout. Automotive ZYBAR items stay in a separate cart.</p>' +
+      '<p class="lv-cart-summary__note">LUNEVA only — Automotive LED wall art stays in the separate ZYBAR cart at /cart/.</p>' +
       '<a class="lv-btn lv-btn-primary lv-btn-block" href="/luneva/checkout/">Checkout</a>' +
       '<a class="lv-btn lv-btn-outline lv-btn-block" href="/luneva/shop/" style="margin-top:1rem">Continue shopping</a>' +
       "</aside></div>";
@@ -407,6 +439,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    sanitizeCarts();
     initHero();
     initGallery();
     initKits();
