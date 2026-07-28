@@ -12,6 +12,15 @@
     ? "luneva.checkout.pending"
     : "zybar.checkout.pending";
   var CART_KEY = IS_LUNEVA_CHECKOUT ? "luneva.cart.items" : "zybar.cart.items";
+  var LUNEVA_SHIPPING_USD = 8.99;
+  var LUNEVA_SHIPPING_METHODS = [
+    {
+      code: "standard",
+      label: "Standard Shipping",
+      description: "7–10 business days",
+      priceUsd: LUNEVA_SHIPPING_USD
+    }
+  ];
   var ANIM_MS = 200;
   var DEVTEST_CODE = "DEVTEST99";
   var DEVTEST_PERCENT = 99;
@@ -210,8 +219,23 @@
     return "US$" + rounded.toFixed(2);
   }
 
+  function getEffectiveShippingMethods() {
+    if (IS_LUNEVA_CHECKOUT) return LUNEVA_SHIPPING_METHODS;
+    var pricing = getPricing();
+    if (!pricing || typeof pricing.getShippingMethods !== "function") return [];
+    return pricing.getShippingMethods();
+  }
+
+  function getEffectiveShippingCostUSD(code) {
+    if (IS_LUNEVA_CHECKOUT) return LUNEVA_SHIPPING_USD;
+    var pricing = getPricing();
+    return pricing ? pricing.getShippingCostUSD(code) : 0;
+  }
+
   function formatDeliveryRange(shippingMethod) {
-    var method = String(shippingMethod || "priority").toLowerCase();
+    var method = String(
+      shippingMethod || (IS_LUNEVA_CHECKOUT ? "standard" : "priority")
+    ).toLowerCase();
     var isPriority =
       method.indexOf("express") !== -1 || method.indexOf("priority") !== -1;
     var summary = getPricingSummary();
@@ -350,13 +374,11 @@
   }
 
   function updateShippingPriceLabels() {
-    var pricing = getPricing();
-    if (!pricing) return;
     document.querySelectorAll("[data-shipping-price]").forEach(function (el) {
       var option = el.closest(".checkout-shipping-option");
       var radio = option ? option.querySelector('input[name="shippingMethod"]') : null;
       if (!radio) return;
-      var cost = pricing.getShippingCostUSD(radio.value);
+      var cost = getEffectiveShippingCostUSD(radio.value);
       el.textContent = formatUsdLuxury(cost);
     });
   }
@@ -402,16 +424,16 @@
     var container = document.getElementById("checkout-shipping-options");
     if (!container) return;
     var pricing = getPricing();
-    if (!pricing || typeof pricing.getShippingMethods !== "function") return;
+    if (!IS_LUNEVA_CHECKOUT && (!pricing || typeof pricing.getShippingMethods !== "function")) return;
 
-    var methods = pricing.getShippingMethods();
+    var methods = getEffectiveShippingMethods();
     if (!methods.length) {
       container.innerHTML = '<p class="checkout-shipping-empty">Loading delivery options…</p>';
       return;
     }
 
     // CRO: Priority is the default delivery experience (+$5, higher AOV).
-    var preferred = "priority";
+    var preferred = IS_LUNEVA_CHECKOUT ? "standard" : "priority";
     var hasPreferred = methods.some(function (m) {
       return m && m.code === preferred;
     });
@@ -434,12 +456,20 @@
         if (!method || !method.code) return "";
         var code = method.code;
         var selected = code === selectedCode;
-        var price = pricing.getShippingCostUSD(code);
+        var price =
+          typeof method.priceUsd === "number" && Number.isFinite(method.priceUsd)
+            ? method.priceUsd
+            : getEffectiveShippingCostUSD(code);
         var isPriority =
-          code.indexOf("priority") !== -1 || code.indexOf("express") !== -1;
+          !IS_LUNEVA_CHECKOUT &&
+          (code.indexOf("priority") !== -1 || code.indexOf("express") !== -1);
         var days =
           method.description ||
-          (isPriority ? "7–14 Business Days" : "14–18 Business Days");
+          (IS_LUNEVA_CHECKOUT
+            ? "7–10 business days"
+            : isPriority
+              ? "7–14 Business Days"
+              : "14–18 Business Days");
         days = String(days)
           .replace(/^Estimated delivery:\s*/i, "")
           .trim();
@@ -568,6 +598,17 @@
     }
     img.onerror = null;
   }
+
+  function resolveLineItemImageUrl(item) {
+    var url = String((item && item.imageUrl) || "").trim();
+    if (url.indexOf("/luneva/assets/") === 0) return url;
+    var slug = String((item && (item.slug || item.productSlug)) || "");
+    if (slug.indexOf("luneva-") === 0) {
+      return "/luneva/assets/" + slug.replace(/^luneva-/, "") + "/hero.png";
+    }
+    if (url) return url;
+    return slug ? "/Image/" + slug + "-1.webp" : "";
+  }
   window.ZYBAR = window.ZYBAR || {};
   window.ZYBAR.CheckoutThumbError = checkoutThumbError;
 
@@ -577,7 +618,7 @@
     var unit = Number(item.unitPriceUSD);
     var safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
     var lineTotal = safeQty * safeUnit;
-    var imageUrl = item.imageUrl || (item.slug ? "/Image/" + item.slug + "-1.webp" : "");
+    var imageUrl = resolveLineItemImageUrl(item);
     var titles = splitProductTitle(item.name);
     var sizePart = item.sizeLabel || item.size || "";
     var powerPart = item.powerTypeLabel || "";
@@ -644,6 +685,9 @@
         taxUSD: state.tax,
         discountUSD: 0
       });
+      if (IS_LUNEVA_CHECKOUT) {
+        provisional.shipping = LUNEVA_SHIPPING_USD;
+      }
       var discountUSD = state.discount;
       if (isDevtestCode(state.discountCode) || state.discountPercent === DEVTEST_PERCENT) {
         discountUSD = computeDevtestDiscountUSD(
@@ -659,10 +703,15 @@
         discountUSD: discountUSD
       });
       state.subtotal = order.subtotal;
-      state.shipping = order.shipping;
+      state.shipping = IS_LUNEVA_CHECKOUT
+        ? LUNEVA_SHIPPING_USD
+        : order.shipping;
       state.tax = order.tax;
       state.discount = order.discount;
-      state.total = order.total;
+      state.total = Math.max(
+        0,
+        state.subtotal + state.shipping + state.tax - state.discount
+      );
       return state;
     }
 
@@ -876,10 +925,11 @@
     var pricing = getPricing();
     var apiBase = config.apiBaseUrl || window.location.origin;
     var origin = window.location.origin;
-    var shippingMethod =
-      pending.shippingMethod ||
-      getSelectedShippingMethod() ||
-      (pricing ? pricing.readShippingMethod() : "standard");
+    var shippingMethod = IS_LUNEVA_CHECKOUT
+      ? "standard"
+      : pending.shippingMethod ||
+        getSelectedShippingMethod() ||
+        (pricing ? pricing.readShippingMethod() : "standard");
     var successUrl =
       pending.successUrl ||
       config.successUrl ||
@@ -1062,6 +1112,7 @@
   }
 
   function prefetchOtherShippingSessions() {
+    if (IS_LUNEVA_CHECKOUT) return;
     var pricing = getPricing();
     if (!pricing || typeof pricing.getShippingMethods !== "function" || !state.pending) return;
     var current = getSelectedShippingMethod();
@@ -1787,11 +1838,16 @@
     if (pricing) {
       // CRO default: Priority shipping (+$5) unless customer already chose on this checkout.
       if (!pending._shippingChosen) {
-        pending.shippingMethod = "priority";
-        pricing.writeShippingMethod("priority");
+        pending.shippingMethod = IS_LUNEVA_CHECKOUT ? "standard" : "priority";
+        pricing.writeShippingMethod(pending.shippingMethod);
+      }
+      if (IS_LUNEVA_CHECKOUT) {
+        pending.shippingMethod = "standard";
       }
       renderShippingOptionsFromCatalog();
-      var method = pending.shippingMethod || "priority";
+      var method = IS_LUNEVA_CHECKOUT
+        ? "standard"
+        : pending.shippingMethod || "priority";
       pricing.writeShippingMethod(method);
       setShippingRadio(method);
       if (Array.isArray(pending.displayItems)) {

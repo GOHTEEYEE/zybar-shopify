@@ -678,7 +678,7 @@ button {
 .lv-cart-item__media {
   aspect-ratio: 1;
   overflow: hidden;
-  background: #111;
+  background: var(--lv-soft);
 }
 
 .lv-cart-item__media img,

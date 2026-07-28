@@ -42,9 +42,11 @@
   }
 
   function readCart() {
-    return readRaw(CART_KEY).filter(function (item) {
-      return item && isLunevaSlug(item.slug || item.productSlug);
-    });
+    return readRaw(CART_KEY)
+      .filter(function (item) {
+        return item && isLunevaSlug(item.slug || item.productSlug);
+      })
+      .map(normalizeCartItem);
   }
 
   function writeCart(items) {
@@ -77,6 +79,22 @@
     ].join("::");
   }
 
+  function lunevaImageUrl(item) {
+    var url = String((item && item.imageUrl) || "").trim();
+    if (url.indexOf("/luneva/assets/") === 0) return url;
+    var slug = String((item && (item.slug || item.productSlug)) || "");
+    if (slug.indexOf("luneva-") === 0) {
+      return "/luneva/assets/" + slug.replace(/^luneva-/, "") + "/hero.png";
+    }
+    return url;
+  }
+
+  function normalizeCartItem(item) {
+    if (!item || !isLunevaSlug(item.slug || item.productSlug)) return item;
+    item.imageUrl = lunevaImageUrl(item);
+    return item;
+  }
+
   function addItem(item) {
     var items = readCart();
     var key = variantKey(item);
@@ -87,13 +105,14 @@
         row.quantity = (Number(row.quantity) || 0) + (Number(item.quantity) || 1);
         row.unitAmountUSD = item.unitAmountUSD;
         row.name = item.name;
-        row.imageUrl = item.imageUrl;
+        row.imageUrl = lunevaImageUrl(item);
         row.sizeLabel = item.sizeLabel;
       }
       return row;
     });
     if (!found) {
       item.key = key;
+      normalizeCartItem(item);
       items.push(item);
     }
     writeCart(items);
@@ -304,10 +323,10 @@
           '<a class="lv-cart-item__media" href="/products/' +
           item.slug +
           '/"><img src="' +
-          (item.imageUrl || "") +
+          lunevaImageUrl(item) +
           '" alt="' +
           (item.name || "") +
-          '" /></a>' +
+          '" loading="lazy" /></a>' +
           '<div class="lv-cart-item__info">' +
           "<h3>" +
           (item.name || "LUNEVA kit") +
@@ -415,7 +434,7 @@
       var unit = catalogUnitPrice(item);
       return {
         name: String(item.name || "LUNEVA kit"),
-        imageUrl: item.imageUrl || "",
+        imageUrl: lunevaImageUrl(item),
         sizeLabel: item.sizeLabel || "",
         size: String(item.size || "30x45"),
         powerType: "usb",

@@ -194,8 +194,11 @@ function getConfiguredPriceId(productSlug, size) {
   }
 }
 
-function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi) {
+const LUNEVA_SHIPPING_USD = 8.99;
+
+function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi, options) {
   const api = pricingApi || Pricing.createApi(Pricing.getCachedCatalog());
+  const opts = options && typeof options === 'object' ? options : {};
   const rows = Array.isArray(lineItems) ? lineItems : [];
   const stripeItems = [];
 
@@ -258,14 +261,17 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi) {
     });
   });
 
-  const shipUSD = api.getShippingCostUSD(shippingMethod);
+  const shipUSD =
+    typeof opts.shippingUsdOverride === 'number' && Number.isFinite(opts.shippingUsdOverride)
+      ? api.roundMoney(opts.shippingUsdOverride)
+      : api.getShippingCostUSD(shippingMethod);
   if (shipUSD > 0) {
     stripeItems.push({
       price_data: {
         currency: 'usd',
         unit_amount: api.toCents(shipUSD),
         product_data: {
-          name: api.shippingMethodToLabel(shippingMethod)
+          name: opts.shippingLabel || api.shippingMethodToLabel(shippingMethod)
         }
       },
       quantity: 1
@@ -3047,9 +3053,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.status(503).json({ error: 'Store pricing is temporarily unavailable' });
   }
   const pricingApi = Pricing.createApi(catalog);
+  const isLunevaCheckout = collection && String(collection).toLowerCase() === 'luneva';
+  const lunevaShippingOpts = isLunevaCheckout
+    ? { shippingUsdOverride: LUNEVA_SHIPPING_USD, shippingLabel: 'Standard Shipping' }
+    : {};
 
   let stripeLineItems = [];
-  const resolvedShippingMethod = pricingApi.normalizeShippingMethod(shippingMethod);
+  const resolvedShippingMethod = isLunevaCheckout
+    ? 'standard'
+    : pricingApi.normalizeShippingMethod(shippingMethod);
 
   function normalizeCheckoutLineItem(item) {
     if (!item || typeof item !== 'object') return null;
@@ -3126,7 +3138,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
       return res.status(400).json({ error: 'Invalid request: lineItems must contain valid quantity and variant data' });
     }
 
-    stripeLineItems = buildDynamicStripeLineItems(normalizedLineItems, resolvedShippingMethod, pricingApi);
+    stripeLineItems = buildDynamicStripeLineItems(
+      normalizedLineItems,
+      resolvedShippingMethod,
+      pricingApi,
+      lunevaShippingOpts
+    );
 
     if (!stripeLineItems.length) {
       return res.status(400).json({ error: 'Invalid request: lineItems must contain valid quantity and variant data' });
@@ -3150,7 +3167,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
     stripeLineItems = buildDynamicStripeLineItems(
       [normalizedSingle],
       resolvedShippingMethod,
-      pricingApi
+      pricingApi,
+      lunevaShippingOpts
     );
   }
 
