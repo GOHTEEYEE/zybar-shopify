@@ -582,6 +582,36 @@ button {
   margin-inline: auto;
 }
 
+.lv-video-showcase {
+  padding: 4.8rem 0 5.6rem;
+  background: var(--lv-soft);
+}
+
+.lv-video-showcase .lv-section-title {
+  margin-bottom: 0.8rem;
+}
+
+.lv-video-showcase .lv-section-text {
+  max-width: 52rem;
+  margin-bottom: 2.4rem;
+}
+
+.lv-video-wrap {
+  max-width: 72rem;
+  margin-inline: auto;
+  border-radius: 1.6rem;
+  overflow: hidden;
+  background: #111;
+  box-shadow: 0 1.6rem 4.8rem rgba(26, 23, 20, 0.12);
+}
+
+.lv-product-video {
+  display: block;
+  width: 100%;
+  max-height: 72vh;
+  background: #111;
+}
+
 .lv-faq details {
   border-bottom: 1px solid var(--lv-line);
   padding: 1.6rem 0;
