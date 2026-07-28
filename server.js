@@ -3302,16 +3302,19 @@ app.post('/api/create-checkout-session', async (req, res) => {
   // Hosted Checkout (LUNEVA) must collect shipping name + address for fulfillment.
   // Embedded/Custom Automotive checkout collects address in our own UI instead.
   function stripeShippingAllowedCountries() {
+    // Stripe Checkout rejects these ISO codes for shipping_address_collection.
+    // See Stripe docs / API enum (AS, CX, CC, CU, HM, IR, KP, MH, FM, NF, MP, PW, SY, UM, VI).
     const unsupported = {
-      AQ: 1, BV: 1, IO: 1, CU: 1, TF: 1, HM: 1, IR: 1, KP: 1, MH: 1,
-      FM: 1, NF: 1, MP: 1, PW: 1, SD: 1, SS: 1, SY: 1, UM: 1, VI: 1,
-      EH: 1, AS: 1, GU: 1, PR: 1, XK: 1
+      AS: 1, CX: 1, CC: 1, CU: 1, HM: 1, IR: 1, KP: 1, MH: 1,
+      FM: 1, NF: 1, MP: 1, PW: 1, SY: 1, UM: 1, VI: 1,
+      // Extra codes present in countries.json that Stripe also rejects
+      VG: 1, TD: 1, SS: 1, XK: 1
     };
     try {
       const data = require('./data/countries.json');
       const codes = (data.countries || [])
-        .map(function (c) { return c && c.code; })
-        .filter(function (code) { return code && !unsupported[code]; });
+        .map(function (c) { return c && String(c.code || '').toUpperCase(); })
+        .filter(function (code) { return code.length === 2 && !unsupported[code]; });
       if (codes.length) return codes;
     } catch (e) {
       // fall through

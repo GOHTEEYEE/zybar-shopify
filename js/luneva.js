@@ -65,7 +65,7 @@
 
   function cartTotal(items) {
     return (items || readCart()).reduce(function (sum, item) {
-      return sum + (Number(item.unitAmountUSD) || 0) * (Number(item.quantity) || 0);
+      return sum + catalogUnitPrice(item) * (Number(item.quantity) || 0);
     }, 0);
   }
 
@@ -240,7 +240,7 @@
         var item = buildCartItem();
         if (!item || !isLunevaSlug(item.slug)) return;
         addItem(item);
-        window.location.href = "/luneva/checkout/";
+        goToLunevaCheckout();
       });
     }
   }
@@ -281,7 +281,7 @@
           (item.sizeLabel || "") +
           "</p>" +
           '<p class="lv-cart-item__price">' +
-          money(item.unitAmountUSD) +
+          money(catalogUnitPrice(item)) +
           "</p>" +
           '<div class="lv-cart-item__qty">' +
           '<button type="button" data-qty-delta="-1" aria-label="Decrease">−</button>' +
@@ -304,10 +304,16 @@
       money(cartTotal(items)) +
       "</strong></div>" +
       '<p class="lv-cart-summary__note">LUNEVA only — Automotive LED wall art stays in the separate ZYBAR cart at /cart/.</p>' +
-      '<a class="lv-btn lv-btn-primary lv-btn-block" href="/luneva/checkout/">Checkout</a>' +
+      '<button class="lv-btn lv-btn-primary lv-btn-block" type="button" data-luneva-go-checkout>Checkout</button>' +
       '<a class="lv-btn lv-btn-outline lv-btn-block" href="/luneva/shop/" style="margin-top:1rem">Continue shopping</a>' +
       "</aside></div>";
 
+    var goCheckout = root.querySelector("[data-luneva-go-checkout]");
+    if (goCheckout) {
+      goCheckout.addEventListener("click", function () {
+        goToLunevaCheckout();
+      });
+    }
     root.querySelectorAll(".lv-cart-item").forEach(function (row) {
       var key = row.getAttribute("data-key");
       var item = items.find(function (i) {
@@ -332,71 +338,34 @@
     });
   }
 
-  function renderCheckoutPage() {
-    var list = document.querySelector("[data-luneva-checkout-list]");
-    var totalEl = document.querySelector("[data-luneva-checkout-total]");
-    var payBtn = document.querySelector("[data-luneva-pay]");
-    var empty = document.querySelector("[data-luneva-checkout-empty]");
-    var form = document.querySelector("[data-luneva-checkout-form]");
-    if (!list) return;
-
-    var items = readCart();
-    if (!items.length) {
-      if (empty) empty.hidden = false;
-      if (form) form.hidden = true;
-      return;
+  function catalogUnitPrice(item) {
+    var slug = String((item && (item.slug || item.productSlug)) || "");
+    var size = String((item && item.size) || "30x45");
+    var pricing = window.ZYBAR && window.ZYBAR.Pricing;
+    if (pricing && typeof pricing.calculateProductUnitPrice === "function") {
+      var priced = pricing.calculateProductUnitPrice({
+        slug: slug,
+        productSlug: slug,
+        size: size,
+        powerType: (item && item.powerType) || "usb"
+      });
+      if (Number.isFinite(priced) && priced > 0) return priced;
     }
-    if (empty) empty.hidden = true;
-    if (form) form.hidden = false;
-
-    list.innerHTML = items
-      .map(function (item) {
-        return (
-          '<div class="lv-checkout-line">' +
-          '<img src="' +
-          (item.imageUrl || "") +
-          '" alt="" />' +
-          "<div><strong>" +
-          (item.name || "LUNEVA kit") +
-          "</strong><p>Qty " +
-          item.quantity +
-          " · " +
-          money(item.unitAmountUSD) +
-          "</p></div></div>"
-        );
-      })
-      .join("");
-
-    var subtotal = cartTotal(items);
-    if (totalEl) totalEl.textContent = money(subtotal);
-
-    if (payBtn) {
-      payBtn.onclick = function () {
-        startHostedCheckout(items, payBtn);
-      };
-    }
+    var cfg = window.ZYBAR_STRIPE_CONFIG || {};
+    var bySlug = cfg.perProductSizePricesUSD || {};
+    var row = bySlug[slug] || {};
+    if (Number.isFinite(row[size]) && row[size] > 0) return Number(row[size]);
+    var stored = Number(item && item.unitAmountUSD);
+    if (Number.isFinite(stored) && stored > 0 && stored < 200) return stored;
+    return 0;
   }
 
-  function startHostedCheckout(items, button) {
-    var shipping =
-      (document.querySelector('input[name="luneva-shipping"]:checked') || {}).value ||
-      "standard";
-    var buyerName = ((document.getElementById("luneva-name") || {}).value || "").trim();
-    var email = ((document.getElementById("luneva-email") || {}).value || "").trim();
-    if (!buyerName || buyerName.length < 2) {
-      alert("Please enter your full name.");
-      var nameInput = document.getElementById("luneva-name");
-      if (nameInput) nameInput.focus();
-      return;
-    }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      alert("Please enter a valid email.");
-      var emailInput = document.getElementById("luneva-email");
-      if (emailInput) emailInput.focus();
-      return;
-    }
+  function buildCheckoutPayload() {
+    var items = readCart();
+    if (!items.length) return null;
     var origin = window.location.origin;
     var lineItems = items.map(function (item) {
+      var unit = catalogUnitPrice(item);
       return {
         quantity: Number(item.quantity) || 1,
         productSlug: String(item.slug || ""),
@@ -404,53 +373,74 @@
         size: String(item.size || "30x45"),
         powerType: "usb",
         name: String(item.name || "LUNEVA kit"),
-        unitAmountUSD: Number(item.unitAmountUSD) || 0,
+        unitAmountUSD: unit,
         productType: "standard"
       };
     });
+    var displayItems = items.map(function (item) {
+      var unit = catalogUnitPrice(item);
+      return {
+        name: String(item.name || "LUNEVA kit"),
+        imageUrl: item.imageUrl || "",
+        sizeLabel: item.sizeLabel || "",
+        size: String(item.size || "30x45"),
+        powerType: "usb",
+        powerTypeLabel: "USB",
+        slug: String(item.slug || ""),
+        quantity: Number(item.quantity) || 1,
+        unitPriceUSD: unit
+      };
+    });
+    return {
+      lineItems: lineItems,
+      displayItems: displayItems,
+      shippingMethod: "standard",
+      _shippingChosen: true,
+      collection: "luneva",
+      successUrl:
+        origin +
+        "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}&collection=luneva",
+      cancelUrl: origin + "/luneva/checkout/"
+    };
+  }
 
-    if (button) {
-      button.disabled = true;
-      button.textContent = "Redirecting to Stripe…";
+  function writeCheckoutPending(payload) {
+    window.sessionStorage.setItem("luneva.checkout.pending", JSON.stringify(payload));
+  }
+
+  function goToLunevaCheckout() {
+    var payload = buildCheckoutPayload();
+    if (!payload) {
+      window.location.href = "/luneva/shop/";
+      return;
     }
+    try {
+      writeCheckoutPending(payload);
+    } catch (err) {
+      console.error(err);
+      alert("Could not start checkout. Please try again.");
+      return;
+    }
+    window.location.href = "/luneva/checkout/";
+  }
 
-    fetch((window.ZYBAR_STRIPE_CONFIG && window.ZYBAR_STRIPE_CONFIG.apiBaseUrl) || origin + "/api/create-checkout-session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        embedded: false,
-        custom: false,
-        lineItems: lineItems,
-        shippingMethod: shipping,
-        customerEmail: email,
-        customerName: buyerName,
-        collection: "luneva",
-        successUrl: origin + "/purchase-confirmation.html?session_id={CHECKOUT_SESSION_ID}&collection=luneva",
-        cancelUrl: origin + "/luneva/checkout/"
-      })
-    })
-      .then(function (res) {
-        return res.json().then(function (data) {
-          if (!res.ok) throw new Error((data && data.error) || "Checkout failed");
-          return data;
-        });
-      })
-      .then(function (data) {
-        if (data && data.url) {
-          clearCart();
-          window.location.href = data.url;
-          return;
-        }
-        throw new Error("No Stripe checkout URL returned");
-      })
-      .catch(function (err) {
-        console.error(err);
-        alert(err.message || "Could not start checkout. Please try again.");
-        if (button) {
-          button.disabled = false;
-          button.textContent = "Pay with Stripe";
-        }
-      });
+  function renderCheckoutPage() {
+    // Custom Stripe checkout is owned by checkout-page.js on /luneva/checkout/.
+    // Ensure a pending payload exists before that script initializes.
+    if (!document.getElementById("checkout-form")) return;
+    try {
+      var raw = window.sessionStorage.getItem("luneva.checkout.pending");
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.lineItems) && parsed.lineItems.length) return;
+      }
+    } catch (_) {}
+    var payload = buildCheckoutPayload();
+    if (payload) {
+      try {
+        writeCheckoutPending(payload);
+      } catch (_) {}
+    }
   }
 
   document.addEventListener("DOMContentLoaded", function () {

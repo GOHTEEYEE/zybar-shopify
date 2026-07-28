@@ -7,54 +7,207 @@
   <meta name="description" content="Complete your LUNEVA order securely with Stripe." />
   <meta name="robots" content="noindex, nofollow" />
   <link rel="canonical" href="https://www.zybar.shop/luneva/checkout/" />
-  <link rel="stylesheet" href="/css/luneva.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/checkout.css?v=luxury5" />
+  <style>
+    .luneva-checkout .lv-checkout-brand {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 1.6rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: #fff;
+      text-decoration: none;
+    }
+    .luneva-checkout .checkout-eyebrow {
+      letter-spacing: 0.28em;
+    }
+  </style>
+  <script src="/js/stripe-config.js"></script>
+  <script src="/lib/pricing-calc.js"></script>
+  <script src="/js/pricing.js"></script>
+  <script src="/js/member-pricing.js?v=conv1"></script>
+  <script src="/js/pricing-summary.js"></script>
+  <script src="https://js.stripe.com/basil/stripe.js"></script>
+  <script src="/js/country-selector.js" defer></script>
+  <script src="/js/luneva.js?v=lv-cart5" defer></script>
+  <script src="/js/checkout-page.js?v=luneva1" defer></script>
 </head>
-<body class="luneva-body">
-<div class="lv-announcement" aria-label="Announcement"><div class="lv-announcement__track"><span>Secure Stripe checkout for LUNEVA only</span><span>Secure Stripe checkout for LUNEVA only</span></div></div>
-<header class="lv-header"><div class="lv-container lv-header__inner">
-<nav class="lv-nav" aria-label="LUNEVA"><a href="/luneva/shop/">Shop</a><a href="/luneva/cart/">Cart</a></nav>
-<a class="lv-brand" href="/luneva/">LUNEVA</a>
-<div class="lv-header__cta"><a href="/luneva/cart/" data-luneva-cart-count>Cart</a></div>
-</div></header>
-<div class="lv-page-hero"><div class="lv-container"><p class="lv-eyebrow">LUNEVA Checkout</p><h1>Complete your order</h1><p>Pay securely with Stripe. This checkout never mixes Automotive ZYBAR items.</p></div></div>
-<section class="lv-section">
-  <div class="lv-container">
-    <div data-luneva-checkout-empty class="lv-empty" hidden>
-      <h2 class="lv-section-title">Nothing to checkout</h2>
-      <p class="lv-section-text">Your LUNEVA cart is empty.</p>
-      <p style="margin-top:2rem"><a class="lv-btn lv-btn-primary" href="/luneva/shop/">Shop LUNEVA</a></p>
-    </div>
-    <div class="lv-checkout-layout" data-luneva-checkout-form>
-      <div class="lv-checkout-card">
-        <h2>Your kits</h2>
-        <div data-luneva-checkout-list></div>
-        <div class="lv-checkout-total-row"><span>Subtotal</span><strong data-luneva-checkout-total>$0.00</strong></div>
-        <p class="lv-cart-summary__note">Shipping is added in the next Stripe step based on your delivery choice.</p>
+<body class="checkout-page luneva-checkout">
+  <header class="checkout-topbar">
+    <a class="checkout-brand lv-checkout-brand" href="/luneva/" aria-label="LUNEVA home">LUNEVA</a>
+    <a class="checkout-cart-link" href="/luneva/cart/" aria-label="LUNEVA cart">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 6h15l-1.5 9H8L6 6Zm0 0L5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="checkout-cart-count" id="checkout-cart-count" hidden>0</span>
+    </a>
+  </header>
+
+  <main class="checkout-shell">
+    <div class="checkout-card">
+      <header class="checkout-hero">
+        <p class="checkout-eyebrow">LUNEVA</p>
+        <h1 class="checkout-title">Complete your order</h1>
+        <p class="checkout-lead">Same secure Stripe flow as ZYBAR — LUNEVA kits only, never mixed with Automotive.</p>
+      </header>
+
+      <form class="checkout-main" id="checkout-form" novalidate>
+        <section class="checkout-summary" aria-label="Product summary">
+          <div class="checkout-line-items" id="checkout-product-list"></div>
+        </section>
+
+        <section class="checkout-block checkout-block--shipping" aria-labelledby="checkout-shipping-heading">
+          <h2 class="checkout-block-title" id="checkout-shipping-heading">Delivery experience</h2>
+          <p class="checkout-block-sub">Choose how your kit arrives.</p>
+          <div class="checkout-shipping-options" id="checkout-shipping-options" role="radiogroup" aria-label="Delivery experience">
+            <p class="checkout-shipping-empty">Loading delivery options…</p>
+          </div>
+        </section>
+
+        <section class="checkout-block checkout-block--totals" aria-label="Order totals">
+          <div class="checkout-totals" id="checkout-order-totals"></div>
+        </section>
+
+        <section class="checkout-block checkout-block--estimate" aria-label="Estimated delivery">
+          <div class="checkout-delivery-estimate" id="checkout-delivery-estimate"></div>
+        </section>
+
+        <section class="checkout-block" aria-labelledby="checkout-contact-heading">
+          <h2 class="checkout-block-title" id="checkout-contact-heading">Contact</h2>
+          <div class="checkout-field">
+            <label class="checkout-label" for="checkout-email">Email</label>
+            <input class="checkout-input" type="email" id="checkout-email" name="email" autocomplete="email" required />
+          </div>
+        </section>
+
+        <section class="checkout-block" aria-labelledby="checkout-delivery-heading">
+          <h2 class="checkout-block-title" id="checkout-delivery-heading">Shipping address</h2>
+          <div class="checkout-field">
+            <label class="checkout-label" for="checkout-country" id="checkout-country-label">Country / Region</label>
+            <div
+              class="country-select-host"
+              data-country-select
+              data-input-id="checkout-country"
+              data-label-id="checkout-country-label"
+              data-default="MY"
+            ></div>
+          </div>
+          <div class="checkout-field-row checkout-field-row--half">
+            <div class="checkout-field">
+              <label class="checkout-label" for="checkout-first-name">First name</label>
+              <input class="checkout-input" type="text" id="checkout-first-name" name="firstName" autocomplete="given-name" required />
+            </div>
+            <div class="checkout-field">
+              <label class="checkout-label" for="checkout-last-name">Last name</label>
+              <input class="checkout-input" type="text" id="checkout-last-name" name="lastName" autocomplete="family-name" required />
+            </div>
+          </div>
+          <div class="checkout-field">
+            <label class="checkout-label" for="checkout-address">Address</label>
+            <input class="checkout-input" type="text" id="checkout-address" name="address" autocomplete="street-address" required />
+          </div>
+          <div class="checkout-field">
+            <label class="checkout-label" for="checkout-apartment">Apartment, suite, etc. (optional)</label>
+            <input class="checkout-input" type="text" id="checkout-apartment" name="apartment" autocomplete="address-line2" />
+          </div>
+          <div class="checkout-field-row checkout-field-row--thirds">
+            <div class="checkout-field">
+              <label class="checkout-label" for="checkout-city">City</label>
+              <input class="checkout-input" type="text" id="checkout-city" name="city" autocomplete="address-level2" required />
+            </div>
+            <div class="checkout-field">
+              <label class="checkout-label" for="checkout-state">State</label>
+              <input class="checkout-input" type="text" id="checkout-state" name="state" autocomplete="address-level1" />
+            </div>
+            <div class="checkout-field">
+              <label class="checkout-label" for="checkout-postcode">Postcode</label>
+              <input class="checkout-input" type="text" id="checkout-postcode" name="postcode" autocomplete="postal-code" required />
+            </div>
+          </div>
+          <div class="checkout-field">
+            <label class="checkout-label" for="checkout-phone">Phone</label>
+            <input class="checkout-input" type="tel" id="checkout-phone" name="phone" autocomplete="tel" required />
+          </div>
+        </section>
+
+        <section class="checkout-block checkout-block--express" aria-label="Express checkout">
+          <h2 class="checkout-block-title">Express checkout</h2>
+          <div id="checkout-express-element" class="checkout-express-slot"></div>
+          <div class="checkout-divider" role="separator"><span>OR</span></div>
+        </section>
+
+        <section class="checkout-block" aria-labelledby="checkout-payment-heading">
+          <h2 class="checkout-block-title" id="checkout-payment-heading">Payment</h2>
+          <p class="checkout-block-sub">Securely processed by Stripe. No hidden fees.</p>
+          <div id="checkout-payment-element" class="checkout-payment-slot"></div>
+          <div id="checkout-stripe-embedded" class="checkout-stripe-embedded" hidden></div>
+        </section>
+
+        <section class="checkout-block checkout-block--billing" aria-labelledby="checkout-billing-heading">
+          <h2 class="checkout-block-title" id="checkout-billing-heading">Billing address</h2>
+          <label class="checkout-checkbox checkout-checkbox--selected">
+            <input type="radio" name="billingAddress" value="same" checked />
+            <span>Same as shipping address</span>
+          </label>
+          <label class="checkout-checkbox">
+            <input type="radio" name="billingAddress" value="different" />
+            <span>Use a different billing address</span>
+          </label>
+          <div class="checkout-billing-fields" id="checkout-billing-fields" hidden>
+            <div class="checkout-field">
+              <label class="checkout-label" for="checkout-billing-address">Address</label>
+              <input class="checkout-input" type="text" id="checkout-billing-address" name="billingAddressLine" />
+            </div>
+            <div class="checkout-field-row checkout-field-row--half">
+              <div class="checkout-field">
+                <label class="checkout-label" for="checkout-billing-city">City</label>
+                <input class="checkout-input" type="text" id="checkout-billing-city" name="billingCity" />
+              </div>
+              <div class="checkout-field">
+                <label class="checkout-label" for="checkout-billing-postcode">Postcode</label>
+                <input class="checkout-input" type="text" id="checkout-billing-postcode" name="billingPostcode" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="checkout-error" id="checkout-error" hidden role="alert"></div>
+        <div class="checkout-loading" id="checkout-loading">
+          <div class="checkout-spinner" aria-hidden="true"></div>
+          <p>Preparing secure checkout…</p>
+        </div>
+
+        <p class="checkout-cta-note">LUNEVA kits · Powered by Stripe · Isolated from Automotive cart</p>
+
+        <button type="submit" class="checkout-btn-pay" id="checkout-pay-btn" disabled>
+          Complete Secure Order
+        </button>
+
+        <ul class="checkout-guarantees">
+          <li>Secure Stripe payment</li>
+          <li>Tracked worldwide shipping</li>
+          <li>LUNEVA-only checkout</li>
+        </ul>
+      </form>
+
+      <div id="checkout-mobile-summary" hidden>
+        <div id="checkout-mobile-product-list"></div>
+        <div id="checkout-mobile-totals"></div>
+        <span id="checkout-mobile-total"></span>
+        <button type="button" id="checkout-mobile-summary-toggle" hidden aria-hidden="true"></button>
+        <div id="checkout-mobile-summary-panel" hidden></div>
       </div>
-      <div class="lv-checkout-card">
-        <h2>Delivery & pay</h2>
-        <div class="lv-field">
-          <label for="luneva-name">Full name</label>
-          <input id="luneva-name" type="text" placeholder="Name for shipping" autocomplete="name" required />
-        </div>
-        <div class="lv-field">
-          <label for="luneva-email">Email</label>
-          <input id="luneva-email" type="email" placeholder="you@email.com" autocomplete="email" required />
-        </div>
-        <p class="lv-cart-summary__note">Next Stripe step collects shipping address, phone, and payment.</p>
-        <p class="lv-eyebrow">Delivery</p>
-        <div class="lv-ship" role="radiogroup" aria-label="Delivery">
-          <label><input type="radio" name="luneva-shipping" value="standard" checked /><span><strong>Standard</strong><br /><span style="color:var(--lv-muted)">Tracked worldwide delivery</span></span></label>
-          <label><input type="radio" name="luneva-shipping" value="priority" /><span><strong>Priority</strong><br /><span style="color:var(--lv-muted)">Faster delivery when available</span></span></label>
-        </div>
-        <button class="lv-btn lv-btn-primary lv-btn-block" type="button" data-luneva-pay>Pay with Stripe</button>
-        <p style="margin-top:1.2rem;color:var(--lv-muted);font-size:1.3rem"><a href="/luneva/cart/">Back to LUNEVA cart</a></p>
-      </div>
+
+      <footer class="checkout-footer">
+        <nav class="checkout-footer-links" aria-label="LUNEVA">
+          <a href="/luneva/cart/">Back to cart</a>
+          <a href="/luneva/shop/">Shop LUNEVA</a>
+          <a href="/luneva/faqs/">FAQs</a>
+        </nav>
+      </footer>
     </div>
-  </div>
-</section>
-<footer class="lv-footer"><div class="lv-container"><div class="lv-footer__brand">LUNEVA</div><p>A collection by ZYBAR · Stripe checkout isolated from Automotive cart</p></div></footer>
-<script src="/js/stripe-config.js"></script>
-<script src="/js/luneva.js?v=lv-cart4"></script>
+  </main>
 </body>
 </html>
