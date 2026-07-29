@@ -197,7 +197,7 @@ window.renderAdmindashboard = function (container) {
       .order('created_at', { ascending: false })
       .limit(12)
       .then(function (res) {
-        return res.data || [];
+        return U.filterZybarOrders ? U.filterZybarOrders(res.data || []) : res.data || [];
       })
       .catch(function () {
         return [];

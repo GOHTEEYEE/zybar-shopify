@@ -111,7 +111,7 @@ window.renderAdminorders = function (container) {
           console.warn('Orders load:', res.error.message);
           return [];
         }
-        return res.data || [];
+        return U.filterZybarOrders ? U.filterZybarOrders(res.data || []) : res.data || [];
       })
       .catch(function () {
         return [];

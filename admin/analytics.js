@@ -934,7 +934,8 @@ window.renderAdminanalytics = function (container) {
       .order('created_at', { ascending: false })
       .limit(limit || 200)
       .then(function (res) {
-        return res.data || [];
+        var rows = res.data || [];
+        return U.filterZybarOrders ? U.filterZybarOrders(rows) : rows;
       })
       .catch(function () {
         return [];

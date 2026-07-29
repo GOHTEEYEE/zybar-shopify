@@ -239,6 +239,10 @@
     try {
       var path = location.pathname || '';
       if (path.indexOf('/luneva') === 0) return 'luneva';
+      var productMatch = path.match(/\/products\/([^/]+)/);
+      if (productMatch && productMatch[1] && productMatch[1].indexOf('luneva-') === 0) {
+        return 'luneva';
+      }
       var m = path.match(/\/collections\/([^/]+)/);
       return m ? m[1] : null;
     } catch (e) { return null; }

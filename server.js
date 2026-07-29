@@ -16,6 +16,7 @@ const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 const Pricing = require('./lib/pricing.js');
 const AnalyticsFallback = require('./lib/analytics-fallback.js');
+const BrandAnalytics = require('./lib/brand-analytics.js');
 const MetaCapi = require('./lib/meta-capi.js');
 const ChatbotKnowledge = require('./lib/chatbot-knowledge.js');
 const CustomerActivity = require('./lib/customer-activity.js');
@@ -4005,7 +4006,7 @@ app.get('/api/analytics/products', async (req, res) => {
       { p_start: range.start, p_end: range.end },
       function () { return AnalyticsFallback.productsFallback(supabase, range); }
     );
-    return res.json(data || {});
+    return res.json(BrandAnalytics.filterZybarTopProducts(data || {}));
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

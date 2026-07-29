@@ -410,6 +410,28 @@
     );
   }
 
+  function lineItemSlug(item) {
+    if (!item || typeof item !== 'object') return '';
+    return String(item.slug || item.productSlug || item.product_slug || '');
+  }
+
+  function isLunevaOrder(row) {
+    if (!row || typeof row !== 'object') return false;
+    var slug = String(row.product_slug || '');
+    if (slug.indexOf('luneva-') === 0) return true;
+    var items = row.line_items;
+    if (!Array.isArray(items)) return false;
+    return items.some(function (item) {
+      return lineItemSlug(item).indexOf('luneva-') === 0;
+    });
+  }
+
+  function filterZybarOrders(rows) {
+    return (rows || []).filter(function (row) {
+      return !isLunevaOrder(row);
+    });
+  }
+
   window.AdminUtils = {
     RANGE_PRESETS: RANGE_PRESETS,
     resolveRange: resolveRange,
@@ -432,6 +454,8 @@
     withFrom: withFrom,
     resolveBackNav: resolveBackNav,
     backLinkHtml: backLinkHtml,
-    backLabelFor: backLabelFor
+    backLabelFor: backLabelFor,
+    isLunevaOrder: isLunevaOrder,
+    filterZybarOrders: filterZybarOrders
   };
 })();
