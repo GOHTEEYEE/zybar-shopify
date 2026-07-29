@@ -17,6 +17,7 @@ const { createClient } = require('@supabase/supabase-js');
 const Pricing = require('./lib/pricing.js');
 const AnalyticsFallback = require('./lib/analytics-fallback.js');
 const BrandAnalytics = require('./lib/brand-analytics.js');
+const LunevaCurrency = require('./lib/luneva-currency.js');
 const MetaCapi = require('./lib/meta-capi.js');
 const ChatbotKnowledge = require('./lib/chatbot-knowledge.js');
 const CustomerActivity = require('./lib/customer-activity.js');
@@ -201,8 +202,15 @@ const LUNEVA_SHIPPING_USD = 8.99;
 function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi, options) {
   const api = pricingApi || Pricing.createApi(Pricing.getCachedCatalog());
   const opts = options && typeof options === 'object' ? options : {};
+  const currency = String(opts.currency || 'usd').toLowerCase();
+  const lunevaProfile = opts.lunevaProfile || null;
   const rows = Array.isArray(lineItems) ? lineItems : [];
   const stripeItems = [];
+
+  function toMinorUnits(amount) {
+    if (currency === 'myr') return LunevaCurrency.toStripeMinorUnits(amount, currency);
+    return api.toCents(amount);
+  }
 
   rows.forEach(function (item) {
     if (!item || typeof item !== 'object') return;
@@ -217,11 +225,25 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi, opti
         : typeof item.slug === 'string'
           ? item.slug.trim()
           : '';
+    const isLunevaProduct = slug.indexOf('luneva-') === 0;
     // Only trust a client-sent amount when positive; otherwise price from the catalog.
-    const unitUSD =
-      typeof item.unitAmountUSD === 'number' && Number.isFinite(item.unitAmountUSD) && item.unitAmountUSD > 0
-        ? api.roundMoney(item.unitAmountUSD)
-        : api.calculateProductUnitPrice({ slug: slug, productSlug: slug, size: size, powerType: powerType });
+    let unitUSD;
+    if (isLunevaProduct && lunevaProfile) {
+      unitUSD = lunevaProfile.kit[size] || lunevaProfile.kit['30x45'];
+    } else if (
+      typeof item.unitAmountUSD === 'number' &&
+      Number.isFinite(item.unitAmountUSD) &&
+      item.unitAmountUSD > 0
+    ) {
+      unitUSD = api.roundMoney(item.unitAmountUSD);
+    } else {
+      unitUSD = api.calculateProductUnitPrice({
+        slug: slug,
+        productSlug: slug,
+        size: size,
+        powerType: powerType
+      });
+    }
     const baseName =
       typeof item.name === 'string' && item.name.trim()
         ? item.name.trim()
@@ -246,8 +268,8 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi, opti
 
     stripeItems.push({
       price_data: {
-        currency: 'usd',
-        unit_amount: api.toCents(unitUSD),
+        currency: currency,
+        unit_amount: toMinorUnits(unitUSD),
         product_data: {
           name: displayName,
           metadata: {
@@ -264,14 +286,16 @@ function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi, opti
   });
 
   const shipUSD =
-    typeof opts.shippingUsdOverride === 'number' && Number.isFinite(opts.shippingUsdOverride)
-      ? api.roundMoney(opts.shippingUsdOverride)
-      : api.getShippingCostUSD(shippingMethod);
+    typeof opts.shippingAmountOverride === 'number' && Number.isFinite(opts.shippingAmountOverride)
+      ? api.roundMoney(opts.shippingAmountOverride)
+      : typeof opts.shippingUsdOverride === 'number' && Number.isFinite(opts.shippingUsdOverride)
+        ? api.roundMoney(opts.shippingUsdOverride)
+        : api.getShippingCostUSD(shippingMethod);
   if (shipUSD > 0) {
     stripeItems.push({
       price_data: {
-        currency: 'usd',
-        unit_amount: api.toCents(shipUSD),
+        currency: currency,
+        unit_amount: toMinorUnits(shipUSD),
         product_data: {
           name: opts.shippingLabel || api.shippingMethodToLabel(shippingMethod)
         }
@@ -3041,6 +3065,12 @@ app.get('/api/customer-activity/traffic', async (req, res) => {
   }
 });
 
+app.get('/api/geo', function (req, res) {
+  const country = AnalyticsFallback.geoCountryFromRequest(req);
+  res.set('Cache-Control', 'private, no-store');
+  return res.json({ country: country || null });
+});
+
 // ----- Create Checkout Session -----
 app.post('/api/create-checkout-session', async (req, res) => {
   if (!stripe) {
@@ -3095,9 +3125,19 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.status(503).json({ error: 'Store pricing is temporarily unavailable' });
   }
   const pricingApi = Pricing.createApi(catalog);
+  const checkoutCountry = String(
+    (req.body && req.body.country) || AnalyticsFallback.geoCountryFromRequest(req) || ''
+  ).toUpperCase();
   const isLunevaCheckout = collection && String(collection).toLowerCase() === 'luneva';
+  const lunevaProfile = isLunevaCheckout ? LunevaCurrency.getProfile(checkoutCountry) : null;
+  const checkoutCurrency = lunevaProfile ? lunevaProfile.currency : 'usd';
   const lunevaShippingOpts = isLunevaCheckout
-    ? { shippingUsdOverride: LUNEVA_SHIPPING_USD, shippingLabel: 'Standard Shipping' }
+    ? {
+        currency: checkoutCurrency,
+        lunevaProfile: lunevaProfile,
+        shippingAmountOverride: lunevaProfile.shipping,
+        shippingLabel: 'Standard Shipping'
+      }
     : {};
 
   let stripeLineItems = [];
@@ -3131,12 +3171,16 @@ app.post('/api/create-checkout-session', async (req, res) => {
       catalog.products[itemProductSlug]
     );
     if (!isCustom && !knownProduct) return null;
-    const unitAmountUSD = pricingApi.calculateProductUnitPrice({
-      slug: itemProductSlug,
-      productSlug: itemProductSlug,
-      size: size,
-      powerType: powerType
-    });
+    const isLunevaProduct = itemProductSlug.indexOf('luneva-') === 0;
+    const unitAmountUSD =
+      isLunevaProduct && lunevaProfile
+        ? LunevaCurrency.kitPrice(size, checkoutCountry)
+        : pricingApi.calculateProductUnitPrice({
+            slug: itemProductSlug,
+            productSlug: itemProductSlug,
+            size: size,
+            powerType: powerType
+          });
     const customDesignFeeUSD = isCustom
       ? pricingApi.getCustomDesignFeeUSD
         ? pricingApi.getCustomDesignFeeUSD(itemProductSlug)
@@ -3293,6 +3337,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
   if (collection) {
     metadata.collection = CheckoutSnapshots.truncateMeta(String(collection), 40);
+  }
+  if (checkoutCountry) {
+    metadata.checkoutCountry = CheckoutSnapshots.truncateMeta(checkoutCountry, 8);
+  }
+  if (checkoutCurrency) {
+    metadata.checkoutCurrency = CheckoutSnapshots.truncateMeta(checkoutCurrency, 8);
   }
   if (productSlug) metadata.productSlug = CheckoutSnapshots.truncateMeta(productSlug, 120);
   if (size) metadata.size = CheckoutSnapshots.truncateMeta(size, 32);
@@ -3517,7 +3567,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     } else if (appliedDiscountUSD > 0) {
       const coupon = await stripe.coupons.create({
         amount_off: Math.round(appliedDiscountUSD * 100),
-        currency: 'usd',
+        currency: checkoutCurrency,
         duration: 'once',
         name: String(appliedDiscountLabel).slice(0, 40)
       });

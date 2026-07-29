@@ -210,8 +210,11 @@
     return "$" + n.toFixed(2);
   }
 
-  /** Luxury total display: US$184 or US$184.50 */
+  /** Luxury total display: US$184 or US$184.50 (LUNEVA MY uses RM) */
   function formatUsdLuxury(amount) {
+    if (IS_LUNEVA_CHECKOUT && window.LunevaCurrency) {
+      return window.LunevaCurrency.formatLuxury(amount);
+    }
     var n = Number(amount);
     if (!Number.isFinite(n)) return "US$0";
     var rounded = Math.round(n * 100) / 100;
@@ -219,15 +222,54 @@
     return "US$" + rounded.toFixed(2);
   }
 
+  function getLunevaShippingAmount() {
+    if (IS_LUNEVA_CHECKOUT && window.LunevaCurrency) {
+      return window.LunevaCurrency.shippingPrice();
+    }
+    return LUNEVA_SHIPPING_USD;
+  }
+
+  function refreshLunevaPendingPrices(pending) {
+    if (!IS_LUNEVA_CHECKOUT || !pending || !window.LunevaCurrency) return pending;
+    var cur = window.LunevaCurrency;
+    if (Array.isArray(pending.displayItems)) {
+      pending.displayItems = pending.displayItems.map(function (item) {
+        var copy = Object.assign({}, item);
+        copy.unitPriceUSD = cur.kitPrice(copy.size);
+        var compare = cur.comparePrice(copy.size);
+        copy.compareAtUnitUSD = compare > 0 ? compare : 0;
+        return copy;
+      });
+    }
+    if (Array.isArray(pending.lineItems)) {
+      pending.lineItems = pending.lineItems.map(function (item) {
+        var copy = Object.assign({}, item);
+        copy.unitAmountUSD = cur.kitPrice(copy.size);
+        return copy;
+      });
+    }
+    pending.country = cur.getCountry();
+    return pending;
+  }
+
   function getEffectiveShippingMethods() {
-    if (IS_LUNEVA_CHECKOUT) return LUNEVA_SHIPPING_METHODS;
+    if (IS_LUNEVA_CHECKOUT) {
+      return [
+        {
+          code: "standard",
+          label: "Standard Shipping",
+          description: "7–10 business days",
+          priceUsd: getLunevaShippingAmount()
+        }
+      ];
+    }
     var pricing = getPricing();
     if (!pricing || typeof pricing.getShippingMethods !== "function") return [];
     return pricing.getShippingMethods();
   }
 
   function getEffectiveShippingCostUSD(code) {
-    if (IS_LUNEVA_CHECKOUT) return LUNEVA_SHIPPING_USD;
+    if (IS_LUNEVA_CHECKOUT) return getLunevaShippingAmount();
     var pricing = getPricing();
     return pricing ? pricing.getShippingCostUSD(code) : 0;
   }
@@ -686,7 +728,7 @@
         discountUSD: 0
       });
       if (IS_LUNEVA_CHECKOUT) {
-        provisional.shipping = LUNEVA_SHIPPING_USD;
+        provisional.shipping = getLunevaShippingAmount();
       }
       var discountUSD = state.discount;
       if (isDevtestCode(state.discountCode) || state.discountPercent === DEVTEST_PERCENT) {
@@ -704,7 +746,7 @@
       });
       state.subtotal = order.subtotal;
       state.shipping = IS_LUNEVA_CHECKOUT
-        ? LUNEVA_SHIPPING_USD
+        ? getLunevaShippingAmount()
         : order.shipping;
       state.tax = order.tax;
       state.discount = order.discount;
@@ -1055,7 +1097,15 @@
             return null;
           }
         })(),
-        clientUserAgent: navigator.userAgent || null
+        clientUserAgent: navigator.userAgent || null,
+        country:
+          pending.country ||
+          (window.LunevaCurrency && window.LunevaCurrency.getCountry
+            ? window.LunevaCurrency.getCountry()
+            : null) ||
+          (window.ZYBAR && window.ZYBAR.Analytics && window.ZYBAR.Analytics.getCountry
+            ? window.ZYBAR.Analytics.getCountry()
+            : null)
       })
     }).then(function (res) {
       return res.json().then(function (data) {
@@ -1906,17 +1956,21 @@
       pricing.writeShippingMethod(method);
       setShippingRadio(method);
       if (Array.isArray(pending.displayItems)) {
-        pending.displayItems = pending.displayItems.map(function (item) {
-          var copy = Object.assign({}, item);
-          var slug = copy.slug || copy.productSlug || "";
-          copy.unitPriceUSD = pricing.calculateProductUnitPrice({
-            slug: slug,
-            productSlug: slug,
-            size: copy.size,
-            powerType: copy.powerType
+        if (IS_LUNEVA_CHECKOUT && window.LunevaCurrency) {
+          refreshLunevaPendingPrices(pending);
+        } else {
+          pending.displayItems = pending.displayItems.map(function (item) {
+            var copy = Object.assign({}, item);
+            var slug = copy.slug || copy.productSlug || "";
+            copy.unitPriceUSD = pricing.calculateProductUnitPrice({
+              slug: slug,
+              productSlug: slug,
+              size: copy.size,
+              powerType: copy.powerType
+            });
+            return copy;
           });
-          return copy;
-        });
+        }
       }
     }
 
@@ -1963,7 +2017,25 @@
     var pricingReady =
       pricing && typeof pricing.load === "function" ? pricing.load() : Promise.resolve();
     var memberReady = member && member.ready ? member.ready : Promise.resolve();
-    Promise.all([pricingReady, memberReady])
+    var currencyReady =
+      IS_LUNEVA_CHECKOUT && !window.LunevaCurrency
+        ? new Promise(function (resolve) {
+            var script = document.createElement("script");
+            script.src = "/js/luneva-currency.js?v=1";
+            script.onload = function () {
+              if (window.LunevaCurrency && window.LunevaCurrency.ready) {
+                window.LunevaCurrency.ready.then(resolve).catch(resolve);
+              } else {
+                resolve();
+              }
+            };
+            script.onerror = resolve;
+            document.head.appendChild(script);
+          })
+        : IS_LUNEVA_CHECKOUT && window.LunevaCurrency && window.LunevaCurrency.ready
+          ? window.LunevaCurrency.ready
+          : Promise.resolve();
+    Promise.all([pricingReady, memberReady, currencyReady])
       .then(init)
       .catch(function (err) {
         console.error(err);
