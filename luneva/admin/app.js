@@ -53,6 +53,17 @@
     }
   }
 
+  function fmtDuration(seconds) {
+    var total = Math.max(0, Number(seconds) || 0);
+    if (!total) return '—';
+    var hours = Math.floor(total / 3600);
+    var mins = Math.floor((total % 3600) / 60);
+    var secs = total % 60;
+    if (hours > 0) return hours + 'h ' + mins + 'm';
+    if (mins > 0) return mins + 'm ' + secs + 's';
+    return secs + 's';
+  }
+
   function slugLabel(slug) {
     return String(slug || '')
       .replace(/^luneva-/, '')
@@ -418,9 +429,12 @@
     var rows = (data && data.rows) || [];
     var total = (data && data.total) || rows.length;
     content.innerHTML =
-      header('Visitors', 'Country, traffic source, and last activity for LUNEVA storefront visitors.') +
+      header(
+        'Visitors',
+        'First visit, last activity, and how long each LUNEVA visitor stayed.'
+      ) +
       renderVisitorFilters() +
-      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Visitor</th><th>Email</th><th>Country</th><th>Traffic source</th><th>Status</th><th>Last active</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>' +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Visitor</th><th>Email</th><th>Country</th><th>Traffic source</th><th>Status</th><th>First visit</th><th>Last active</th><th>Duration</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>' +
       (rows.length
         ? rows
             .map(function (row) {
@@ -436,7 +450,11 @@
                 '</td><td>' +
                 esc(statusLabel(row.status)) +
                 '</td><td>' +
+                esc(fmtDate(row.first_seen_at)) +
+                '</td><td>' +
                 esc(fmtDate(row.last_active_at)) +
+                '</td><td>' +
+                esc(fmtDuration(row.duration_seconds)) +
                 '</td><td>' +
                 esc(row.orders || 0) +
                 '</td><td>' +
@@ -445,7 +463,7 @@
               );
             })
             .join('')
-        : '<tr><td colspan="8">No visitors in this range.</td></tr>') +
+        : '<tr><td colspan="10">No visitors in this range.</td></tr>') +
       '</tbody></table>' +
       '<div class="lv-admin__pager">' +
       '<button type="button" class="lv-admin__pager-btn" id="lvVisitorPrev"' +
