@@ -4,7 +4,7 @@
   var content = document.getElementById('lvAdminContent');
   var loading = document.getElementById('lvAdminLoading');
   var signOutBtn = document.getElementById('lvAdminSignOut');
-  var rangeKey = '7';
+  var rangeKey = 'today';
   var chart = null;
   var cache = {};
   var MYT_TZ = 'Asia/Kuala_Lumpur';
@@ -703,7 +703,7 @@
   function bindRangeButtons() {
     document.querySelectorAll('[data-range]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        rangeKey = btn.getAttribute('data-range') || '7';
+        rangeKey = btn.getAttribute('data-range') || 'today';
         visitorState.offset = 0;
         cache = {};
         render();
