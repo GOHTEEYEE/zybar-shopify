@@ -108,6 +108,44 @@
     });
   }
 
+  function setMobileNavOpen(open) {
+    var root = document.getElementById('lvAdmin');
+    var btn = document.getElementById('lvAdminMenuBtn');
+    var backdrop = document.getElementById('lvAdminBackdrop');
+    if (!root) return;
+    root.classList.toggle('is-nav-open', !!open);
+    document.body.classList.toggle('lv-admin-nav-lock', !!open);
+    if (btn) {
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    }
+    if (backdrop) backdrop.hidden = !open;
+  }
+
+  function wireMobileNav() {
+    var btn = document.getElementById('lvAdminMenuBtn');
+    var backdrop = document.getElementById('lvAdminBackdrop');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var root = document.getElementById('lvAdmin');
+        setMobileNavOpen(!(root && root.classList.contains('is-nav-open')));
+      });
+    }
+    if (backdrop) {
+      backdrop.addEventListener('click', function () {
+        setMobileNavOpen(false);
+      });
+    }
+    document.querySelectorAll('.lv-admin__nav [data-tab]').forEach(function (link) {
+      link.addEventListener('click', function () {
+        setMobileNavOpen(false);
+      });
+    });
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') setMobileNavOpen(false);
+    });
+  }
+
   function pad2(n) {
     return String(n).padStart(2, '0');
   }
@@ -857,6 +895,7 @@
   }
 
   window.LunevaAdminAuth.validateSession().then(function (ok) {
+    wireMobileNav();
     if (ok) boot();
     else renderLogin();
   });

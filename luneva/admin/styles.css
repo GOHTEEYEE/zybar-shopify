@@ -363,18 +363,111 @@ body {
   cursor: not-allowed;
 }
 
+.lv-admin__topbar {
+  display: none;
+}
+
+.lv-admin__backdrop {
+  display: none;
+}
+
+.lv-admin__menu-btn {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 42px;
+  height: 42px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.lv-admin__menu-btn span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: #fff;
+  border-radius: 2px;
+}
+
 @media (max-width: 900px) {
   .lv-admin {
     grid-template-columns: 1fr;
   }
 
-  .lv-admin__sidebar {
+  .lv-admin__topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 30;
+    background: var(--lv-sidebar);
+    color: #fff;
+    padding: 0.85rem 1rem;
+  }
+
+  .lv-admin__brand--top {
+    font-size: 1.05rem;
+    letter-spacing: 0.22em;
+  }
+
+  .lv-admin__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background: rgba(26, 23, 20, 0.45);
+  }
+
+  .lv-admin__backdrop[hidden] {
+    display: none;
+  }
+
+  .lv-admin__sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 86vw);
+    z-index: 40;
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    overflow-y: auto;
+    box-shadow: none;
+  }
+
+  .lv-admin.is-nav-open .lv-admin__sidebar {
+    transform: translateX(0);
+    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.28);
+  }
+
+  .lv-admin__main {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  .lv-admin__header h1 {
+    font-size: 1.55rem;
+  }
+
+  .lv-admin__header-right {
+    align-items: stretch;
+    width: 100%;
   }
 
   .lv-admin__grid {
     grid-template-columns: 1fr;
+  }
+
+  .lv-admin__card {
+    overflow-x: auto;
+  }
+
+  body.lv-admin-nav-lock {
+    overflow: hidden;
   }
 }
