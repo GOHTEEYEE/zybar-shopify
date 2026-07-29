@@ -21,6 +21,8 @@
     offset: 0,
     limit: 50
   };
+  var livePollTimer = null;
+  var LIVE_POLL_MS = 20000;
   var TRAFFIC_SOURCES = [
     'Direct',
     'Facebook',
@@ -298,7 +300,14 @@
     if (signOutBtn) signOutBtn.hidden = true;
   }
 
-  function header(title, subtitle) {
+  function header(title, subtitle, options) {
+    var opts = options || {};
+    var liveHtml = opts.showLive
+      ? '<div class="lv-admin__live" id="lvAdminLiveVisitors" title="Active on LUNEVA in the last 5 minutes">' +
+        '<span class="lv-admin__live-dot" aria-hidden="true"></span>' +
+        '<span id="lvAdminLiveCount">—</span> live' +
+        '</div>'
+      : '';
     return (
       '<div class="lv-admin__header">' +
       '<div><h1>' +
@@ -306,6 +315,8 @@
       '</h1><p>' +
       esc(subtitle) +
       '</p><p class="lv-admin__range-note">Date ranges use Malaysia time (GMT+8), resetting at 12:00&nbsp;a.m.</p></div>' +
+      '<div class="lv-admin__header-right">' +
+      liveHtml +
       '<div class="lv-admin__filters">' +
       RANGE_OPTIONS.map(function (opt) {
         return (
@@ -318,8 +329,39 @@
           '</button>'
         );
       }).join('') +
-      '</div></div>'
+      '</div></div></div>'
     );
+  }
+
+  function stopLivePoll() {
+    if (livePollTimer) {
+      clearInterval(livePollTimer);
+      livePollTimer = null;
+    }
+  }
+
+  function setLiveCount(n) {
+    var el = document.getElementById('lvAdminLiveCount');
+    if (el) el.textContent = n != null ? String(n) : '0';
+  }
+
+  function fetchLiveVisitors() {
+    return api('/api/admin/luneva/realtime')
+      .then(function (data) {
+        var count =
+          data && data.active_visitors != null ? data.active_visitors : 0;
+        setLiveCount(count);
+        return count;
+      })
+      .catch(function () {
+        setLiveCount(0);
+      });
+  }
+
+  function startLivePoll() {
+    stopLivePoll();
+    fetchLiveVisitors();
+    livePollTimer = setInterval(fetchLiveVisitors, LIVE_POLL_MS);
   }
 
   function kpi(label, value) {
@@ -370,7 +412,9 @@
     var orders = (data && data.recent_orders) || [];
     var products = (data && data.top_products) || [];
     content.innerHTML =
-      header('Dashboard', 'LUNEVA-only metrics — not mixed with Automotive ZYBAR.') +
+      header('Dashboard', 'LUNEVA-only metrics — not mixed with Automotive ZYBAR.', {
+        showLive: true
+      }) +
       '<div class="lv-admin__kpis">' +
       kpi('Visitors', esc(o.unique_visitors || 0)) +
       kpi('Page views', esc(o.page_views || 0)) +
@@ -423,6 +467,7 @@
       '</section>';
     drawChart(data.trends || []);
     bindRangeButtons();
+    startLivePoll();
   }
 
   function renderVisitors(data) {
@@ -712,6 +757,7 @@
   }
 
   function render() {
+    stopLivePoll();
     setActiveNav();
     setLoading(true);
     var tab = currentTab();

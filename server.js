@@ -931,6 +931,17 @@ app.get('/api/admin/luneva/dashboard', async (req, res) => {
   }
 });
 
+app.get('/api/admin/luneva/realtime', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  try {
+    const data = await LunevaAnalytics.getRealtime(supabase);
+    return res.json(data || {});
+  } catch (err) {
+    console.error('GET /api/admin/luneva/realtime error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA realtime' });
+  }
+});
+
 app.get('/api/admin/luneva/orders', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
