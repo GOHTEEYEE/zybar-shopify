@@ -3888,27 +3888,23 @@ app.get('/api/analytics/dashboard', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    // Count-only KPIs — never hydrate full lead/cart lists here (that was ~11s).
+    // Always use brand-filtered fallback so LUNEVA traffic cannot leak into
+    // ZYBAR automotive KPIs (production RPC may still be the unscoped version).
     const [overview, emailLeads, abandonedCarts, customMadeLeads] = await Promise.all([
-      AnalyticsFallback.rpcOrFallback(
-        supabase,
-        'get_shopify_analytics_overview',
-        { p_start: range.start, p_end: range.end },
-        function () {
-          return AnalyticsFallback.overviewFallback(supabase, range);
-        }
-      ),
+      AnalyticsFallback.overviewFallback(supabase, range),
       CustomerActivity.countEmailLeads(supabase, {
         preset: 'custom',
         start: range.start,
-        end: range.end
+        end: range.end,
+        excludeLuneva: true
       }).catch(function () {
         return 0;
       }),
       CustomerActivity.countAbandoned(supabase, {
         preset: 'custom',
         start: range.start,
-        end: range.end
+        end: range.end,
+        excludeLuneva: true
       }).catch(function () {
         return 0;
       }),
@@ -3937,12 +3933,7 @@ app.get('/api/analytics/overview', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    const data = await AnalyticsFallback.rpcOrFallback(
-      supabase,
-      'get_shopify_analytics_overview',
-      { p_start: range.start, p_end: range.end },
-      function () { return AnalyticsFallback.overviewFallback(supabase, range); }
-    );
+    const data = await AnalyticsFallback.overviewFallback(supabase, range);
     return res.json(data || {});
   } catch (err) {
     console.error('Analytics overview error:', err);
@@ -3954,12 +3945,7 @@ app.get('/api/analytics/funnel', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    let data = await AnalyticsFallback.rpcOrFallback(
-      supabase,
-      'get_shopify_conversion_funnel',
-      { p_start: range.start, p_end: range.end },
-      function () { return AnalyticsFallback.funnelFallback(supabase, range); }
-    );
+    let data = await AnalyticsFallback.funnelFallback(supabase, range);
     let steps = Array.isArray(data) ? data : (data && data.steps) || [];
     const hasPayment = steps.some(function (s) {
       return /payment/i.test(String(s && s.step || ''));
@@ -4029,12 +4015,7 @@ app.get('/api/analytics/trends', async (req, res) => {
       ? rawGran
       : 'day';
   try {
-    const data = await AnalyticsFallback.rpcOrFallback(
-      supabase,
-      'get_analytics_trends',
-      { p_start: range.start, p_end: range.end, p_granularity: granularity },
-      function () { return AnalyticsFallback.trendsFallback(supabase, range, granularity); }
-    );
+    const data = await AnalyticsFallback.trendsFallback(supabase, range, granularity);
     return res.json(data || {});
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -4045,12 +4026,7 @@ app.get('/api/analytics/distributions', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    const data = await AnalyticsFallback.rpcOrFallback(
-      supabase,
-      'get_shopify_device_analytics',
-      { p_start: range.start, p_end: range.end },
-      function () { return AnalyticsFallback.distributionsFallback(supabase, range); }
-    );
+    const data = await AnalyticsFallback.distributionsFallback(supabase, range);
     return res.json(data || {});
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -4061,12 +4037,7 @@ app.get('/api/analytics/products', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    const data = await AnalyticsFallback.rpcOrFallback(
-      supabase,
-      'get_shopify_top_products',
-      { p_start: range.start, p_end: range.end },
-      function () { return AnalyticsFallback.productsFallback(supabase, range); }
-    );
+    const data = await AnalyticsFallback.productsFallback(supabase, range);
     return res.json(BrandAnalytics.filterZybarTopProducts(data || {}));
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -4077,17 +4048,10 @@ app.get('/api/analytics/traffic', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    const sources = await AnalyticsFallback.rpcOrFallback(
-      supabase,
-      'get_shopify_traffic_sources',
-      { p_start: range.start, p_end: range.end },
-      async function () {
-        const dist = await AnalyticsFallback.distributionsFallback(supabase, range);
-        return (dist.traffic_sources || []).map(function (s) {
-          return { label: s.label, sessions: s.value, visitors: s.value };
-        });
-      }
-    );
+    const dist = await AnalyticsFallback.distributionsFallback(supabase, range);
+    const sources = (dist.traffic_sources || []).map(function (s) {
+      return { label: s.label, sessions: s.value, visitors: s.value };
+    });
     let campaigns = [];
     try {
       const { data } = await supabase.rpc('get_shopify_utm_campaigns', {
@@ -4106,12 +4070,7 @@ app.get('/api/analytics/geo-traffic', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
   try {
-    const data = await AnalyticsFallback.rpcOrFallback(
-      supabase,
-      'get_shopify_geo_traffic',
-      { p_start: range.start, p_end: range.end },
-      function () { return AnalyticsFallback.geoTrafficFallback(supabase, range); }
-    );
+    const data = await AnalyticsFallback.geoTrafficFallback(supabase, range);
     return res.json(data || { summary: {}, rows: [], by_country: [] });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -4121,12 +4080,7 @@ app.get('/api/analytics/geo-traffic', async (req, res) => {
 app.get('/api/analytics/realtime', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   try {
-    const data = await AnalyticsFallback.rpcOrFallback(
-      supabase,
-      'get_shopify_realtime',
-      {},
-      function () { return AnalyticsFallback.realtimeFallback(supabase); }
-    );
+    const data = await AnalyticsFallback.realtimeFallback(supabase);
     return res.json(data || {});
   } catch (err) {
     return res.status(500).json({ error: err.message });

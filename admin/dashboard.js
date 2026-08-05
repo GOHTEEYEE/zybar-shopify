@@ -241,6 +241,7 @@ window.renderAdmindashboard = function (container) {
   function renderShell() {
     container.innerHTML =
       '<div class="admin-page-header"><h2 class="admin-page-title">Dashboard</h2>' +
+      '<p class="admin-page-subtitle" style="margin:0.25rem 0 0;color:var(--admin-text-muted);font-size:0.875rem">Automotive ZYBAR only — LUNEVA butterfly traffic is excluded.</p>' +
       '<div class="admin-live-visitors" id="adminLiveVisitors"><span class="admin-live-dot"></span> <span id="adminLiveCount">—</span> live</div>' +
       '</div>' +
       '<div class="admin-analytics-toolbar">' +

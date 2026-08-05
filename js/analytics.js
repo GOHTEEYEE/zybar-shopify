@@ -280,11 +280,18 @@
     data = data || {};
     var ctx = getTrackingContext();
     var qty = Number(data.quantity);
+    var pathCollection = getCollectionIdFromPath();
+    var pathProduct = getProductIdFromPath();
     return {
       event_type: eventType,
       page_url: data.page_url || ctx.page_url,
-      product_id: data.product_id || data.productId || null,
-      collection_id: data.collection_id || data.collectionId || null,
+      product_id: data.product_id || data.productId || pathProduct || null,
+      collection_id:
+        data.collection_id ||
+        data.collectionId ||
+        data.collection ||
+        pathCollection ||
+        null,
       visitor_id: getVisitorId(),
       session_id: getOrCreateSessionId(),
       cart_id: data.cart_id || getCartId(),
