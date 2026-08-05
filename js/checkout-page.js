@@ -1604,6 +1604,224 @@
     return true;
   }
 
+  function loadPayPalSdk(clientId, currency) {
+    return new Promise(function (resolve, reject) {
+      if (window.paypal && window.paypal.Buttons) {
+        resolve(window.paypal);
+        return;
+      }
+      var existing = document.querySelector("script[data-paypal-sdk]");
+      if (existing) {
+        existing.addEventListener("load", function () {
+          resolve(window.paypal);
+        });
+        existing.addEventListener("error", reject);
+        return;
+      }
+      var script = document.createElement("script");
+      script.src =
+        "https://www.paypal.com/sdk/js?client-id=" +
+        encodeURIComponent(clientId) +
+        "&currency=" +
+        encodeURIComponent(currency || "USD") +
+        "&intent=capture";
+      script.setAttribute("data-paypal-sdk", "1");
+      script.async = true;
+      script.onload = function () {
+        resolve(window.paypal);
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  function analyticsIds() {
+    var a = window.ZYBAR && window.ZYBAR.Analytics ? window.ZYBAR.Analytics : null;
+    return {
+      visitorId: a && a.getVisitorId ? a.getVisitorId() : null,
+      sessionId: a && a.getSessionId ? a.getSessionId() : null,
+      cartId: a && a.getCartId ? a.getCartId() : null
+    };
+  }
+
+  function buildPayPalShippingPayload() {
+    var values = getFormValues();
+    var name = [values.firstName, values.lastName].filter(Boolean).join(" ").trim();
+    return {
+      name: name,
+      line1: values.address,
+      line2: values.apartment || undefined,
+      city: values.city,
+      state: values.state,
+      postal_code: values.postcode,
+      country: values.country
+    };
+  }
+
+  function mountPayPalButtons() {
+    var section = document.getElementById("checkout-paypal-section");
+    var host = document.getElementById("checkout-paypal-buttons");
+    if (!section || !host || !state.pending) return Promise.resolve();
+
+    var config = getConfig();
+    var apiBase = config.apiBaseUrl || window.location.origin;
+    var country =
+      (state.pending && state.pending.country) ||
+      (window.LunevaCurrency && window.LunevaCurrency.getCountry
+        ? window.LunevaCurrency.getCountry()
+        : null) ||
+      "";
+    var qs =
+      "?collection=" +
+      encodeURIComponent(IS_LUNEVA_CHECKOUT ? "luneva" : "") +
+      "&country=" +
+      encodeURIComponent(country || "");
+
+    return fetch(apiBase + "/api/paypal/config" + qs, { cache: "no-store" })
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (cfg) {
+        if (!cfg || !cfg.enabled || !cfg.clientId) {
+          section.hidden = true;
+          return null;
+        }
+        section.hidden = false;
+        return loadPayPalSdk(cfg.clientId, cfg.currency || "USD").then(function (paypal) {
+          if (!paypal || typeof paypal.Buttons !== "function") {
+            section.hidden = true;
+            return;
+          }
+          host.innerHTML = "";
+          paypal
+            .Buttons({
+              style: {
+                layout: "vertical",
+                color: "gold",
+                shape: "rect",
+                label: "paypal",
+                height: 45
+              },
+              createOrder: function () {
+                if (!validateForm()) {
+                  return Promise.reject(new Error("Please complete shipping details first."));
+                }
+                clearError();
+                var pending = state.pending;
+                var ids = analyticsIds();
+                return fetch(apiBase + "/api/paypal/create-order", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    lineItems: pending.lineItems,
+                    shippingMethod: getSelectedShippingMethod(),
+                    discountCode: pending.discountCode || state.discountCode || null,
+                    customerEmail:
+                      ((document.getElementById("checkout-email") || {}).value || "").trim() ||
+                      null,
+                    collection: IS_LUNEVA_CHECKOUT ? "luneva" : pending.collection || null,
+                    country: country || null,
+                    shipping: buildPayPalShippingPayload(),
+                    visitorId: ids.visitorId,
+                    sessionId: ids.sessionId,
+                    cartId: ids.cartId,
+                    uploadSessionId: pending.uploadSessionId || null
+                  })
+                }).then(function (res) {
+                  return res.json().then(function (data) {
+                    if (!res.ok || !data.id) {
+                      throw new Error((data && data.error) || "Could not start PayPal.");
+                    }
+                    state.paypalCheckoutSnapshotId = data.checkoutSnapshotId || null;
+                    return data.id;
+                  });
+                });
+              },
+              onApprove: function (data) {
+                setPayButtonBusy(true, "Processing…");
+                clearError();
+                var values = getFormValues();
+                var ids = analyticsIds();
+                return fetch(apiBase + "/api/paypal/capture-order", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    orderId: data.orderID,
+                    checkoutSnapshotId: state.paypalCheckoutSnapshotId || null,
+                    collection: IS_LUNEVA_CHECKOUT ? "luneva" : null,
+                    shippingAmount: state.shipping,
+                    shippingMethod: getSelectedShippingMethod(),
+                    customer: {
+                      email: values.email,
+                      firstName: values.firstName,
+                      lastName: values.lastName,
+                      phone: values.phone,
+                      address: values.address,
+                      apartment: values.apartment,
+                      city: values.city,
+                      state: values.state,
+                      postcode: values.postcode,
+                      country: values.country
+                    },
+                    visitorId: ids.visitorId,
+                    sessionId: ids.sessionId,
+                    cartId: ids.cartId
+                  })
+                })
+                  .then(function (res) {
+                    return res.json().then(function (body) {
+                      return { ok: res.ok, body: body };
+                    });
+                  })
+                  .then(function (result) {
+                    if (!result.ok || !result.body) {
+                      throw new Error(
+                        (result.body && result.body.error) || "PayPal payment failed."
+                      );
+                    }
+                    if (IS_LUNEVA_CHECKOUT) {
+                      try {
+                        window.localStorage.removeItem("luneva.cart.items");
+                        window.sessionStorage.removeItem("luneva.checkout.pending");
+                      } catch (_) {}
+                    } else {
+                      try {
+                        window.localStorage.removeItem(CART_KEY);
+                        window.sessionStorage.removeItem(PENDING_KEY);
+                      } catch (_) {}
+                    }
+                    var url =
+                      result.body.confirmUrl ||
+                      (IS_LUNEVA_CHECKOUT
+                        ? "/luneva/purchase-confirmation/?paypal_order_id=" +
+                          encodeURIComponent(data.orderID)
+                        : "/purchase-confirmation.html?paypal_order_id=" +
+                          encodeURIComponent(data.orderID));
+                    window.location.href = url;
+                  })
+                  .catch(function (err) {
+                    console.error(err);
+                    setPayButtonBusy(false);
+                    showError((err && err.message) || "PayPal payment failed. Please try again.");
+                  });
+              },
+              onError: function (err) {
+                console.error(err);
+                showError("PayPal error. Please try again or pay by card.");
+              },
+              onCancel: function () {
+                clearError();
+              }
+            })
+            .render(host);
+        });
+      })
+      .catch(function (err) {
+        console.warn("PayPal unavailable:", err);
+        section.hidden = true;
+      });
+  }
+
   function handlePaySubmit(event) {
     event.preventDefault();
     if (state.paymentMode === "embedded") return;
@@ -1976,6 +2194,7 @@
 
     resolveAutoDiscount();
     renderOrderSummary(pending.displayItems);
+    mountPayPalButtons();
     // begin_checkout already tracked when leaving cart — avoid double-counting checkout_started
     wireBillingToggle();
     wireMobileSummary();

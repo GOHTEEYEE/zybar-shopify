@@ -662,6 +662,15 @@
   display: none !important;
 }
 
+.checkout-paypal-slot {
+  min-height: 45px;
+  margin-bottom: 0.35rem;
+}
+
+.checkout-block--paypal[hidden] {
+  display: none !important;
+}
+
 .checkout-divider {
   display: flex;
   align-items: center;

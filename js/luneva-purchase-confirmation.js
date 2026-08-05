@@ -16,6 +16,14 @@
     }
   }
 
+  function getPayPalOrderId() {
+    try {
+      return (new URLSearchParams(window.location.search).get("paypal_order_id") || "").trim();
+    } catch (_) {
+      return "";
+    }
+  }
+
   function getApiBase() {
     var config = window.ZYBAR_STRIPE_CONFIG || {};
     return config.apiBaseUrl || window.location.origin;
@@ -170,7 +178,48 @@
       });
   }
 
+  function fetchPayPalOrder(orderId) {
+    showStatus("Loading your order…");
+    showError("");
+    return fetch(
+      getApiBase() + "/api/paypal/order?order_id=" + encodeURIComponent(orderId)
+    )
+      .then(function (res) {
+        return res.json().then(function (body) {
+          return { ok: res.ok, body: body };
+        });
+      })
+      .then(function (result) {
+        if (result.ok && result.body) {
+          renderOrder(result.body);
+          clearLunevaCheckout();
+          if (window.ZYBAR && window.ZYBAR.Analytics) {
+            window.ZYBAR.Analytics.trackPaymentSuccess({
+              session_id: "paypal:" + orderId,
+              amount_cents: result.body.totalCents,
+              order_number: result.body.orderNumber,
+              collection: "luneva",
+              payment_method: "paypal"
+            });
+          }
+          return;
+        }
+        throw new Error(
+          (result.body && result.body.error) ||
+            "Could not load your order. Please contact support@zybar.shop."
+        );
+      });
+  }
+
   function init() {
+    var paypalOrderId = getPayPalOrderId();
+    if (paypalOrderId) {
+      fetchPayPalOrder(paypalOrderId).catch(function (err) {
+        console.error(err);
+        showError((err && err.message) || "Could not load order details.");
+      });
+      return;
+    }
     var sessionId = getSessionId();
     if (!sessionId) {
       showError("Missing order reference. If you just paid, wait a moment and refresh this page.");

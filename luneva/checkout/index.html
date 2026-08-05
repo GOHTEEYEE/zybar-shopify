@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/checkout.css?v=luxury5" />
+  <link rel="stylesheet" href="/css/checkout.css?v=paypal1" />
   <link rel="stylesheet" href="/css/luneva-checkout.css?v=lv-pricing1" />
   <script src="/js/stripe-config.js"></script>
   <script src="/js/analytics-config.js"></script>
@@ -23,7 +23,7 @@
   <script src="/js/country-selector.js" defer></script>
   <script src="/js/luneva-currency.js?v=1"></script>
   <script src="/js/luneva.js?v=lv-pricing1" defer></script>
-  <script src="/js/checkout-page.js?v=luneva6" defer></script>
+  <script src="/js/checkout-page.js?v=paypal1" defer></script>
 </head>
 <body class="checkout-page luneva-checkout">
   <header class="checkout-topbar">
@@ -127,6 +127,12 @@
           <h2 class="checkout-block-title">Express checkout</h2>
           <div id="checkout-express-element" class="checkout-express-slot"></div>
           <div class="checkout-divider" role="separator"><span>OR</span></div>
+        </section>
+
+        <section class="checkout-block checkout-block--paypal" aria-label="PayPal" id="checkout-paypal-section" hidden>
+          <h2 class="checkout-block-title">Pay with PayPal</h2>
+          <div id="checkout-paypal-buttons" class="checkout-paypal-slot"></div>
+          <div class="checkout-divider" role="separator"><span>OR pay by card</span></div>
         </section>
 
         <section class="checkout-block" aria-labelledby="checkout-payment-heading">

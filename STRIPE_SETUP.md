@@ -12,6 +12,9 @@ Copy `.env.example` to `.env` and set:
 | `STRIPE_WEBHOOK_SECRET` | For **local** testing: from Stripe CLI (see below). For **production**: Dashboard → Developers → Webhooks → Add endpoint → select `checkout.session.completed` → copy “Signing secret”. |
 | `META_CAPI_ACCESS_TOKEN` | Optional but recommended. Meta Events Manager → Pixel → Settings → Generate access token. See `META_CAPI.md`. |
 | `META_PIXEL_ID` | Optional. Defaults to the storefront Pixel ID. |
+| `PAYPAL_CLIENT_ID` | Optional. [PayPal Developer](https://developer.paypal.com/) → Apps → Client ID (Sandbox then Live). |
+| `PAYPAL_CLIENT_SECRET` | Optional. Same app → Secret. |
+| `PAYPAL_MODE` | Optional. `sandbox` (default) or `live`. |
 
 ## 2. Run the server
 

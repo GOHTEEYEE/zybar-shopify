@@ -28,6 +28,7 @@ const CustomLeads = require('./lib/custom-leads.js');
 const CheckoutSnapshots = require('./lib/checkout-snapshots.js');
 const DevtestDiscount = require('./lib/devtest-discount.js');
 const LunevaAnalytics = require('./lib/luneva-analytics.js');
+const PayPal = require('./lib/paypal.js');
 const LunevaInquiries = require('./lib/luneva-inquiries.js');
 const SearchIndexBuilder = require('./lib/search-index-builder.js');
 
@@ -107,6 +108,9 @@ if (!openAiApiKey) {
 }
 if (!MetaCapi.configured()) {
   console.warn('Meta CAPI not configured — set META_CAPI_ACCESS_TOKEN (and optional META_PIXEL_ID) for server-side Purchase.');
+}
+if (!PayPal.configured()) {
+  console.warn('PayPal not configured — set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to enable PayPal checkout.');
 }
 
 // Custom Checkout (ui_mode: custom) + Express wallets need basil+.
@@ -2755,6 +2759,545 @@ app.get('/api/checkout-session', async (req, res) => {
     });
   } catch (err) {
     console.error('Checkout session retrieve failed:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load order' });
+  }
+});
+
+function paypalSyntheticSessionId(orderId) {
+  return 'paypal:' + String(orderId || '');
+}
+
+async function buildPayPalCheckoutQuote(body) {
+  const collection = body && body.collection;
+  const isLunevaCheckout = collection && String(collection).toLowerCase() === 'luneva';
+  const checkoutCountry = String(
+    (body && body.country) || ''
+  ).toUpperCase();
+  const catalog = await Pricing.loadCatalog(supabase, { force: true });
+  const pricingApi = Pricing.createApi(catalog);
+  const lunevaProfile = isLunevaCheckout ? LunevaCurrency.getProfile(checkoutCountry) : null;
+  const checkoutCurrency = lunevaProfile ? lunevaProfile.currency : 'usd';
+  const shippingOpts = isLunevaCheckout
+    ? {
+        currency: checkoutCurrency,
+        lunevaProfile: lunevaProfile,
+        shippingAmountOverride: lunevaProfile.shipping,
+        shippingLabel: 'Standard Shipping'
+      }
+    : { currency: 'usd' };
+  const resolvedShippingMethod = isLunevaCheckout
+    ? 'standard'
+    : pricingApi.normalizeShippingMethod(body && body.shippingMethod);
+
+  function normalizeItem(item) {
+    if (!item || typeof item !== 'object') return null;
+    const itemQty = Number(item.quantity);
+    const itemProductSlug =
+      typeof item.productSlug === 'string' && item.productSlug.trim()
+        ? item.productSlug.trim()
+        : typeof item.slug === 'string'
+          ? item.slug.trim()
+          : '';
+    if (!Number.isFinite(itemQty) || itemQty < 1) return null;
+    const size = pricingApi.normalizeSize(item.size);
+    const powerType = pricingApi.normalizePowerType(item.powerType || 'usb');
+    const knownProduct = !!(
+      itemProductSlug &&
+      catalog &&
+      catalog.products &&
+      catalog.products[itemProductSlug]
+    );
+    const isCustom =
+      item.productType === 'custom' || ProductTypes.isCustomSlug(itemProductSlug);
+    if (!isCustom && !knownProduct) return null;
+    const isLunevaProduct = itemProductSlug.indexOf('luneva-') === 0;
+    const unitAmountUSD =
+      isLunevaProduct && lunevaProfile
+        ? LunevaCurrency.kitPrice(size, checkoutCountry)
+        : pricingApi.calculateProductUnitPrice({
+            slug: itemProductSlug,
+            productSlug: itemProductSlug,
+            size: size,
+            powerType: powerType
+          });
+    return {
+      quantity: Math.floor(itemQty),
+      productSlug: itemProductSlug,
+      slug: itemProductSlug,
+      size: size,
+      powerType: powerType,
+      name: typeof item.name === 'string' ? item.name.trim() : '',
+      productType: isCustom ? 'custom' : 'standard',
+      unitAmountUSD: unitAmountUSD
+    };
+  }
+
+  const rawItems = Array.isArray(body && body.lineItems) ? body.lineItems : [];
+  const normalized = rawItems.map(normalizeItem).filter(Boolean);
+  if (!normalized.length) {
+    throw Object.assign(new Error('Invalid cart items'), { status: 400 });
+  }
+
+  const stripeLineItems = buildDynamicStripeLineItems(
+    normalized,
+    resolvedShippingMethod,
+    pricingApi,
+    shippingOpts
+  );
+  let productSubtotal = 0;
+  let shippingAmount = 0;
+  const displayItems = [];
+  stripeLineItems.forEach(function (li) {
+    if (!li || !li.price_data) return;
+    const unit = (li.price_data.unit_amount || 0) / 100;
+    const qty = Number(li.quantity) || 1;
+    const isProduct =
+      li.price_data.product_data && li.price_data.product_data.metadata;
+    if (isProduct) {
+      productSubtotal += unit * qty;
+      const meta = li.price_data.product_data.metadata || {};
+      displayItems.push({
+        name: li.price_data.product_data.name || 'Product',
+        slug: meta.slug || '',
+        size: meta.size || '',
+        sizeLabel: formatLunevaKitLabel(meta.slug, meta.size) || formatSizeLabel(meta.size),
+        quantity: qty,
+        unitAmount: unit,
+        amount: unit * qty,
+        imageUrl: formatProductImageUrl(meta.slug)
+      });
+    } else {
+      shippingAmount += unit * qty;
+    }
+  });
+
+  let discountAmount = 0;
+  let discountCode = '';
+  const checkoutEmail = String((body && (body.customerEmail || body.email)) || '').trim();
+  const resolvedDevtest = DevtestDiscount.resolve(
+    body && body.discountCode,
+    checkoutEmail,
+    process.env
+  );
+  const orderTotal = productSubtotal + shippingAmount;
+  if (resolvedDevtest) {
+    discountAmount = DevtestDiscount.discountAmountUSD(
+      orderTotal,
+      resolvedDevtest.percentOff
+    );
+    discountCode = resolvedDevtest.code;
+  }
+
+  const totalMajor = Math.max(0, Math.round((orderTotal - discountAmount) * 100) / 100);
+  if (totalMajor < 0.01) {
+    throw Object.assign(new Error('Order total too low for PayPal'), { status: 400 });
+  }
+
+  const variantDetails = CheckoutSnapshots.buildVariantDetails(normalized);
+  return {
+    isLunevaCheckout: isLunevaCheckout,
+    checkoutCurrency: checkoutCurrency,
+    checkoutCountry: checkoutCountry,
+    resolvedShippingMethod: resolvedShippingMethod,
+    productSubtotal: productSubtotal,
+    shippingAmount: shippingAmount,
+    discountAmount: discountAmount,
+    discountCode: discountCode,
+    totalMajor: totalMajor,
+    displayItems: displayItems,
+    variantDetails: variantDetails,
+    checkoutEmail: checkoutEmail
+  };
+}
+
+async function persistPayPalOrder(opts) {
+  opts = opts || {};
+  if (!supabase || !opts.paypalOrderId) {
+    return { ok: false, skipped: true, reason: 'not_ready' };
+  }
+  const syntheticId = paypalSyntheticSessionId(opts.paypalOrderId);
+  const amountCents = Math.round(Number(opts.amountMajor || 0) * 100);
+  const currency = String(opts.currency || 'usd').toLowerCase();
+  const quantity = (opts.lineItems || []).reduce(function (sum, item) {
+    return sum + (Number(item.quantity) || 0);
+  }, 0) || 1;
+  const first = (opts.lineItems && opts.lineItems[0]) || {};
+  const streetParts = [opts.shippingAddress, opts.shippingAddress2]
+    .map(function (s) {
+      return String(s || '').trim();
+    })
+    .filter(Boolean);
+
+  const baseOrder = {
+    stripe_session_id: syntheticId,
+    stripe_payment_intent: null,
+    paypal_order_id: String(opts.paypalOrderId),
+    payment_provider: 'paypal',
+    customer_name: opts.customerName || null,
+    customer_email: opts.customerEmail || null,
+    customer_phone: opts.customerPhone || null,
+    shipping_address: streetParts.length ? streetParts.join(', ') : null,
+    city: opts.city || null,
+    state: opts.state || null,
+    postcode: opts.postcode || null,
+    country: opts.country || null,
+    currency: currency,
+    amount_total_cents: amountCents,
+    product_slug: first.productSlug || first.slug || null,
+    size: first.size || null,
+    quantity: quantity,
+    status: 'paid',
+    test_mode: PayPal.mode() !== 'live',
+    visitor_id: opts.visitorId || null,
+    analytics_session_id: opts.sessionId || null,
+    cart_id: opts.cartId || null
+  };
+
+  const extendedOrder = Object.assign({}, baseOrder, {
+    shipping_method: opts.shippingMethod || null,
+    fulfillment_status: 'unfulfilled',
+    refund_status: 'none',
+    line_items: Array.isArray(opts.lineItems) ? opts.lineItems : null
+  });
+
+  let result = await supabase
+    .from('orders')
+    .upsert(extendedOrder, { onConflict: 'stripe_session_id' });
+  if (result.error && (result.error.code === 'PGRST204' || String(result.error.message || '').indexOf('column') !== -1)) {
+    // Older schema without paypal columns — still store under synthetic Stripe id.
+    const fallback = Object.assign({}, baseOrder);
+    delete fallback.paypal_order_id;
+    delete fallback.payment_provider;
+    result = await supabase.from('orders').upsert(fallback, { onConflict: 'stripe_session_id' });
+  }
+  if (result.error) throw result.error;
+
+  if (opts.checkoutSnapshotId) {
+    try {
+      await CheckoutSnapshots.attachStripeSession(
+        supabase,
+        opts.checkoutSnapshotId,
+        syntheticId
+      );
+      await supabase
+        .from('checkout_snapshots')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('id', String(opts.checkoutSnapshotId));
+    } catch (snapErr) {
+      console.warn('PayPal snapshot attach:', snapErr && snapErr.message);
+    }
+  }
+  return { ok: true, stripe_session_id: syntheticId };
+}
+
+function buildPayPalConfirmationPayload(orderRow, lineItems, shippingCents) {
+  const currency = String((orderRow && orderRow.currency) || 'usd').toLowerCase();
+  const totalCents = Number(orderRow && orderRow.amount_total_cents) || 0;
+  const ship = Number(shippingCents) || 0;
+  const subtotalCents = Math.max(0, totalCents - ship);
+  const items = (lineItems || []).map(function (row) {
+    const slug = row.productSlug || row.slug || '';
+    const size = row.size || '';
+    const qty = Number(row.quantity) || 1;
+    const unit =
+      typeof row.unitAmountUSD === 'number'
+        ? row.unitAmountUSD
+        : typeof row.unitAmount === 'number'
+          ? row.unitAmount
+          : 0;
+    const amountCents = Math.round(unit * qty * 100);
+    return {
+      name: row.name || 'Product',
+      slug: slug,
+      size: size,
+      sizeLabel: formatLunevaKitLabel(slug, size) || formatSizeLabel(size),
+      quantity: qty,
+      imageUrl: formatProductImageUrl(slug),
+      amountCents: amountCents,
+      amountFormatted: formatMoneyFromCents(amountCents, currency)
+    };
+  });
+  const street = [orderRow.shipping_address, orderRow.city, orderRow.state, orderRow.postcode, orderRow.country]
+    .filter(Boolean)
+    .join(', ');
+  return {
+    orderNumber: formatOrderNumber(orderRow.stripe_session_id || orderRow.paypal_order_id),
+    email: orderRow.customer_email || '',
+    shipping: {
+      name: orderRow.customer_name || '—',
+      address: street || '—',
+      phone: orderRow.customer_phone || '—'
+    },
+    paymentMethod: 'PayPal',
+    items: items,
+    subtotalCents: subtotalCents,
+    subtotalFormatted: formatMoneyFromCents(subtotalCents, currency),
+    shippingCents: ship,
+    shippingFormatted: ship > 0 ? formatMoneyFromCents(ship, currency) : 'FREE',
+    totalCents: totalCents,
+    totalFormatted: formatMoneyFromCents(totalCents, currency),
+    currency: currency
+  };
+}
+
+app.get('/api/paypal/config', function (req, res) {
+  if (!PayPal.configured()) {
+    return res.json({ enabled: false });
+  }
+  const collection = String((req.query && req.query.collection) || '').toLowerCase();
+  const country = String((req.query && req.query.country) || '').toUpperCase();
+  const currency =
+    collection === 'luneva' ? LunevaCurrency.currencyCode(country) : 'usd';
+  return res.json({
+    enabled: true,
+    clientId: PayPal.clientId(),
+    mode: PayPal.mode(),
+    currency: String(currency || 'usd').toUpperCase()
+  });
+});
+
+app.post('/api/paypal/create-order', async (req, res) => {
+  if (!PayPal.configured()) {
+    return res.status(503).json({ error: 'PayPal is not configured' });
+  }
+  if (!supabase) {
+    return res.status(503).json({ error: 'Checkout is temporarily unavailable' });
+  }
+  try {
+    const body = req.body || {};
+    const quote = await buildPayPalCheckoutQuote(body);
+    const shipping = body.shipping || null;
+    const checkoutSnapshotId = await CheckoutSnapshots.createSnapshot(supabase, {
+      cartId: body.cartId || null,
+      visitorId: body.visitorId || null,
+      sessionId: body.sessionId || null,
+      uploadSessionId: body.uploadSessionId || null,
+      shippingMethod: quote.resolvedShippingMethod,
+      discountCode: quote.discountCode || null,
+      discountUSD: quote.discountAmount > 0 ? quote.discountAmount : null,
+      lineItems: quote.variantDetails
+    });
+
+    const brandName = quote.isLunevaCheckout ? 'LUNEVA' : 'ZYBAR';
+    const paypalOrder = await PayPal.createOrder({
+      currency: quote.checkoutCurrency,
+      amountMajor: quote.totalMajor,
+      description: brandName + ' order',
+      customId: checkoutSnapshotId,
+      invoiceId: String(checkoutSnapshotId).replace(/-/g, '').slice(0, 24),
+      brandName: brandName,
+      shipping: shipping
+        ? {
+            name: shipping.name,
+            address: {
+              line1: shipping.line1,
+              line2: shipping.line2,
+              city: shipping.city,
+              state: shipping.state,
+              postal_code: shipping.postal_code || shipping.postcode,
+              country_code: shipping.country || shipping.country_code
+            }
+          }
+        : null
+    });
+
+    const paypalOrderId = paypalOrder && paypalOrder.id;
+    if (!paypalOrderId) {
+      return res.status(502).json({ error: 'PayPal did not return an order id' });
+    }
+
+    try {
+      await CheckoutSnapshots.attachStripeSession(
+        supabase,
+        checkoutSnapshotId,
+        paypalSyntheticSessionId(paypalOrderId)
+      );
+    } catch (attachErr) {
+      console.warn('PayPal snapshot attach on create:', attachErr && attachErr.message);
+    }
+
+    return res.json({
+      id: paypalOrderId,
+      currency: quote.checkoutCurrency,
+      amount: quote.totalMajor,
+      checkoutSnapshotId: checkoutSnapshotId
+    });
+  } catch (err) {
+    console.error('PayPal create-order failed:', err && err.body ? err.body : err);
+    const status = err && err.status ? err.status : 500;
+    return res.status(status).json({
+      error: (err && err.message) || 'Failed to create PayPal order'
+    });
+  }
+});
+
+app.post('/api/paypal/capture-order', async (req, res) => {
+  if (!PayPal.configured()) {
+    return res.status(503).json({ error: 'PayPal is not configured' });
+  }
+  if (!supabase) {
+    return res.status(503).json({ error: 'Checkout is temporarily unavailable' });
+  }
+  const body = req.body || {};
+  const paypalOrderId = String(body.orderId || body.paypalOrderId || '').trim();
+  if (!paypalOrderId) {
+    return res.status(400).json({ error: 'orderId is required' });
+  }
+  try {
+    const captured = await PayPal.captureOrder(paypalOrderId);
+    if (!PayPal.capturePaid(captured)) {
+      return res.status(402).json({
+        error: 'PayPal payment not completed',
+        status: captured && captured.status
+      });
+    }
+
+    const amountInfo = PayPal.extractCaptureAmount(captured);
+    const payer = PayPal.extractPayer(captured);
+    const paypalShipping = PayPal.extractShipping(captured);
+    const units = captured.purchase_units || [];
+    const customId =
+      (units[0] && units[0].custom_id) ||
+      String(body.checkoutSnapshotId || '').trim() ||
+      null;
+
+    let snapshot = null;
+    if (customId) {
+      snapshot = await CheckoutSnapshots.getById(supabase, customId);
+    }
+    if (!snapshot) {
+      snapshot = await CheckoutSnapshots.getByStripeSessionId(
+        supabase,
+        paypalSyntheticSessionId(paypalOrderId)
+      );
+    }
+    const lineItems =
+      snapshot && Array.isArray(snapshot.line_items) ? snapshot.line_items : [];
+
+    const form = body.customer || {};
+    const customerName =
+      form.name ||
+      [form.firstName, form.lastName].filter(Boolean).join(' ').trim() ||
+      (paypalShipping && paypalShipping.name) ||
+      payer.name ||
+      null;
+    const customerEmail = form.email || payer.email || null;
+    const customerPhone = form.phone || null;
+
+    await persistPayPalOrder({
+      paypalOrderId: paypalOrderId,
+      amountMajor: amountInfo.value,
+      currency: amountInfo.currency,
+      lineItems: lineItems,
+      customerName: customerName,
+      customerEmail: customerEmail,
+      customerPhone: customerPhone,
+      shippingAddress:
+        form.address || (paypalShipping && paypalShipping.line1) || null,
+      shippingAddress2:
+        form.apartment || (paypalShipping && paypalShipping.line2) || null,
+      city: form.city || (paypalShipping && paypalShipping.city) || null,
+      state: form.state || (paypalShipping && paypalShipping.state) || null,
+      postcode: form.postcode || (paypalShipping && paypalShipping.postcode) || null,
+      country: form.country || (paypalShipping && paypalShipping.country) || null,
+      shippingMethod: (snapshot && snapshot.shipping_method) || body.shippingMethod || null,
+      visitorId: body.visitorId || null,
+      sessionId: body.sessionId || null,
+      cartId: body.cartId || null,
+      checkoutSnapshotId: customId
+    });
+
+    const { data: orderRow } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('stripe_session_id', paypalSyntheticSessionId(paypalOrderId))
+      .maybeSingle();
+
+    const shippingCents = Math.round(
+      (Number(body.shippingAmount) || 0) * 100
+    );
+    const payload = buildPayPalConfirmationPayload(
+      orderRow || {
+        stripe_session_id: paypalSyntheticSessionId(paypalOrderId),
+        paypal_order_id: paypalOrderId,
+        currency: amountInfo.currency,
+        amount_total_cents: Math.round(amountInfo.value * 100),
+        customer_email: customerEmail,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        shipping_address: form.address || null,
+        city: form.city || null,
+        state: form.state || null,
+        postcode: form.postcode || null,
+        country: form.country || null
+      },
+      lineItems,
+      shippingCents
+    );
+
+    const isLuneva =
+      String(body.collection || '').toLowerCase() === 'luneva' ||
+      lineItems.some(function (item) {
+        return String((item && (item.productSlug || item.slug)) || '').indexOf('luneva-') === 0;
+      });
+    const origin = String(process.env.STORE_URL || 'https://www.zybar.shop').replace(/\/$/, '');
+    const confirmUrl = isLuneva
+      ? origin +
+        '/luneva/purchase-confirmation/?paypal_order_id=' +
+        encodeURIComponent(paypalOrderId)
+      : origin +
+        '/purchase-confirmation.html?paypal_order_id=' +
+        encodeURIComponent(paypalOrderId);
+
+    return res.json({
+      ok: true,
+      paypalOrderId: paypalOrderId,
+      confirmUrl: confirmUrl,
+      order: payload
+    });
+  } catch (err) {
+    console.error('PayPal capture-order failed:', err && err.body ? err.body : err);
+    const status = err && err.status ? err.status : 500;
+    return res.status(status).json({
+      error: (err && err.message) || 'Failed to capture PayPal order'
+    });
+  }
+});
+
+app.get('/api/paypal/order', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Not configured' });
+  }
+  const orderId = String((req.query && req.query.order_id) || '').trim();
+  if (!orderId) {
+    return res.status(400).json({ error: 'order_id is required' });
+  }
+  try {
+    const syntheticId = paypalSyntheticSessionId(orderId);
+    let { data: orderRow } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('stripe_session_id', syntheticId)
+      .maybeSingle();
+    if (!orderRow) {
+      const byPaypal = await supabase
+        .from('orders')
+        .select('*')
+        .eq('paypal_order_id', orderId)
+        .maybeSingle();
+      orderRow = byPaypal.data;
+    }
+    if (!orderRow) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    let lineItems = Array.isArray(orderRow.line_items) ? orderRow.line_items : [];
+    if (!lineItems.length) {
+      const snap = await CheckoutSnapshots.getByStripeSessionId(supabase, syntheticId);
+      if (snap && Array.isArray(snap.line_items)) lineItems = snap.line_items;
+    }
+    return res.json(buildPayPalConfirmationPayload(orderRow, lineItems, 0));
+  } catch (err) {
+    console.error('PayPal order retrieve failed:', err);
     return res.status(500).json({ error: err.message || 'Failed to load order' });
   }
 });
