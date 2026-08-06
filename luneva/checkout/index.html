@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/checkout.css?v=paypal1" />
-  <link rel="stylesheet" href="/css/luneva-checkout.css?v=lv-pricing1" />
+  <link rel="stylesheet" href="/css/luneva-checkout.css?v=lv-flow1" />
   <script src="/js/stripe-config.js"></script>
   <script src="/js/meta-pixel-config.js"></script>
 <script src="/js/meta-pixel.js"></script>
@@ -25,7 +25,7 @@
   <script src="/js/country-selector.js" defer></script>
   <script src="/js/luneva-currency.js?v=2"></script>
   <script src="/js/luneva.js?v=lv-usd1" defer></script>
-  <script src="/js/checkout-page.js?v=usd1" defer></script>
+  <script src="/js/checkout-page.js?v=usd4" defer></script>
 </head>
 <body class="checkout-page luneva-checkout">
   <header class="checkout-topbar">
@@ -40,43 +40,28 @@
 
   <main class="checkout-shell">
     <div class="checkout-card">
-      <header class="checkout-hero">
-        <p class="checkout-eyebrow">LUNEVA</p>
-        <h1 class="checkout-title">Complete your order</h1>
-        <p class="checkout-lead">Secure Stripe checkout for your LUNEVA order.</p>
-      </header>
-
-      <form class="checkout-main" id="checkout-form" novalidate>
-        <section class="checkout-summary" aria-label="Product summary">
-          <div class="checkout-line-items" id="checkout-product-list"></div>
+      <form class="checkout-main checkout-main--luneva" id="checkout-form" novalidate>
+        <section class="checkout-block checkout-block--express" aria-label="Express checkout">
+          <h2 class="checkout-block-title">Express checkout</h2>
+          <div id="checkout-express-element" class="checkout-express-slot"></div>
         </section>
 
-        <section class="checkout-block checkout-block--shipping" aria-labelledby="checkout-shipping-heading">
-          <h2 class="checkout-block-title" id="checkout-shipping-heading">Delivery experience</h2>
-          <p class="checkout-block-sub">Choose how your kit arrives.</p>
-          <div class="checkout-shipping-options" id="checkout-shipping-options" role="radiogroup" aria-label="Delivery experience">
-            <p class="checkout-shipping-empty">Loading delivery options…</p>
-          </div>
+        <section class="checkout-block checkout-block--paypal" aria-label="PayPal" id="checkout-paypal-section" hidden>
+          <div id="checkout-paypal-buttons" class="checkout-paypal-slot"></div>
         </section>
 
-        <section class="checkout-block checkout-block--totals" aria-label="Order totals">
-          <div class="checkout-totals" id="checkout-order-totals"></div>
-        </section>
-
-        <section class="checkout-block checkout-block--estimate" aria-label="Estimated delivery">
-          <div class="checkout-delivery-estimate" id="checkout-delivery-estimate"></div>
-        </section>
+        <div class="checkout-divider" role="separator"><span>OR</span></div>
 
         <section class="checkout-block" aria-labelledby="checkout-contact-heading">
-          <h2 class="checkout-block-title" id="checkout-contact-heading">Contact</h2>
+          <h2 class="checkout-block-title" id="checkout-contact-heading">Email</h2>
           <div class="checkout-field">
-            <label class="checkout-label" for="checkout-email">Email</label>
-            <input class="checkout-input" type="email" id="checkout-email" name="email" autocomplete="email" required />
+            <label class="checkout-label visually-hidden" for="checkout-email">Email</label>
+            <input class="checkout-input" type="email" id="checkout-email" name="email" autocomplete="email" placeholder="Email" required />
           </div>
         </section>
 
         <section class="checkout-block" aria-labelledby="checkout-delivery-heading">
-          <h2 class="checkout-block-title" id="checkout-delivery-heading">Shipping address</h2>
+          <h2 class="checkout-block-title" id="checkout-delivery-heading">Delivery</h2>
           <div class="checkout-field">
             <label class="checkout-label" for="checkout-country" id="checkout-country-label">Country / Region</label>
             <div
@@ -84,7 +69,7 @@
               data-country-select
               data-input-id="checkout-country"
               data-label-id="checkout-country-label"
-              data-default="MY"
+              data-default="US"
             ></div>
           </div>
           <div class="checkout-field-row checkout-field-row--half">
@@ -125,34 +110,25 @@
           </div>
         </section>
 
-        <section class="checkout-block checkout-block--express" aria-label="Express checkout">
-          <h2 class="checkout-block-title">Express checkout</h2>
-          <div id="checkout-express-element" class="checkout-express-slot"></div>
-          <div class="checkout-divider" role="separator"><span>OR</span></div>
+        <section class="checkout-block checkout-block--shipping" aria-labelledby="checkout-shipping-heading">
+          <h2 class="checkout-block-title" id="checkout-shipping-heading">Shipping method</h2>
+          <div class="checkout-shipping-options" id="checkout-shipping-options" role="radiogroup" aria-label="Shipping method">
+            <p class="checkout-shipping-empty">Enter your shipping address to view available shipping methods.</p>
+          </div>
         </section>
 
-        <section class="checkout-block checkout-block--paypal" aria-label="PayPal" id="checkout-paypal-section" hidden>
-          <h2 class="checkout-block-title">Pay with PayPal</h2>
-          <div id="checkout-paypal-buttons" class="checkout-paypal-slot"></div>
-          <div class="checkout-divider" role="separator"><span>OR pay by card</span></div>
+        <section class="checkout-block checkout-block--estimate" aria-label="Estimated delivery" hidden id="checkout-estimate-section">
+          <div class="checkout-delivery-estimate" id="checkout-delivery-estimate"></div>
         </section>
 
-        <section class="checkout-block" aria-labelledby="checkout-payment-heading">
-          <h2 class="checkout-block-title" id="checkout-payment-heading">Payment</h2>
-          <p class="checkout-block-sub">Securely processed by Stripe. No hidden fees.</p>
+        <section class="checkout-block checkout-block--payment" aria-labelledby="checkout-payment-heading">
+          <h2 class="checkout-block-title" id="checkout-payment-heading">Secure checkout</h2>
+          <p class="checkout-block-sub">All transactions are secure and encrypted.</p>
           <div id="checkout-payment-element" class="checkout-payment-slot"></div>
           <div id="checkout-stripe-embedded" class="checkout-stripe-embedded" hidden></div>
-        </section>
-
-        <section class="checkout-block checkout-block--billing" aria-labelledby="checkout-billing-heading">
-          <h2 class="checkout-block-title" id="checkout-billing-heading">Billing address</h2>
-          <label class="checkout-checkbox checkout-checkbox--selected">
+          <label class="checkout-checkbox checkout-checkbox--selected lv-checkout-billing-same">
             <input type="radio" name="billingAddress" value="same" checked />
-            <span>Same as shipping address</span>
-          </label>
-          <label class="checkout-checkbox">
-            <input type="radio" name="billingAddress" value="different" />
-            <span>Use a different billing address</span>
+            <span>Use shipping address as billing address</span>
           </label>
           <div class="checkout-billing-fields" id="checkout-billing-fields" hidden>
             <div class="checkout-field">
@@ -172,22 +148,26 @@
           </div>
         </section>
 
+        <section class="checkout-block checkout-block--summary" aria-labelledby="checkout-summary-heading">
+          <h2 class="checkout-block-title" id="checkout-summary-heading">Order summary</h2>
+          <div class="checkout-line-items" id="checkout-product-list"></div>
+          <div class="checkout-totals" id="checkout-order-totals"></div>
+        </section>
+
         <div class="checkout-error" id="checkout-error" hidden role="alert"></div>
         <div class="checkout-loading" id="checkout-loading">
           <div class="checkout-spinner" aria-hidden="true"></div>
           <p>Preparing secure checkout…</p>
         </div>
 
-        <p class="checkout-cta-note">LUNEVA kits · Secure Stripe payment</p>
-
         <button type="submit" class="checkout-btn-pay" id="checkout-pay-btn" disabled>
-          Complete Secure Order
+          Complete Purchase
         </button>
 
         <ul class="checkout-guarantees">
           <li>Secure Stripe payment</li>
           <li>Tracked worldwide shipping</li>
-          <li>LUNEVA-only checkout</li>
+          <li>Free returns within 60 days</li>
         </ul>
       </form>
 

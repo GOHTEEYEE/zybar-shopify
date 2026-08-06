@@ -3753,11 +3753,18 @@ app.post('/api/create-checkout-session', async (req, res) => {
   const isLunevaCheckout = collection && String(collection).toLowerCase() === 'luneva';
   const lunevaProfile = isLunevaCheckout ? LunevaCurrency.getProfile(checkoutCountry) : null;
   const checkoutCurrency = lunevaProfile ? lunevaProfile.currency : 'usd';
+  const clientShippingOverride =
+    req.body &&
+    typeof req.body.shippingAmountOverride === 'number' &&
+    Number.isFinite(req.body.shippingAmountOverride)
+      ? req.body.shippingAmountOverride
+      : null;
   const lunevaShippingOpts = isLunevaCheckout
     ? {
         currency: checkoutCurrency,
         lunevaProfile: lunevaProfile,
-        shippingAmountOverride: lunevaProfile.shipping,
+        shippingAmountOverride:
+          clientShippingOverride !== null ? clientShippingOverride : lunevaProfile.shipping,
         shippingLabel: 'Standard Shipping'
       }
     : {};

@@ -205,3 +205,53 @@
   opacity: 0.8;
   color: var(--co-accent);
 }
+
+.checkout-page.luneva-checkout .checkout-main--luneva {
+  padding-top: 0.5rem;
+}
+
+.checkout-page.luneva-checkout .checkout-block--summary {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--co-line);
+}
+
+.checkout-page.luneva-checkout .checkout-block--summary .checkout-line-items {
+  margin-bottom: 1rem;
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-empty,
+.checkout-page.luneva-checkout .checkout-shipping-pending {
+  color: var(--co-muted);
+  font-size: 0.95rem;
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-empty {
+  margin: 0;
+  padding: 1.1rem 1.2rem;
+  background: var(--co-bg);
+  border: 1px solid var(--co-line);
+  border-radius: 0.6rem;
+  text-align: left;
+  line-height: 1.45;
+}
+
+.checkout-page.luneva-checkout .checkout-total-row--shipping-pending span:last-child {
+  color: var(--co-muted);
+  font-style: normal;
+}
+
+.checkout-page.luneva-checkout .lv-checkout-billing-same {
+  margin-top: 1.2rem;
+}
+
+.checkout-page.luneva-checkout .visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

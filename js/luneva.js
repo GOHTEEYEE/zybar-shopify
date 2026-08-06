@@ -718,22 +718,23 @@
 
     var subtotal = cartTotal(items);
     var compareTotal = cartCompareTotal(items);
-    var savings = cartSavings(items);
-    var savingsRow =
-      savings > 0
-        ? '<div class="lv-cart-summary__row lv-cart-summary__row--compare"><span>Original price</span><span class="lv-price__compare">' +
-          money(compareTotal) +
-          "</span></div>" +
-          '<div class="lv-cart-summary__row lv-cart-summary__row--savings"><span>You save</span><strong>' +
-          money(savings) +
-          "</strong></div>"
-        : "";
+    var productSavings = cartSavings(items);
+    var savingsRows = "";
+    if (productSavings > 0) {
+      savingsRows =
+        '<div class="lv-cart-summary__row"><span>Subtotal</span><span class="lv-price__compare">' +
+        money(compareTotal) +
+        "</span></div>" +
+        '<div class="lv-cart-summary__row lv-cart-summary__row--discount"><span>Sale savings</span><span>\u2212' +
+        money(productSavings) +
+        "</span></div>";
+    }
 
     root.innerHTML =
       '<div class="lv-cart-layout"><div class="lv-cart-list">' +
       rows +
       '</div><aside class="lv-cart-summary"><h2>Order summary</h2>' +
-      savingsRow +
+      savingsRows +
       '<div class="lv-cart-summary__row"><span>Subtotal</span><strong>' +
       money(subtotal) +
       "</strong></div>" +

@@ -34,6 +34,7 @@
     discount: 0,
     discountCode: "",
     discountPercent: 0,
+    lunevaAddressReady: false,
     total: 0,
     displayItems: [],
     clientSecret: "",
@@ -227,6 +228,38 @@
       return window.LunevaCurrency.shippingPrice();
     }
     return LUNEVA_SHIPPING_USD;
+  }
+
+  function lunevaHasDeliveryAddress() {
+    if (!IS_LUNEVA_CHECKOUT) return true;
+    function fieldValue(id) {
+      var el = document.getElementById(id);
+      return el ? String(el.value || "").trim() : "";
+    }
+    var country =
+      (window.ZYBAR &&
+        window.ZYBAR.CountrySelector &&
+        typeof window.ZYBAR.CountrySelector.getValue === "function" &&
+        window.ZYBAR.CountrySelector.getValue()) ||
+      fieldValue("checkout-country");
+    return !!(
+      fieldValue("checkout-address") &&
+      fieldValue("checkout-city") &&
+      fieldValue("checkout-postcode") &&
+      fieldValue("checkout-first-name") &&
+      fieldValue("checkout-last-name") &&
+      country
+    );
+  }
+
+  function getEffectiveLunevaShippingUsd() {
+    if (!IS_LUNEVA_CHECKOUT) return getLunevaShippingAmount();
+    return lunevaHasDeliveryAddress() ? getLunevaShippingAmount() : 0;
+  }
+
+  function getLunevaShippingAmountOverrideForSession() {
+    if (!IS_LUNEVA_CHECKOUT) return undefined;
+    return lunevaHasDeliveryAddress() ? getLunevaShippingAmount() : 0;
   }
 
   function refreshLunevaPendingPrices(pending) {
@@ -467,6 +500,14 @@
     if (!container) return;
     var pricing = getPricing();
     if (!IS_LUNEVA_CHECKOUT && (!pricing || typeof pricing.getShippingMethods !== "function")) return;
+
+    if (IS_LUNEVA_CHECKOUT && !lunevaHasDeliveryAddress()) {
+      container.innerHTML =
+        '<p class="checkout-shipping-empty">Enter your shipping address to view available shipping methods.</p>';
+      var estimateSection = document.getElementById("checkout-estimate-section");
+      if (estimateSection) estimateSection.hidden = true;
+      return;
+    }
 
     var methods = getEffectiveShippingMethods();
     if (!methods.length) {
@@ -728,7 +769,7 @@
         discountUSD: 0
       });
       if (IS_LUNEVA_CHECKOUT) {
-        provisional.shipping = getLunevaShippingAmount();
+        provisional.shipping = getEffectiveLunevaShippingUsd();
       }
       var discountUSD = state.discount;
       if (isDevtestCode(state.discountCode) || state.discountPercent === DEVTEST_PERCENT) {
@@ -746,7 +787,7 @@
       });
       state.subtotal = order.subtotal;
       state.shipping = IS_LUNEVA_CHECKOUT
-        ? getLunevaShippingAmount()
+        ? getEffectiveLunevaShippingUsd()
         : order.shipping;
       state.tax = order.tax;
       state.discount = order.discount;
@@ -806,6 +847,35 @@
     return breakdown.launchSavings || 0;
   }
 
+  function calcCompareSubtotal(displayItems) {
+    if (!IS_LUNEVA_CHECKOUT) return 0;
+    var total = 0;
+    (displayItems || state.displayItems || []).forEach(function (item) {
+      var qty = Number(item.quantity);
+      var safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+      var unit = Number(item.unitPriceUSD);
+      var safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
+      var compare = Number(item.compareAtUnitUSD);
+      if (!Number.isFinite(compare) || compare <= 0) {
+        var pricing = getPricing();
+        if (pricing && typeof pricing.calculateProductCompareAtPrice === "function") {
+          compare = pricing.calculateProductCompareAtPrice({
+            slug: item.slug || item.productSlug,
+            productSlug: item.slug || item.productSlug,
+            size: item.size,
+            powerType: item.powerType
+          });
+        }
+      }
+      if (Number.isFinite(compare) && compare > safeUnit) {
+        total += compare * safeQty;
+      } else {
+        total += safeUnit * safeQty;
+      }
+    });
+    return Math.round(total * 100) / 100;
+  }
+
   function buildLineItemPriceHtml(item, lineTotal, safeUnit, safeQty) {
     var compareUnit = Number(item.compareAtUnitUSD);
     if (!Number.isFinite(compareUnit) || compareUnit <= 0) {
@@ -848,42 +918,77 @@
           ? "Member Savings"
           : "Savings";
     var launchSavings = calcLaunchSavings();
+    var compareSubtotal = IS_LUNEVA_CHECKOUT ? calcCompareSubtotal() : 0;
+    var useCompareBreakdown =
+      IS_LUNEVA_CHECKOUT &&
+      launchSavings > 0.009 &&
+      compareSubtotal > state.subtotal + 0.009;
+    var subtotalDisplay = useCompareBreakdown ? compareSubtotal : state.subtotal;
     var totalSavings = Math.round((launchSavings + state.discount) * 100) / 100;
     var savingsLabel = IS_LUNEVA_CHECKOUT ? "You save" : "You Saved Today";
 
-    return [
+    var rows = [
       '<div class="checkout-total-row"><span>Subtotal</span><span class="checkout-money" data-total="subtotal" data-value="' +
-        state.subtotal +
+        subtotalDisplay +
         '">' +
-        formatUsdLuxury(state.subtotal) +
-        "</span></div>",
-      '<div class="checkout-total-row"><span>Shipping</span><span class="checkout-money" data-total="shipping" data-value="' +
-        state.shipping +
-        '">' +
-        formatUsdLuxury(state.shipping) +
-        "</span></div>",
-      taxRow,
-      state.discount > 0
-        ? '<div class="checkout-total-row checkout-total-row--discount"><span>' +
+        formatUsdLuxury(subtotalDisplay) +
+        "</span></div>"
+    ];
+
+    if (useCompareBreakdown) {
+      rows.push(
+        '<div class="checkout-total-row checkout-total-row--discount"><span>Sale savings</span><span>\u2212' +
+          formatUsdLuxury(launchSavings) +
+          "</span></div>"
+      );
+    }
+
+    rows.push(taxRow);
+
+    if (IS_LUNEVA_CHECKOUT && !lunevaHasDeliveryAddress()) {
+      rows.push(
+        '<div class="checkout-total-row checkout-total-row--shipping-pending"><span>Shipping</span><span class="checkout-shipping-pending">Enter shipping address</span></div>'
+      );
+    } else {
+      rows.push(
+        '<div class="checkout-total-row"><span>Shipping</span><span class="checkout-money" data-total="shipping" data-value="' +
+          state.shipping +
+          '">' +
+          formatUsdLuxury(state.shipping) +
+          "</span></div>"
+      );
+    }
+
+    if (state.discount > 0) {
+      rows.push(
+        '<div class="checkout-total-row checkout-total-row--discount"><span>' +
           escapeHtml(discountLabel) +
           "</span><span>\u2212" +
           formatUsdLuxury(state.discount) +
           "</span></div>"
-        : "",
-      totalSavings > 0
-        ? '<div class="checkout-total-row checkout-total-row--savings"><span>' +
+      );
+    }
+
+    if (!useCompareBreakdown && totalSavings > 0) {
+      rows.push(
+        '<div class="checkout-total-row checkout-total-row--savings"><span>' +
           escapeHtml(savingsLabel) +
           "</span><span>" +
           formatUsdLuxury(totalSavings) +
           "</span></div>"
-        : "",
+      );
+    }
+
+    rows.push(
       '<div class="checkout-total-row checkout-total-row--grand"><span>TOTAL</span><span class="checkout-money" data-total="grand" data-value="' +
         state.total +
         '">' +
         formatUsdLuxury(state.total) +
         "</span></div>",
       '<p class="checkout-tax-note">Tax Included</p>'
-    ].join("");
+    );
+
+    return rows.join("");
   }
 
   function updateOrderTotalsAnimated() {
@@ -1105,7 +1210,8 @@
             : null) ||
           (window.ZYBAR && window.ZYBAR.Analytics && window.ZYBAR.Analytics.getCountry
             ? window.ZYBAR.Analytics.getCountry()
-            : null)
+            : null),
+        shippingAmountOverride: getLunevaShippingAmountOverrideForSession()
       })
     }).then(function (res) {
       return res.json().then(function (data) {
@@ -1953,7 +2059,43 @@
       // Country can affect tax/shipping eligibility — rebuild session cache.
       invalidateSessionCache();
       scheduleShippingRefresh();
+      if (IS_LUNEVA_CHECKOUT) refreshLunevaDeliveryState();
     });
+  }
+
+  function refreshLunevaDeliveryState() {
+    if (!IS_LUNEVA_CHECKOUT) return;
+    var wasReady = !!state.lunevaAddressReady;
+    var ready = lunevaHasDeliveryAddress();
+    state.lunevaAddressReady = ready;
+    renderShippingOptionsFromCatalog();
+    wireShippingMethod();
+    updateOrderTotalsAnimated();
+    renderDeliveryEstimate();
+    var estimateSection = document.getElementById("checkout-estimate-section");
+    if (estimateSection) estimateSection.hidden = !ready;
+    if (ready !== wasReady) {
+      invalidateSessionCache();
+      scheduleShippingRefresh();
+    }
+  }
+
+  function wireLunevaAddressWatch() {
+    if (!IS_LUNEVA_CHECKOUT) return;
+    [
+      "checkout-address",
+      "checkout-city",
+      "checkout-postcode",
+      "checkout-first-name",
+      "checkout-last-name",
+      "checkout-state"
+    ].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("input", refreshLunevaDeliveryState);
+      el.addEventListener("change", refreshLunevaDeliveryState);
+    });
+    refreshLunevaDeliveryState();
   }
 
   function wireShippingMethod() {
@@ -2199,6 +2341,7 @@
     wireBillingToggle();
     wireMobileSummary();
     wireCountrySelector();
+    wireLunevaAddressWatch();
     wireShippingMethod();
     window.addEventListener("zybar:member-pricing-change", function () {
       var member = window.ZYBAR && window.ZYBAR.MemberPricing;

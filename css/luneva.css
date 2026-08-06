@@ -519,6 +519,10 @@ button {
   font-size: 1.4rem;
 }
 
+.lv-cart-summary__row--discount span:last-child {
+  color: var(--lv-gold);
+}
+
 .lv-cart-summary__row--savings strong {
   color: var(--lv-gold);
 }
