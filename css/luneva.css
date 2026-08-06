@@ -772,6 +772,123 @@ button {
   color: var(--lv-gold);
 }
 
+/* PDP info accordion */
+.lv-accordion {
+  padding: 2.4rem 0 5rem;
+}
+
+.lv-accordion__list {
+  border-top: 1px solid var(--lv-line);
+}
+
+.lv-accordion__item {
+  border-bottom: 1px solid var(--lv-line);
+}
+
+.lv-accordion__heading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.lv-accordion__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+  width: 100%;
+  padding: 1.55rem 0.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--lv-ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.lv-accordion__title {
+  font-family: var(--lv-font-body, "Jost", system-ui, sans-serif);
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5c5650;
+}
+
+.lv-accordion__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 50%;
+  background: #fff;
+  color: #6b645c;
+  box-shadow: 0 0.2rem 0.8rem rgba(26, 23, 20, 0.1);
+  transition: transform 0.22s ease, color 0.22s ease;
+}
+
+.lv-accordion__item.is-open .lv-accordion__icon {
+  transform: rotate(180deg);
+  color: var(--lv-gold);
+}
+
+.lv-accordion__panel[hidden] {
+  display: none !important;
+}
+
+.lv-accordion__body {
+  padding: 0 0.2rem 1.8rem;
+  max-width: 72rem;
+  color: var(--lv-muted);
+  font-size: 1.45rem;
+  line-height: 1.65;
+}
+
+.lv-accordion__body p {
+  margin: 0 0 1rem;
+}
+
+.lv-accordion__body p:last-child {
+  margin-bottom: 0;
+}
+
+.lv-accordion__body h4 {
+  margin: 1.5rem 0 0.55rem;
+  font-family: var(--lv-font-display, "Fraunces", Georgia, serif);
+  font-size: 1.55rem;
+  font-weight: 500;
+  color: var(--lv-ink);
+}
+
+.lv-accordion__body h4:first-child {
+  margin-top: 0;
+}
+
+.lv-accordion__body ul {
+  margin: 0.4rem 0 1.1rem;
+  padding-left: 1.3rem;
+}
+
+.lv-accordion__body li {
+  margin-bottom: 0.45rem;
+}
+
+.lv-accordion__body a {
+  color: var(--lv-gold);
+}
+
+.lv-accordion__qa p {
+  margin-bottom: 1.25rem;
+}
+
+.lv-accordion__qa strong {
+  display: inline-block;
+  margin-bottom: 0.2rem;
+  color: var(--lv-ink);
+  font-weight: 500;
+}
+
 .lv-empty {
   text-align: center;
   padding: 4rem 0;
