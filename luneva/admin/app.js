@@ -98,13 +98,21 @@
 
   function currentTab() {
     var hash = (location.hash || '#dashboard').replace('#', '');
-    return hash || 'dashboard';
+    if (/^visitors?\//.test(hash)) return 'visitor-detail';
+    return hash.split('?')[0] || 'dashboard';
+  }
+
+  function currentVisitorId() {
+    var hash = (location.hash || '').replace('#', '');
+    var m = hash.match(/^visitors?\/([^/?#]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
   }
 
   function setActiveNav() {
     var tab = currentTab();
+    var navTab = tab === 'visitor-detail' ? 'visitors' : tab;
     document.querySelectorAll('[data-tab]').forEach(function (link) {
-      link.classList.toggle('is-active', link.getAttribute('data-tab') === tab);
+      link.classList.toggle('is-active', link.getAttribute('data-tab') === navTab);
     });
   }
 
@@ -514,13 +522,17 @@
     content.innerHTML =
       header(
         'Visitors',
-        'Duration is engaged stay time (idle gaps ignored). Instant exits show as 1s.'
+        'Duration is engaged stay time (idle gaps ignored). Instant exits show as 1s. Open Journey to see pages and time spent.'
       ) +
       renderVisitorFilters() +
-      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Visitor</th><th>Email</th><th>Country</th><th>Traffic source</th><th>Status</th><th>First visit</th><th>Last active</th><th>Duration</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>' +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Visitor</th><th>Email</th><th>Country</th><th>Traffic source</th><th>Status</th><th>Product</th><th>First visit</th><th>Last active</th><th>Duration</th><th>Orders</th><th>Revenue</th><th></th></tr></thead><tbody>' +
       (rows.length
         ? rows
             .map(function (row) {
+              var productText = row.product_label || '—';
+              if (!row.product_label && row.viewed_count > 1) {
+                productText = row.viewed_count + ' products viewed';
+              }
               return (
                 '<tr><td><span class="lv-admin__pill">' +
                 esc((row.visitor_id || '').slice(0, 8)) +
@@ -532,6 +544,8 @@
                 esc(row.traffic_source || '—') +
                 '</td><td>' +
                 esc(statusLabel(row.status)) +
+                '</td><td class="lv-admin__product-cell">' +
+                esc(productText) +
                 '</td><td>' +
                 esc(fmtDate(row.first_seen_at)) +
                 '</td><td>' +
@@ -542,11 +556,13 @@
                 esc(row.orders || 0) +
                 '</td><td>' +
                 esc(moneyCents(row.revenue_cents)) +
-                '</td></tr>'
+                '</td><td><a class="lv-admin__action-btn" href="#visitors/' +
+                esc(row.visitor_id) +
+                '">View journey</a></td></tr>'
               );
             })
             .join('')
-        : '<tr><td colspan="10">No visitors in this range.</td></tr>') +
+        : '<tr><td colspan="12">No visitors in this range.</td></tr>') +
       '</tbody></table>' +
       '<div class="lv-admin__pager">' +
       '<button type="button" class="lv-admin__pager-btn" id="lvVisitorPrev"' +
@@ -582,6 +598,146 @@
         render();
       });
     }
+  }
+
+  function dlRows(pairs) {
+    return pairs
+      .map(function (row) {
+        return (
+          '<div><dt>' +
+          esc(row[0]) +
+          '</dt><dd>' +
+          esc(row[1] == null || row[1] === '' ? '—' : row[1]) +
+          '</dd></div>'
+        );
+      })
+      .join('');
+  }
+
+  function renderVisitorDetail(data) {
+    var c = (data && data.customer) || {};
+    var product = (data && data.product) || {};
+    var journey = (data && data.journey) || [];
+    var pages = (data && data.pages) || [];
+    var timeline = ((data && data.timeline) || []).slice().reverse();
+    var viewed = product.viewed || [];
+
+    var journeyHtml = journey
+      .map(function (step, i, arr) {
+        var done = !!step.at;
+        return (
+          '<div class="lv-journey-step' +
+          (done ? ' is-done' : '') +
+          '"><div class="lv-journey-dot"></div><div class="lv-journey-label">' +
+          esc(step.label) +
+          '</div><div class="lv-journey-time">' +
+          esc(step.at ? fmtDate(step.at) : '—') +
+          '</div></div>' +
+          (i < arr.length - 1 ? '<div class="lv-journey-arrow">↓</div>' : '')
+        );
+      })
+      .join('');
+
+    var pagesHtml =
+      pages.length
+        ? pages
+            .map(function (p) {
+              return (
+                '<tr><td>' +
+                esc(p.label || pagePathFallback(p.page_url)) +
+                '</td><td>' +
+                esc(fmtDate(p.at)) +
+                '</td><td>' +
+                esc(fmtDuration(p.duration_seconds)) +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="3">No page views recorded.</td></tr>';
+
+    var viewedHtml =
+      viewed.length
+        ? viewed
+            .map(function (p) {
+              return (
+                '<tr><td>' +
+                esc(p.product_name || slugLabel(p.product_id) || '—') +
+                '</td><td>' +
+                esc(fmtDate(p.last_viewed_at)) +
+                '</td><td>' +
+                esc(fmtDuration(p.time_spent_seconds)) +
+                '</td><td>' +
+                esc(p.times_viewed || 0) +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="4">No product views yet.</td></tr>';
+
+    var timelineHtml =
+      timeline.length
+        ? timeline
+            .map(function (ev) {
+              return (
+                '<li><div class="lv-timeline-time">' +
+                esc(fmtDate(ev.at)) +
+                '</div><div class="lv-timeline-label">' +
+                esc(ev.label) +
+                '</div></li>'
+              );
+            })
+            .join('')
+        : '<li class="lv-admin__muted">No events yet</li>';
+
+    content.innerHTML =
+      '<div class="lv-admin__header"><div><a class="lv-admin__back" href="#visitors">← Visitors</a><h1>Customer Journey</h1><p>Pages visited, products viewed, and time spent for this LUNEVA visitor.</p></div></div>' +
+      '<div class="lv-admin__detail-grid">' +
+      '<section class="lv-admin__card"><h2>Customer Information</h2>' +
+      '<div class="lv-admin__status-wrap"><span class="lv-admin__status">' +
+      esc((data && data.status_label) || statusLabel(data && data.status)) +
+      '</span></div>' +
+      (product.current
+        ? '<p class="lv-admin__product-highlight">Product: <strong>' +
+          esc(product.current) +
+          (product.kit ? ' · ' + esc(product.kit) : '') +
+          '</strong></p>'
+        : '') +
+      '<dl class="lv-admin__dl">' +
+      dlRows([
+        ['Name', c.name],
+        ['Email', c.email],
+        ['Phone', c.phone],
+        ['Country', c.country],
+        ['Traffic source', c.traffic_source],
+        ['UTM source', c.utm_source],
+        ['UTM campaign', c.utm_campaign],
+        ['Device', c.device],
+        ['Browser', c.browser],
+        ['OS', c.os],
+        ['First visit', fmtDate(c.first_visit)],
+        ['Last visit', fmtDate(c.last_visit)],
+        ['Sessions', c.session_count],
+        ['Engaged duration', fmtDuration(c.duration_seconds)]
+      ]) +
+      '</dl></section>' +
+      '<section class="lv-admin__card"><h2>Customer Journey</h2><div class="lv-journey">' +
+      journeyHtml +
+      '</div></section>' +
+      '<section class="lv-admin__card lv-admin__card--wide"><h2>Pages &amp; time spent</h2>' +
+      '<table class="lv-admin__table"><thead><tr><th>Page</th><th>Visited</th><th>Time on page</th></tr></thead><tbody>' +
+      pagesHtml +
+      '</tbody></table></section>' +
+      '<section class="lv-admin__card lv-admin__card--wide"><h2>Viewed products</h2>' +
+      '<table class="lv-admin__table"><thead><tr><th>Product</th><th>Last viewed</th><th>Time spent</th><th>Views</th></tr></thead><tbody>' +
+      viewedHtml +
+      '</tbody></table></section>' +
+      '<section class="lv-admin__card lv-admin__card--wide"><h2>Activity timeline</h2><ul class="lv-timeline">' +
+      timelineHtml +
+      '</ul></section></div>';
+  }
+
+  function pagePathFallback(url) {
+    return url || 'Page';
   }
 
   function renderCountries(data) {
@@ -799,6 +955,27 @@
     setActiveNav();
     setLoading(true);
     var tab = currentTab();
+    if (tab === 'visitor-detail') {
+      var visitorId = currentVisitorId();
+      if (!visitorId) {
+        location.hash = '#visitors';
+        return;
+      }
+      return fetch(
+        '/api/admin/luneva/visitors/detail?visitor_id=' + encodeURIComponent(visitorId)
+      )
+        .then(function (res) {
+          return res.json().then(function (body) {
+            if (!res.ok) throw new Error((body && body.error) || 'Failed to load journey');
+            return body;
+          });
+        })
+        .then(renderVisitorDetail)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
     if (tab === 'visitors') {
       return api('/api/admin/luneva/visitors', {
         country: visitorState.country,

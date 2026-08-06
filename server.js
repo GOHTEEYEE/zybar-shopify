@@ -982,6 +982,20 @@ app.get('/api/admin/luneva/visitors', async (req, res) => {
   }
 });
 
+app.get('/api/admin/luneva/visitors/detail', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
+  const visitorId = String((req.query && req.query.visitor_id) || '').trim();
+  if (!visitorId) return res.status(400).json({ error: 'visitor_id is required' });
+  try {
+    const data = await LunevaAnalytics.getVisitorDetail(supabase, visitorId);
+    if (!data) return res.status(404).json({ error: 'Visitor not found' });
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/luneva/visitors/detail error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load visitor journey' });
+  }
+});
+
 app.get('/api/admin/luneva/countries', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
