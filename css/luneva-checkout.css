@@ -108,6 +108,84 @@
   color: var(--co-accent);
 }
 
+.checkout-page.luneva-checkout .checkout-shipping-options {
+  gap: 0.75rem;
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-option--compact {
+  display: block;
+  padding: 1rem 1.15rem;
+  border: 1px solid #d4cdc4;
+  border-radius: 0.55rem;
+  background: #fff;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-option--compact:hover {
+  transform: none;
+  border-color: #d4cdc4;
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-option--compact.is-selected,
+.checkout-page.luneva-checkout .checkout-shipping-option--compact:has(input:checked) {
+  padding: calc(1rem - 1px) calc(1.15rem - 1px);
+  border: 2px solid var(--co-accent);
+  background: #fff;
+  box-shadow: none;
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-compact-label {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--co-sans);
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--co-primary);
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-compact-days {
+  font-weight: 400;
+  color: var(--co-muted);
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-compact-price {
+  flex-shrink: 0;
+  font-family: var(--co-sans);
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--co-primary);
+  white-space: nowrap;
+}
+
+.checkout-page.luneva-checkout .checkout-shipping-arrival {
+  display: block;
+  margin-top: 0.55rem;
+  font-family: var(--co-sans);
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--co-muted);
+  line-height: 1.4;
+}
+
+.checkout-page.luneva-checkout .checkout-block--shipping .checkout-block-title {
+  font-family: var(--co-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-bottom: 0.75rem;
+}
+
 .checkout-page.luneva-checkout .checkout-shipping-option {
   background: var(--co-bg);
   border: 1px solid var(--co-line);

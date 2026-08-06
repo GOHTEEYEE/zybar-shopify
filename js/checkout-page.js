@@ -327,6 +327,10 @@
   function renderDeliveryEstimate() {
     var el = document.getElementById("checkout-delivery-estimate");
     if (!el) return;
+    if (IS_LUNEVA_CHECKOUT) {
+      el.innerHTML = "";
+      return;
+    }
     var info = formatDeliveryRange(getSelectedShippingMethod());
     var meta = info.isPriority
       ? "Priority Processing<br>Tracked Shipping Included<br>Worldwide Shipping"
@@ -495,6 +499,47 @@
     );
   }
 
+  function lunevaShippingOptionHtml(method, selected, code, price, days) {
+    var summary = getPricingSummary();
+    var arrival = "";
+    if (summary && typeof summary.estimateDeliveryRange === "function") {
+      arrival = summary.estimateDeliveryRange(code).label;
+    }
+    var label = escapeHtml(method.label || code);
+    var daysText = escapeHtml(days);
+    return (
+      '<label class="checkout-shipping-option checkout-shipping-option--compact' +
+      (selected ? " is-selected" : "") +
+      '" data-shipping-option="' +
+      escapeHtml(code) +
+      '" tabindex="' +
+      (selected ? "0" : "-1") +
+      '">' +
+      '<input type="radio" name="shippingMethod" value="' +
+      escapeHtml(code) +
+      '" class="checkout-shipping-input"' +
+      (selected ? " checked" : "") +
+      " />" +
+      '<span class="checkout-shipping-compact-row">' +
+      '<span class="checkout-shipping-compact-label">' +
+      label +
+      ' <span class="checkout-shipping-compact-days">(' +
+      daysText +
+      ")</span></span>" +
+      '<span class="checkout-shipping-compact-price" data-shipping-price="' +
+      escapeHtml(code) +
+      '">' +
+      formatUsdLuxury(price) +
+      "</span></span>" +
+      (arrival
+        ? '<span class="checkout-shipping-arrival">Estimated arrival ' +
+          escapeHtml(arrival) +
+          "</span>"
+        : "") +
+      "</label>"
+    );
+  }
+
   function renderShippingOptionsFromCatalog() {
     var container = document.getElementById("checkout-shipping-options");
     if (!container) return;
@@ -559,6 +604,10 @@
         var badge = isPriority
           ? '<span class="checkout-shipping-badge">Most Popular</span>'
           : "";
+
+        if (IS_LUNEVA_CHECKOUT) {
+          return lunevaShippingOptionHtml(method, selected, code, price, days);
+        }
 
         return (
           '<label class="checkout-shipping-option' +
@@ -2073,7 +2122,7 @@
     updateOrderTotalsAnimated();
     renderDeliveryEstimate();
     var estimateSection = document.getElementById("checkout-estimate-section");
-    if (estimateSection) estimateSection.hidden = !ready;
+    if (estimateSection) estimateSection.hidden = true;
     if (ready !== wasReady) {
       invalidateSessionCache();
       scheduleShippingRefresh();
