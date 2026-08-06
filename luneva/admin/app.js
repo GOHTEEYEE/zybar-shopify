@@ -514,7 +514,7 @@
     content.innerHTML =
       header(
         'Visitors',
-        'First visit, last activity, and how long each LUNEVA visitor stayed.'
+        'Duration is engaged stay time (idle gaps ignored). Instant exits show as 1s.'
       ) +
       renderVisitorFilters() +
       '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Visitor</th><th>Email</th><th>Country</th><th>Traffic source</th><th>Status</th><th>First visit</th><th>Last active</th><th>Duration</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>' +
