@@ -11,9 +11,9 @@
       id: "description",
       title: "Description",
       html:
-        "<p>Every LUNEVA piece features a real preserved butterfly, carefully selected and professionally displayed within a handcrafted frame.</p>" +
-        "<p>Each butterfly is naturally unique, with its own wing patterns, colors, and delicate details, ensuring that no two pieces are ever exactly alike.</p>" +
-        "<p>Designed to celebrate the beauty of nature, every artwork is created to bring elegance, meaning, and timeless charm to your home, office, or personal collection.</p>"
+        "<p>Every LUNEVA piece is thoughtfully handcrafted and inspired by the timeless beauty of butterflies.</p>" +
+        "<p>Designed with intricate details, elegant colors, and premium craftsmanship, each artwork transforms the graceful charm of nature into a decorative piece that complements any home, office, or personal space.</p>" +
+        "<p>Whether displayed as a statement piece or given as a meaningful gift, every LUNEVA creation is designed to bring elegance, warmth, and lasting beauty to everyday life.</p>"
     },
     {
       id: "shipping",
@@ -33,10 +33,15 @@
         "<h4>Order Tracking</h4>" +
         "<p>Once your order has been shipped, you'll automatically receive an email containing your tracking information. If you have any questions about your shipment, our support team is always here to assist you.</p>" +
         "<h4>Need Assistance?</h4>" +
-        "<p>If you have any questions before or after placing your order, feel free to reach out to us anytime.<br />Email: <a href=\"mailto:zybar.info@gmail.com\">zybar.info@gmail.com</a><br />We typically respond within 1 business day.</p>" +
-        "<h4>Display Guide</h4>" +
-        "<p>Your LUNEVA artwork is designed to be displayed with ease and enjoyed for years to come. Each frame can be placed on a tabletop, shelf, display cabinet, or mounted on a wall to complement your space.</p>" +
-        "<p>To preserve the butterfly's natural beauty, we recommend displaying your artwork indoors, away from direct sunlight, excessive humidity, and extreme temperatures. For the best viewing experience, place your artwork in a well-lit area where its intricate details and vibrant colors can be fully appreciated.</p>"
+        "<p>If you have any questions before or after placing your order, feel free to reach out to us anytime.<br />Email: <a href=\"mailto:zybar.info@gmail.com\">zybar.info@gmail.com</a><br />We typically respond within 1 business day.</p>"
+    },
+    {
+      id: "display",
+      title: "Display Guide",
+      html:
+        "<p>Your LUNEVA artwork is carefully packaged to ensure it arrives safely during international shipping.</p>" +
+        "<p>To protect each component in transit, a simple final assembly is required upon arrival. The process takes only a few minutes, and all necessary parts and easy-to-follow instructions are included in the package.</p>" +
+        "<p>Once assembled, your artwork is ready to display and enjoy.</p>"
     },
     {
       id: "guarantee",

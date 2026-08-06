@@ -774,7 +774,12 @@ button {
 
 /* PDP info accordion */
 .lv-accordion {
-  padding: 2.4rem 0 5rem;
+  padding: 0.4rem 0 1.2rem;
+}
+
+.lv-pdp-info {
+  padding-top: 0;
+  padding-bottom: 2.4rem;
 }
 
 .lv-accordion__list {
