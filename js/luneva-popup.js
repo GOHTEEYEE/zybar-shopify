@@ -84,7 +84,7 @@
     var link = document.createElement("link");
     link.id = "luneva-popup-css";
     link.rel = "stylesheet";
-    link.href = "/css/luneva-popup.css?v=2";
+    link.href = "/css/luneva-popup.css?v=4";
     document.head.appendChild(link);
   }
 
@@ -140,8 +140,9 @@
 
     overlay.innerHTML =
       '<div class="lv-popup lv-popup--fullscreen" role="document">' +
-      '<button type="button" class="lv-popup__close" aria-label="Close">&times;</button>' +
-      '<div class="lv-popup__panel lv-popup__panel--intent">' +
+      '<button type="button" class="lv-popup__close" aria-label="Close and continue browsing">&times;</button>' +
+      '<div class="lv-popup__stage">' +
+      '<div class="lv-popup__panel lv-popup__panel--intent is-active">' +
       '<p class="lv-popup__brand">LUNEVA</p>' +
       '<h2 class="lv-popup__title" id="luneva-popup-title">You\'ve Got A Special Discount</h2>' +
       '<p class="lv-popup__question">What brings you to LUNEVA today?<span aria-hidden="true">*</span></p>' +
@@ -165,6 +166,7 @@
       '<h2 class="lv-popup__title">You\'re in!</h2>' +
       '<p class="lv-popup__offer">Your special discount will apply automatically at checkout.</p>' +
       '<button type="button" class="lv-popup__cta lv-popup__continue">Continue shopping</button>' +
+      "</div>" +
       "</div>" +
       '<div class="lv-popup__accent" aria-hidden="true"></div>' +
       "</div>";
@@ -200,12 +202,13 @@
 
   LunevaPopupController.prototype.showStep = function (step) {
     this.step = step;
-    var intent = this.panel("intent");
-    var email = this.panel("email");
-    var success = this.panel("success");
-    if (intent) intent.hidden = step !== "intent";
-    if (email) email.hidden = step !== "email";
-    if (success) success.hidden = step !== "success";
+    var panels = this.overlay.querySelectorAll(".lv-popup__panel");
+    panels.forEach(function (panel) {
+      var name = panel.className.match(/lv-popup__panel--(\w+)/);
+      var active = name && name[1] === step;
+      panel.hidden = !active;
+      panel.classList.toggle("is-active", active);
+    });
   };
 
   LunevaPopupController.prototype.bindEvents = function () {
@@ -216,20 +219,22 @@
     var closeBtn = overlay.querySelector(".lv-popup__close");
     var continueBtn = overlay.querySelector(".lv-popup__continue");
 
-    closeBtn.addEventListener("click", function () {
-      self.close("dismiss");
+    closeBtn.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      self.dismiss("close_button");
     });
     continueBtn.addEventListener("click", function () {
       self.close("continue");
     });
     overlay.addEventListener("click", function (event) {
-      if (event.target === overlay) self.close("overlay");
+      if (event.target === overlay) self.dismiss("overlay");
     });
     document.addEventListener("keydown", function (event) {
       if (!self.open) return;
       if (event.key === "Escape") {
         event.preventDefault();
-        self.close("escape");
+        self.dismiss("escape");
       }
     });
 
@@ -308,6 +313,29 @@
     document.body.style.overflow = "hidden";
     markShownThisSession();
     writeState({ lastShownAt: Date.now() });
+  };
+
+  LunevaPopupController.prototype.dismiss = function (reason) {
+    if (this.step === "success") {
+      this.close("continue");
+      return;
+    }
+    this.trackDismiss(reason);
+    this.close(reason || "dismiss");
+  };
+
+  LunevaPopupController.prototype.trackDismiss = function (reason) {
+    var analytics = root.ZYBAR && root.ZYBAR.Analytics ? root.ZYBAR.Analytics : null;
+    if (!analytics || typeof analytics.track !== "function") return;
+    analytics.track("popup_dismissed", {
+      collection_id: "luneva",
+      metadata: {
+        collection: "luneva",
+        source: "luneva_popup",
+        step: this.step,
+        reason: reason || "dismiss"
+      }
+    });
   };
 
   LunevaPopupController.prototype.close = function (reason) {
