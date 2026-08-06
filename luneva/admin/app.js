@@ -952,9 +952,25 @@
     });
   }
 
-  function moneyUsd(amount) {
+  function formatAdMoney(amount, currency) {
     var n = Number(amount) || 0;
-    return 'US$' + n.toFixed(2);
+    var cur = String(currency || 'USD').toUpperCase();
+    if (cur === 'MYR') {
+      return 'RM' + (Math.round(n) === n ? String(Math.round(n)) : n.toFixed(2));
+    }
+    if (cur === 'USD') {
+      return 'US$' + n.toFixed(2);
+    }
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: cur,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(n);
+    } catch (_) {
+      return cur + ' ' + n.toFixed(2);
+    }
   }
 
   function pct(n) {
@@ -966,9 +982,13 @@
     var status = (payload && payload.status) || {};
     var data = (payload && payload.insights) || {};
     var account = status.account || data.account || null;
+    var currency = data.currency || (account && account.currency) || 'USD';
     var totals = data.totals || {};
     var rows = data.rows || [];
     var level = data.level || adsState.level || 'campaign';
+    var money = function (amount) {
+      return formatAdMoney(amount, currency);
+    };
     var nameKey =
       level === 'ad' ? 'ad_name' : level === 'adset' ? 'adset_name' : 'campaign_name';
 
@@ -991,7 +1011,9 @@
       header(
         'Ads',
         (account && account.name ? account.name + ' · ' : '') +
-          'Live pull from Meta Marketing API. Ranges map to Ads date presets.'
+          'Spend in ' +
+          currency +
+          ' (from your Meta ad account). Ranges map to Ads date presets.'
       ) +
       '<div class="lv-admin__ads-levels">' +
       ['campaign', 'adset', 'ad']
@@ -1010,12 +1032,15 @@
       '</div>' +
       '<div class="lv-admin__kpis">' +
       [
-        ['Spend', moneyUsd(totals.spend)],
+        ['Spend', money(totals.spend)],
         ['Impressions', totals.impressions || 0],
         ['Clicks', totals.clicks || 0],
         ['CTR', pct(totals.ctr)],
-        ['CPC', moneyUsd(totals.cpc)],
+        ['CPC', money(totals.cpc)],
+        ['ViewContent', totals.view_content || 0],
+        ['Cost / VC', totals.view_content ? money(totals.cost_per_view_content) : '—'],
         ['ATC', totals.add_to_cart || 0],
+        ['Cost / ATC', totals.add_to_cart ? money(totals.cost_per_add_to_cart) : '—'],
         ['Purchases', totals.purchases || 0],
         ['ROAS', (Number(totals.roas) || 0).toFixed(2) + 'x']
       ]
@@ -1040,7 +1065,7 @@
                 '<tr><td>' +
                 esc(row[nameKey] || row.campaign_name || '—') +
                 '</td><td>' +
-                esc(moneyUsd(row.spend)) +
+                esc(money(row.spend)) +
                 '</td><td>' +
                 esc(row.impressions || 0) +
                 '</td><td>' +
@@ -1048,7 +1073,7 @@
                 '</td><td>' +
                 esc(pct(row.ctr)) +
                 '</td><td>' +
-                esc(moneyUsd(row.cpc)) +
+                esc(money(row.cpc)) +
                 '</td><td>' +
                 esc(row.view_content || 0) +
                 '</td><td>' +
