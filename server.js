@@ -4298,6 +4298,11 @@ app.post('/api/analytics/track', async (req, res) => {
     if (type === 'cart_sync' && body.cart) {
       const cart = body.cart;
       const now = new Date().toISOString();
+      const BrandAnalytics = require('./lib/brand-analytics.js');
+      const cartBrand = BrandAnalytics.inferCartBrand(
+        { brand: cart.brand || cart.collection || null },
+        cart.items || []
+      );
       const cartRow = {
         id: cart.id,
         visitor_id: cart.visitor_id,
@@ -4312,25 +4317,39 @@ app.post('/api/analytics/track', async (req, res) => {
         referrer: cart.referrer || null,
         last_shipping_method: cart.last_shipping_method || null,
         last_payment_method: cart.last_payment_method || null,
-        last_activity_at: now
+        last_activity_at: now,
+        brand: cartBrand
       };
 
-      const { data: existing } = await supabase
+      // Only merge open carts of the same brand (avoid LUNEVA ↔ ZYBAR collapse).
+      let existingQuery = supabase
         .from('cart_sessions')
-        .select('id, status')
+        .select('id, status, brand')
         .eq('visitor_id', cart.visitor_id)
-        .in('status', ['active', 'checkout_started'])
-        .maybeSingle();
+        .in('status', ['active', 'checkout_started']);
+      const { data: existingRows } = await existingQuery;
+      const existing = (existingRows || []).find(function (row) {
+        return BrandAnalytics.inferCartBrand(row) === cartBrand;
+      }) || null;
 
       let cartId = cart.id;
       if (existing && existing.id && existing.id !== cart.id) {
         cartId = existing.id;
       }
 
-      const { error: upsertErr } = await supabase.from('cart_sessions').upsert(
-        Object.assign({}, cartRow, { id: cartId }),
-        { onConflict: 'id' }
-      );
+      let upsertErr = (
+        await supabase.from('cart_sessions').upsert(Object.assign({}, cartRow, { id: cartId }), {
+          onConflict: 'id'
+        })
+      ).error;
+      if (upsertErr && /brand|column/i.test(String(upsertErr.message || ''))) {
+        delete cartRow.brand;
+        upsertErr = (
+          await supabase.from('cart_sessions').upsert(Object.assign({}, cartRow, { id: cartId }), {
+            onConflict: 'id'
+          })
+        ).error;
+      }
       if (upsertErr) throw upsertErr;
 
       if (Array.isArray(cart.items)) {
@@ -4357,13 +4376,18 @@ app.post('/api/analytics/track', async (req, res) => {
       }
 
       try {
-        if (Array.isArray(cart.items) && cart.items.length && cart.visitor_id) {
+        if (
+          cartBrand === BrandAnalytics.BRAND_ZYBAR &&
+          Array.isArray(cart.items) &&
+          cart.items.length &&
+          cart.visitor_id
+        ) {
           const leadRes = await supabase
             .from('newsletter_subscribers')
             .select('*')
             .eq('visitor_id', String(cart.visitor_id))
             .maybeSingle();
-          if (!leadRes.error && leadRes.data) {
+          if (!leadRes.error && leadRes.data && !BrandAnalytics.isLunevaLead(leadRes.data)) {
             const JourneyEngine = require('./lib/journey-engine.js');
             await JourneyEngine.enrollLeadOnAddToCart(supabase, leadRes.data);
           }

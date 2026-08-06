@@ -412,6 +412,13 @@
         customer_id: options.customer_id || null,
         status: options.status || 'active',
         currency: 'USD',
+        brand: (function () {
+          try {
+            var p = window.location.pathname || '';
+            if (p.indexOf('/luneva') === 0 || p.indexOf('/products/luneva-') === 0) return 'luneva';
+          } catch (e) {}
+          return 'zybar';
+        })(),
         cart_value_cents: cartValueCents,
         item_count: items.reduce(function (s, i) { return s + (Number(i.quantity) || 0); }, 0),
         country: getCountry(),

@@ -98,13 +98,14 @@ window.renderAdmincustomers = function (container) {
         'id,stripe_session_id,customer_name,customer_email,customer_phone,' +
           'shipping_address,city,state,postcode,country,' +
           'billing_address,billing_city,billing_state,billing_postcode,billing_country,' +
-          'amount_total_cents,product_slug,size,quantity,status,created_at,internal_notes,visitor_id'
+          'amount_total_cents,product_slug,size,quantity,status,created_at,internal_notes,visitor_id,line_items'
       )
       .order('created_at', { ascending: false })
       .limit(1000)
       .then(function (res) {
         if (res.error) return [];
-        return res.data || [];
+        var rows = res.data || [];
+        return U.filterZybarOrders ? U.filterZybarOrders(rows) : rows;
       })
       .catch(function () {
         return [];
