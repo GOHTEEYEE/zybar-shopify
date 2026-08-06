@@ -1,12 +1,14 @@
 # Meta Conversions API (server-side Purchase)
 
-Browser Pixel alone is often blocked (iOS, ad blockers). CAPI sends **Purchase** from your Stripe webhook so Meta still gets conversions.
+Browser Pixel alone is often blocked (iOS, ad blockers). CAPI sends **Purchase** from your server so Meta still gets conversions.
 
 ## How it works
 
-1. Checkout stores `_fbp` / `_fbc` (+ IP, user agent) in Stripe session metadata.
-2. On `checkout.session.completed`, the server calls Meta Graph API.
-3. `event_id` is `purchase:{CHECKOUT_SESSION_ID}` — same as the browser Pixel — so Meta **deduplicates** and does not double-count.
+1. Checkout stores `_fbp` / `_fbc` (+ IP, user agent) with the payment.
+2. On paid Stripe webhook **or** PayPal capture, the server calls Meta Graph API.
+3. `event_id` is `purchase:{SESSION_OR_PAYPAL_ID}` — same as the browser Pixel — so Meta **deduplicates** and does not double-count.
+   - Stripe: `purchase:cs_live_...`
+   - PayPal: `purchase:paypal:{orderId}` (matches confirmation-page Pixel)
 
 ## Environment variables
 
@@ -30,11 +32,11 @@ Set these on **Vercel / production** (and local `.env` for testing):
 ## Verify
 
 - Events Manager → Overview / Test Events → look for `Purchase` with matching `event_id`.
-- Server logs: `Meta CAPI Purchase sent: cs_...`
+- Server logs: `Meta CAPI Purchase sent: cs_...` or `paypal:...`
 - If token missing: `Meta CAPI not configured` warning on startup (checkout still works).
 
 ## Files
 
 - `lib/meta-capi.js` — hashing + Graph API call
-- `server.js` — webhook + checkout metadata
-- `js/checkout-page.js` — sends `_fbp` / `_fbc` into session create
+- `server.js` — Stripe webhook + PayPal capture + checkout metadata
+- `js/checkout-page.js` — sends `_fbp` / `_fbc` into Stripe session create and PayPal capture

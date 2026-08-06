@@ -1799,6 +1799,27 @@
     };
   }
 
+  function metaClickIds() {
+    var fbp = null;
+    var fbc = null;
+    try {
+      var fbpMatch = document.cookie.match(/(?:^|;\s*)_fbp=([^;]+)/);
+      if (fbpMatch) fbp = decodeURIComponent(fbpMatch[1]);
+      var fbcMatch = document.cookie.match(/(?:^|;\s*)_fbc=([^;]+)/);
+      if (fbcMatch) fbc = decodeURIComponent(fbcMatch[1]);
+      if (!fbc) {
+        var params = new URLSearchParams(window.location.search);
+        var fbclid = params.get("fbclid");
+        if (fbclid) fbc = "fb.1." + Date.now() + "." + fbclid;
+      }
+    } catch (_) {}
+    return {
+      fbp: fbp,
+      fbc: fbc,
+      clientUserAgent: navigator.userAgent || null
+    };
+  }
+
   function buildPayPalShippingPayload() {
     var values = getFormValues();
     var name = [values.firstName, values.lastName].filter(Boolean).join(" ").trim();
@@ -1897,6 +1918,7 @@
                 clearError();
                 var values = getFormValues();
                 var ids = analyticsIds();
+                var metaIds = metaClickIds();
                 return fetch(apiBase + "/api/paypal/capture-order", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -1920,7 +1942,10 @@
                     },
                     visitorId: ids.visitorId,
                     sessionId: ids.sessionId,
-                    cartId: ids.cartId
+                    cartId: ids.cartId,
+                    fbp: metaIds.fbp,
+                    fbc: metaIds.fbc,
+                    clientUserAgent: metaIds.clientUserAgent
                   })
                 })
                   .then(function (res) {

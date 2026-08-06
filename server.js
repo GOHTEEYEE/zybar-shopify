@@ -3317,6 +3317,52 @@ app.post('/api/paypal/capture-order', async (req, res) => {
         '/purchase-confirmation.html?paypal_order_id=' +
         encodeURIComponent(paypalOrderId);
 
+    // Meta CAPI Purchase — same event_id as browser Pixel (purchase:paypal:{orderId}).
+    try {
+      const amountCents = Math.round(Number(amountInfo.value || 0) * 100);
+      const qty = lineItems.reduce(function (sum, item) {
+        return sum + (Number(item && item.quantity) || 0);
+      }, 0);
+      const forwarded =
+        (req.headers['x-forwarded-for'] &&
+          String(req.headers['x-forwarded-for']).split(',')[0].trim()) ||
+        req.ip ||
+        null;
+      await MetaCapi.sendPurchaseFromPaidOrder(
+        {
+          id: paypalSyntheticSessionId(paypalOrderId),
+          amount_cents: amountCents,
+          currency: amountInfo.currency || 'usd',
+          customer_email: customerEmail,
+          visitor_id: body.visitorId || null,
+          quantity: qty > 0 ? qty : 1
+        },
+        {
+          customer: {
+            customer_email: customerEmail,
+            customer_phone: customerPhone,
+            customer_name: customerName,
+            city: form.city || (paypalShipping && paypalShipping.city) || null,
+            state: form.state || (paypalShipping && paypalShipping.state) || null,
+            postcode: form.postcode || (paypalShipping && paypalShipping.postcode) || null,
+            country: form.country || (paypalShipping && paypalShipping.country) || null
+          },
+          lineItems: lineItems,
+          event_source_url: confirmUrl,
+          fbp: body.fbp || null,
+          fbc: body.fbc || null,
+          client_user_agent: body.clientUserAgent || req.headers['user-agent'] || null,
+          client_ip_address: forwarded,
+          visitor_id: body.visitorId || null
+        }
+      );
+    } catch (capiErr) {
+      console.error(
+        'Meta CAPI PayPal Purchase error:',
+        capiErr && capiErr.message ? capiErr.message : capiErr
+      );
+    }
+
     return res.json({
       ok: true,
       paypalOrderId: paypalOrderId,
