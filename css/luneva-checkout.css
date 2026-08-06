@@ -210,13 +210,108 @@
 }
 
 .checkout-page.luneva-checkout .checkout-input::placeholder {
-  color: rgba(26, 23, 20, 0.35);
+  color: transparent;
 }
 
 .checkout-page.luneva-checkout .checkout-input:focus {
   border-color: var(--co-accent);
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(146, 113, 53, 0.15);
+  box-shadow: 0 0 0 1px var(--co-accent);
+}
+
+/* Floating labels — Shopify-style compact fields */
+.checkout-page.luneva-checkout .checkout-field--float {
+  position: relative;
+  margin-bottom: 0.7rem;
+}
+
+.checkout-page.luneva-checkout .checkout-field-row {
+  gap: 0.7rem;
+  margin-bottom: 0;
+}
+
+.checkout-page.luneva-checkout .checkout-field--float .checkout-input {
+  padding: 1.4rem 0.95rem 0.55rem;
+  border-radius: 0.55rem;
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.checkout-page.luneva-checkout .checkout-field--float .checkout-label {
+  position: absolute;
+  left: 0.95rem;
+  right: 0.95rem;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 0;
+  font-size: 0.98rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #8a8278;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    top 0.14s ease,
+    transform 0.14s ease,
+    font-size 0.14s ease,
+    color 0.14s ease;
+}
+
+.checkout-page.luneva-checkout .checkout-field--float .checkout-input:focus + .checkout-label,
+.checkout-page.luneva-checkout .checkout-field--float .checkout-input:not(:placeholder-shown) + .checkout-label {
+  top: 0.42rem;
+  transform: none;
+  font-size: 0.72rem;
+  color: #6b645c;
+}
+
+.checkout-page.luneva-checkout .checkout-field--float .checkout-input:focus + .checkout-label {
+  color: var(--co-accent);
+}
+
+.checkout-page.luneva-checkout .checkout-field--country .country-select-host,
+.checkout-page.luneva-checkout .checkout-field--country .country-select {
+  display: block;
+  width: 100%;
+}
+
+.checkout-page.luneva-checkout .checkout-field--country .country-select-trigger {
+  position: relative;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 1.4rem 2.4rem 0.55rem 0.95rem !important;
+  border-radius: 0.55rem !important;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  box-shadow: none !important;
+}
+
+.checkout-page.luneva-checkout .checkout-field--country .checkout-label {
+  top: 0.42rem;
+  transform: none;
+  font-size: 0.72rem;
+  color: #6b645c;
+  z-index: 1;
+}
+
+.checkout-page.luneva-checkout .checkout-field--country .country-select-flag {
+  margin-top: 0.15rem;
+}
+
+.checkout-page.luneva-checkout .checkout-field--country .country-select-value {
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.checkout-page.luneva-checkout .checkout-field--country .country-select-chevron {
+  position: absolute;
+  right: 0.95rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .checkout-page.luneva-checkout .country-select-trigger,

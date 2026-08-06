@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/checkout.css?v=paypal1" />
-  <link rel="stylesheet" href="/css/luneva-checkout.css?v=lv-flow2" />
+  <link rel="stylesheet" href="/css/luneva-checkout.css?v=lv-float1" />
   <script src="/js/stripe-config.js"></script>
   <script src="/js/meta-pixel-config.js"></script>
 <script src="/js/meta-pixel.js"></script>
@@ -54,16 +54,15 @@
 
         <section class="checkout-block" aria-labelledby="checkout-contact-heading">
           <h2 class="checkout-block-title" id="checkout-contact-heading">Email</h2>
-          <div class="checkout-field">
-            <label class="checkout-label visually-hidden" for="checkout-email">Email</label>
-            <input class="checkout-input" type="email" id="checkout-email" name="email" autocomplete="email" placeholder="Email" required />
+          <div class="checkout-field checkout-field--float">
+            <input class="checkout-input" type="email" id="checkout-email" name="email" autocomplete="email" placeholder=" " required />
+            <label class="checkout-label" for="checkout-email">Email</label>
           </div>
         </section>
 
         <section class="checkout-block" aria-labelledby="checkout-delivery-heading">
           <h2 class="checkout-block-title" id="checkout-delivery-heading">Delivery</h2>
-          <div class="checkout-field">
-            <label class="checkout-label" for="checkout-country" id="checkout-country-label">Country / Region</label>
+          <div class="checkout-field checkout-field--float checkout-field--country">
             <div
               class="country-select-host"
               data-country-select
@@ -71,42 +70,43 @@
               data-label-id="checkout-country-label"
               data-default="US"
             ></div>
+            <label class="checkout-label" for="checkout-country" id="checkout-country-label">Country / Region</label>
           </div>
           <div class="checkout-field-row checkout-field-row--half">
-            <div class="checkout-field">
+            <div class="checkout-field checkout-field--float">
+              <input class="checkout-input" type="text" id="checkout-first-name" name="firstName" autocomplete="given-name" placeholder=" " required />
               <label class="checkout-label" for="checkout-first-name">First name</label>
-              <input class="checkout-input" type="text" id="checkout-first-name" name="firstName" autocomplete="given-name" required />
             </div>
-            <div class="checkout-field">
+            <div class="checkout-field checkout-field--float">
+              <input class="checkout-input" type="text" id="checkout-last-name" name="lastName" autocomplete="family-name" placeholder=" " required />
               <label class="checkout-label" for="checkout-last-name">Last name</label>
-              <input class="checkout-input" type="text" id="checkout-last-name" name="lastName" autocomplete="family-name" required />
             </div>
           </div>
-          <div class="checkout-field">
+          <div class="checkout-field checkout-field--float">
+            <input class="checkout-input" type="text" id="checkout-address" name="address" autocomplete="street-address" placeholder=" " required />
             <label class="checkout-label" for="checkout-address">Address</label>
-            <input class="checkout-input" type="text" id="checkout-address" name="address" autocomplete="street-address" required />
           </div>
-          <div class="checkout-field">
+          <div class="checkout-field checkout-field--float">
+            <input class="checkout-input" type="text" id="checkout-apartment" name="apartment" autocomplete="address-line2" placeholder=" " />
             <label class="checkout-label" for="checkout-apartment">Apartment, suite, etc. (optional)</label>
-            <input class="checkout-input" type="text" id="checkout-apartment" name="apartment" autocomplete="address-line2" />
           </div>
           <div class="checkout-field-row checkout-field-row--thirds">
-            <div class="checkout-field">
+            <div class="checkout-field checkout-field--float">
+              <input class="checkout-input" type="text" id="checkout-city" name="city" autocomplete="address-level2" placeholder=" " required />
               <label class="checkout-label" for="checkout-city">City</label>
-              <input class="checkout-input" type="text" id="checkout-city" name="city" autocomplete="address-level2" required />
             </div>
-            <div class="checkout-field">
+            <div class="checkout-field checkout-field--float">
+              <input class="checkout-input" type="text" id="checkout-state" name="state" autocomplete="address-level1" placeholder=" " />
               <label class="checkout-label" for="checkout-state">State</label>
-              <input class="checkout-input" type="text" id="checkout-state" name="state" autocomplete="address-level1" />
             </div>
-            <div class="checkout-field">
+            <div class="checkout-field checkout-field--float">
+              <input class="checkout-input" type="text" id="checkout-postcode" name="postcode" autocomplete="postal-code" placeholder=" " required />
               <label class="checkout-label" for="checkout-postcode">Postcode</label>
-              <input class="checkout-input" type="text" id="checkout-postcode" name="postcode" autocomplete="postal-code" required />
             </div>
           </div>
-          <div class="checkout-field">
+          <div class="checkout-field checkout-field--float">
+            <input class="checkout-input" type="tel" id="checkout-phone" name="phone" autocomplete="tel" placeholder=" " required />
             <label class="checkout-label" for="checkout-phone">Phone</label>
-            <input class="checkout-input" type="tel" id="checkout-phone" name="phone" autocomplete="tel" required />
           </div>
         </section>
 
@@ -131,18 +131,18 @@
             <span>Use shipping address as billing address</span>
           </label>
           <div class="checkout-billing-fields" id="checkout-billing-fields" hidden>
-            <div class="checkout-field">
+            <div class="checkout-field checkout-field--float">
+              <input class="checkout-input" type="text" id="checkout-billing-address" name="billingAddressLine" placeholder=" " />
               <label class="checkout-label" for="checkout-billing-address">Address</label>
-              <input class="checkout-input" type="text" id="checkout-billing-address" name="billingAddressLine" />
             </div>
             <div class="checkout-field-row checkout-field-row--half">
-              <div class="checkout-field">
+              <div class="checkout-field checkout-field--float">
+                <input class="checkout-input" type="text" id="checkout-billing-city" name="billingCity" placeholder=" " />
                 <label class="checkout-label" for="checkout-billing-city">City</label>
-                <input class="checkout-input" type="text" id="checkout-billing-city" name="billingCity" />
               </div>
-              <div class="checkout-field">
+              <div class="checkout-field checkout-field--float">
+                <input class="checkout-input" type="text" id="checkout-billing-postcode" name="billingPostcode" placeholder=" " />
                 <label class="checkout-label" for="checkout-billing-postcode">Postcode</label>
-                <input class="checkout-input" type="text" id="checkout-billing-postcode" name="billingPostcode" />
               </div>
             </div>
           </div>
