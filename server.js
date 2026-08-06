@@ -19,6 +19,7 @@ const AnalyticsFallback = require('./lib/analytics-fallback.js');
 const BrandAnalytics = require('./lib/brand-analytics.js');
 const LunevaCurrency = require('./lib/luneva-currency.js');
 const MetaCapi = require('./lib/meta-capi.js');
+const MetaAds = require('./lib/meta-ads.js');
 const ChatbotKnowledge = require('./lib/chatbot-knowledge.js');
 const CustomerActivity = require('./lib/customer-activity.js');
 const MemberPricing = require('./lib/member-pricing.js');
@@ -108,6 +109,11 @@ if (!openAiApiKey) {
 }
 if (!MetaCapi.configured()) {
   console.warn('Meta CAPI not configured — set META_CAPI_ACCESS_TOKEN (and optional META_PIXEL_ID) for server-side Purchase.');
+}
+if (!MetaAds.configured()) {
+  console.warn(
+    'Meta Ads API not configured — set META_ADS_ACCESS_TOKEN and META_AD_ACCOUNT_ID to pull campaign insights.'
+  );
 }
 if (!PayPal.configured()) {
   console.warn('PayPal not configured — set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to enable PayPal checkout.');
@@ -1029,6 +1035,54 @@ app.get('/api/admin/luneva/inquiries', async (req, res) => {
   } catch (err) {
     console.error('GET /api/admin/luneva/inquiries error:', err);
     return res.status(500).json({ error: err.message || 'Failed to load LUNEVA inquiries' });
+  }
+});
+
+app.get('/api/admin/meta-ads/status', async (req, res) => {
+  try {
+    if (!MetaAds.configured()) {
+      return res.json({
+        configured: false,
+        account: null,
+        setup: {
+          env: ['META_ADS_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'],
+          docs: '/META_ADS.md'
+        }
+      });
+    }
+    const account = await MetaAds.getAccountSummary();
+    return res.json({ configured: true, account: account });
+  } catch (err) {
+    console.error('GET /api/admin/meta-ads/status error:', err);
+    return res.status(500).json({
+      configured: MetaAds.configured(),
+      error: err.message || 'Failed to load Meta Ads account'
+    });
+  }
+});
+
+app.get('/api/admin/meta-ads/insights', async (req, res) => {
+  try {
+    if (!MetaAds.configured()) {
+      return res.status(503).json({
+        error: 'Meta Ads not configured. Set META_ADS_ACCESS_TOKEN and META_AD_ACCOUNT_ID.',
+        configured: false
+      });
+    }
+    const data = await MetaAds.getInsights({
+      level: req.query.level || 'campaign',
+      date_preset: req.query.date_preset || req.query.range || '7',
+      limit: req.query.limit
+    });
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/meta-ads/insights error:', err);
+    const status = err.code === 'META_ADS_NOT_CONFIGURED' ? 503 : 500;
+    return res.status(status).json({
+      error: err.message || 'Failed to load Meta Ads insights',
+      code: err.code || null,
+      fbtrace_id: err.fbtrace_id || null
+    });
   }
 });
 

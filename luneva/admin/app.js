@@ -21,6 +21,9 @@
     offset: 0,
     limit: 50
   };
+  var adsState = {
+    level: 'campaign'
+  };
   var livePollTimer = null;
   var LIVE_POLL_MS = 20000;
   var TRAFFIC_SOURCES = [
@@ -949,6 +952,156 @@
     });
   }
 
+  function moneyUsd(amount) {
+    var n = Number(amount) || 0;
+    return 'US$' + n.toFixed(2);
+  }
+
+  function pct(n) {
+    var v = Number(n) || 0;
+    return v.toFixed(2) + '%';
+  }
+
+  function renderAds(payload) {
+    var status = (payload && payload.status) || {};
+    var data = (payload && payload.insights) || {};
+    var account = status.account || data.account || null;
+    var totals = data.totals || {};
+    var rows = data.rows || [];
+    var level = data.level || adsState.level || 'campaign';
+    var nameKey =
+      level === 'ad' ? 'ad_name' : level === 'adset' ? 'adset_name' : 'campaign_name';
+
+    if (status.configured === false && !data.rows) {
+      content.innerHTML =
+        header('Ads', 'Meta / Facebook Ads campaign insights.') +
+        '<section class="lv-admin__card"><h2>Connect Meta Ads API</h2>' +
+        '<p>Add these env vars on Vercel (and locally in <code>.env.local</code>), then redeploy:</p>' +
+        '<ul class="lv-admin__setup-list">' +
+        '<li><code>META_ADS_ACCESS_TOKEN</code> — System User token with <code>ads_read</code></li>' +
+        '<li><code>META_AD_ACCOUNT_ID</code> — e.g. <code>act_1234567890</code></li>' +
+        '</ul>' +
+        '<p>Step-by-step: see <code>META_ADS.md</code> in the repo. This is separate from Pixel / CAPI.</p>' +
+        '</section>';
+      bindRangeButtons();
+      return;
+    }
+
+    content.innerHTML =
+      header(
+        'Ads',
+        (account && account.name ? account.name + ' · ' : '') +
+          'Live pull from Meta Marketing API. Ranges map to Ads date presets.'
+      ) +
+      '<div class="lv-admin__ads-levels">' +
+      ['campaign', 'adset', 'ad']
+        .map(function (key) {
+          return (
+            '<button type="button" class="lv-admin__level-btn' +
+            (level === key ? ' is-active' : '') +
+            '" data-ads-level="' +
+            key +
+            '">' +
+            (key === 'campaign' ? 'Campaigns' : key === 'adset' ? 'Ad sets' : 'Ads') +
+            '</button>'
+          );
+        })
+        .join('') +
+      '</div>' +
+      '<div class="lv-admin__kpis">' +
+      [
+        ['Spend', moneyUsd(totals.spend)],
+        ['Impressions', totals.impressions || 0],
+        ['Clicks', totals.clicks || 0],
+        ['CTR', pct(totals.ctr)],
+        ['CPC', moneyUsd(totals.cpc)],
+        ['ATC', totals.add_to_cart || 0],
+        ['Purchases', totals.purchases || 0],
+        ['ROAS', (Number(totals.roas) || 0).toFixed(2) + 'x']
+      ]
+        .map(function (kpi) {
+          return (
+            '<div class="lv-admin__kpi"><span>' +
+            esc(kpi[0]) +
+            '</span><strong>' +
+            esc(kpi[1]) +
+            '</strong></div>'
+          );
+        })
+        .join('') +
+      '</div>' +
+      '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr>' +
+      '<th>Name</th><th>Spend</th><th>Impr.</th><th>Clicks</th><th>CTR</th><th>CPC</th><th>ViewContent</th><th>ATC</th><th>Checkout</th><th>Purchases</th><th>ROAS</th>' +
+      '</tr></thead><tbody>' +
+      (rows.length
+        ? rows
+            .map(function (row) {
+              return (
+                '<tr><td>' +
+                esc(row[nameKey] || row.campaign_name || '—') +
+                '</td><td>' +
+                esc(moneyUsd(row.spend)) +
+                '</td><td>' +
+                esc(row.impressions || 0) +
+                '</td><td>' +
+                esc(row.clicks || 0) +
+                '</td><td>' +
+                esc(pct(row.ctr)) +
+                '</td><td>' +
+                esc(moneyUsd(row.cpc)) +
+                '</td><td>' +
+                esc(row.view_content || 0) +
+                '</td><td>' +
+                esc(row.add_to_cart || 0) +
+                '</td><td>' +
+                esc(row.initiate_checkout || 0) +
+                '</td><td>' +
+                esc(row.purchases || 0) +
+                '</td><td>' +
+                esc((Number(row.roas) || 0).toFixed(2) + 'x') +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="11">No ad spend in this range.</td></tr>') +
+      '</tbody></table></section>';
+
+    bindRangeButtons();
+    document.querySelectorAll('[data-ads-level]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        adsState.level = btn.getAttribute('data-ads-level') || 'campaign';
+        cache = {};
+        render();
+      });
+    });
+  }
+
+  function loadAds() {
+    var level = adsState.level || 'campaign';
+    var preset = rangeKey === 'today' || rangeKey === 'yesterday' ? rangeKey : rangeKey;
+    return Promise.all([
+      fetch('/api/admin/meta-ads/status').then(function (res) {
+        return res.json();
+      }),
+      fetch(
+        '/api/admin/meta-ads/insights?level=' +
+          encodeURIComponent(level) +
+          '&date_preset=' +
+          encodeURIComponent(preset)
+      ).then(function (res) {
+        return res.json().then(function (body) {
+          if (res.status === 503 && body && body.configured === false) {
+            return null;
+          }
+          if (!res.ok) throw new Error((body && body.error) || 'Failed to load ads');
+          return body;
+        });
+      })
+    ]).then(function (parts) {
+      return { status: parts[0], insights: parts[1] };
+    });
+  }
+
   function render() {
     stopLivePoll();
     setActiveNav();
@@ -1024,6 +1177,14 @@
     if (tab === 'inquiries') {
       return api('/api/admin/luneva/inquiries')
         .then(renderInquiries)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
+    if (tab === 'ads') {
+      return loadAds()
+        .then(renderAds)
         .catch(showError)
         .finally(function () {
           setLoading(false);
