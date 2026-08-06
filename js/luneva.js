@@ -490,7 +490,7 @@
       return;
     }
     var script = document.createElement("script");
-    script.src = "/js/luneva-currency.js?v=1";
+    script.src = "/js/luneva-currency.js?v=2";
     script.onload = function () {
       if (currencyApi()) currencyApi().ready.then(fn);
       else fn();

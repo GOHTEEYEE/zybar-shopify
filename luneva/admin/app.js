@@ -699,7 +699,6 @@
       (product.current
         ? '<p class="lv-admin__product-highlight">Product: <strong>' +
           esc(product.current) +
-          (product.kit ? ' · ' + esc(product.kit) : '') +
           '</strong></p>'
         : '') +
       '<dl class="lv-admin__dl">' +

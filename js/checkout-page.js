@@ -210,7 +210,7 @@
     return "$" + n.toFixed(2);
   }
 
-  /** Luxury total display: US$184 or US$184.50 (LUNEVA MY uses RM) */
+  /** Luxury total display: US$184 or US$184.50 */
   function formatUsdLuxury(amount) {
     if (IS_LUNEVA_CHECKOUT && window.LunevaCurrency) {
       return window.LunevaCurrency.formatLuxury(amount);
@@ -2240,7 +2240,7 @@
       IS_LUNEVA_CHECKOUT && !window.LunevaCurrency
         ? new Promise(function (resolve) {
             var script = document.createElement("script");
-            script.src = "/js/luneva-currency.js?v=1";
+            script.src = "/js/luneva-currency.js?v=2";
             script.onload = function () {
               if (window.LunevaCurrency && window.LunevaCurrency.ready) {
                 window.LunevaCurrency.ready.then(resolve).catch(resolve);

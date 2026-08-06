@@ -9,14 +9,6 @@
       shipping: 8.99,
       announcement:
         "Lighting effects $39 · Lighting + Mechanical Butterfly $49"
-    },
-    myr: {
-      currency: "myr",
-      kit: { "30x45": 129, "40x60": 149 },
-      compare: null,
-      shipping: 9,
-      announcement:
-        "Lighting effects RM129 · Lighting + Mechanical Butterfly RM149"
     }
   };
 
@@ -31,11 +23,11 @@
   }
 
   function isMalaysia() {
-    return String(state.country || "").toUpperCase() === "MY";
+    return false;
   }
 
   function profile() {
-    return isMalaysia() ? PROFILES.myr : PROFILES.usd;
+    return PROFILES.usd;
   }
 
   function kitPrice(size) {
@@ -56,9 +48,6 @@
   function formatMoney(amount) {
     var n = Number(amount);
     if (!Number.isFinite(n)) n = 0;
-    if (isMalaysia()) {
-      return "RM" + Math.round(n);
-    }
     if (Math.round(n) === n) return "$" + n;
     return "$" + n.toFixed(2);
   }
@@ -139,6 +128,9 @@
       })
       .catch(function () {
         state.ready = true;
+        applyKitPrices();
+        updateAnnouncementBars();
+        applyShopPrices();
         document.dispatchEvent(new CustomEvent("luneva:currency-ready"));
         return null;
       });
