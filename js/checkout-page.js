@@ -2329,6 +2329,94 @@
     emailInput.addEventListener("input", schedule);
   }
 
+  function wireCheckoutDraftSave() {
+    var timer = null;
+    var lastPayload = "";
+
+    function analyticsIds() {
+      var a = window.ZYBAR && window.ZYBAR.Analytics;
+      return {
+        visitor_id:
+          a && typeof a.getVisitorId === "function" ? a.getVisitorId() : null,
+        session_id:
+          a && typeof a.getSessionId === "function"
+            ? a.getSessionId()
+            : a && typeof a.getOrCreateSessionId === "function"
+              ? a.getOrCreateSessionId()
+              : null,
+        cart_id: a && typeof a.getCartId === "function" ? a.getCartId() : null
+      };
+    }
+
+    function saveDraft(force) {
+      var values = getFormValues();
+      var ids = analyticsIds();
+      var payload = {
+        email: values.email,
+        firstName: values.firstName,
+        lastName: values.lastName,
+        phone: values.phone,
+        address: values.address,
+        apartment: values.apartment,
+        city: values.city,
+        state: values.state,
+        postcode: values.postcode,
+        country: values.country,
+        shippingMethod: getSelectedShippingMethod(),
+        brand: IS_LUNEVA_CHECKOUT ? "luneva" : "zybar",
+        collection: IS_LUNEVA_CHECKOUT ? "luneva" : null,
+        visitor_id: ids.visitor_id,
+        session_id: ids.session_id,
+        cart_id: ids.cart_id
+      };
+      var key = JSON.stringify(payload);
+      if (!force && key === lastPayload) return;
+      lastPayload = key;
+
+      fetch("/api/checkout/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(function () {});
+    }
+
+    function scheduleSave() {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        saveDraft(false);
+      }, 700);
+    }
+
+    [
+      "checkout-email",
+      "checkout-first-name",
+      "checkout-last-name",
+      "checkout-phone",
+      "checkout-address",
+      "checkout-apartment",
+      "checkout-city",
+      "checkout-state",
+      "checkout-postcode",
+      "checkout-country"
+    ].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("blur", function () {
+        saveDraft(true);
+      });
+      el.addEventListener("change", scheduleSave);
+      el.addEventListener("input", scheduleSave);
+    });
+
+    window.addEventListener("pagehide", function () {
+      saveDraft(true);
+    });
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") saveDraft(true);
+    });
+  }
+
   function wireLunevaEmailCapture() {
     if (!IS_LUNEVA_CHECKOUT) return;
     var emailInput = document.getElementById("checkout-email");
@@ -2375,6 +2463,7 @@
     state.pending = pending;
     wireDevtestDiscount();
     wireLunevaEmailCapture();
+    wireCheckoutDraftSave();
     if (isDevtestCode(state.requestedDevtestCode)) {
       pending.discountCode = DEVTEST_CODE;
     }

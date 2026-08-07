@@ -2311,6 +2311,18 @@ app.post('/api/luneva/contact', async (req, res) => {
   }
 });
 
+/** Progressive checkout contact/address capture (even if payment never starts). */
+app.post('/api/checkout/draft', async (req, res) => {
+  try {
+    const CheckoutDrafts = require('./lib/checkout-drafts.js');
+    const result = await CheckoutDrafts.saveCheckoutDraft(supabase, req.body || {});
+    return res.status(result.status || 200).json(result.json || {});
+  } catch (err) {
+    console.error('POST /api/checkout/draft error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to save checkout details' });
+  }
+});
+
 app.post('/api/member-pricing/status', async (req, res) => {
   if (!supabase) return res.status(503).json({ active: false });
   try {

@@ -742,7 +742,12 @@
         ['Name', c.name],
         ['Email', c.email],
         ['Phone', c.phone],
+        ['Address', c.address],
+        ['City', c.city],
+        ['State', c.state],
+        ['Postcode', c.postcode],
         ['Country', c.country],
+        ['Checkout stage', c.checkout_stage],
         ['Traffic source', c.traffic_source],
         ['UTM source', c.utm_source],
         ['UTM campaign', c.utm_campaign],
@@ -871,7 +876,12 @@
 
   function customerSourceLabel(row) {
     if ((row.orders || 0) > 0) return 'Purchased';
-    if (row.source === 'checkout_email') return 'Checkout email';
+    if (row.source === 'checkout_draft' || row.status === 'details_filled') {
+      return 'Checkout details (unpaid)';
+    }
+    if (row.source === 'checkout_email' || row.source === 'luneva_checkout') {
+      return 'Checkout email';
+    }
     return 'Lead';
   }
 
