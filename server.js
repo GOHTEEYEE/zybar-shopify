@@ -207,7 +207,7 @@ function getConfiguredPriceId(productSlug, size) {
   }
 }
 
-const LUNEVA_SHIPPING_USD = 8.99;
+const LUNEVA_SHIPPING_USD = 0;
 
 function buildDynamicStripeLineItems(lineItems, shippingMethod, pricingApi, options) {
   const api = pricingApi || Pricing.createApi(Pricing.getCachedCatalog());
@@ -3792,11 +3792,22 @@ app.post('/api/create-checkout-session', async (req, res) => {
     console.error('Checkout pricing load failed:', pricingErr);
     return res.status(503).json({ error: 'Store pricing is temporarily unavailable' });
   }
-  const pricingApi = Pricing.createApi(catalog);
   const checkoutCountry = String(
     (req.body && req.body.country) || AnalyticsFallback.geoCountryFromRequest(req) || ''
   ).toUpperCase();
   const isLunevaCheckout = collection && String(collection).toLowerCase() === 'luneva';
+  if (isLunevaCheckout) {
+    try {
+      const lunevaNewsletter = require('./lib/luneva-newsletter.js');
+      await lunevaNewsletter.ensureDiscountCode(supabase);
+    } catch (ensureErr) {
+      console.warn(
+        'LUNEVA discount ensure:',
+        ensureErr && ensureErr.message ? ensureErr.message : ensureErr
+      );
+    }
+  }
+  const pricingApi = Pricing.createApi(catalog);
   const lunevaProfile = isLunevaCheckout ? LunevaCurrency.getProfile(checkoutCountry) : null;
   const checkoutCurrency = lunevaProfile ? lunevaProfile.currency : 'usd';
   const clientShippingOverride =

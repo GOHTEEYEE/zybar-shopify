@@ -18,6 +18,7 @@
     country: '',
     traffic: '',
     search: '',
+    stage: 'all',
     offset: 0,
     limit: 50
   };
@@ -230,6 +231,7 @@
     if (options.country) query += '&country=' + encodeURIComponent(options.country);
     if (options.traffic) query += '&traffic=' + encodeURIComponent(options.traffic);
     if (options.search) query += '&search=' + encodeURIComponent(options.search);
+    if (options.stage) query += '&stage=' + encodeURIComponent(options.stage);
     if (options.offset != null) query += '&offset=' + encodeURIComponent(options.offset);
     if (options.limit != null) query += '&limit=' + encodeURIComponent(options.limit);
     var key = path + query;
@@ -256,8 +258,30 @@
   }
 
   function renderVisitorFilters() {
+    var stages = [
+      { key: 'all', label: 'All' },
+      { key: 'add_to_cart', label: 'Add to cart' },
+      { key: 'checkout', label: 'Checkout' },
+      { key: 'purchase', label: 'Purchase' },
+      { key: 'email', label: 'Email filled' }
+    ];
     return (
       '<div class="lv-admin__toolbar">' +
+      '<div class="lv-admin__stage-filters" role="group" aria-label="Visitor stage filter">' +
+      stages
+        .map(function (stage) {
+          return (
+            '<button type="button" class="lv-admin__stage-btn' +
+            (visitorState.stage === stage.key ? ' is-active' : '') +
+            '" data-visitor-stage="' +
+            esc(stage.key) +
+            '">' +
+            esc(stage.label) +
+            '</button>'
+          );
+        })
+        .join('') +
+      '</div>' +
       '<input type="search" class="lv-admin__input" id="lvVisitorSearch" placeholder="Search email, country, visitor…" value="' +
       esc(visitorState.search) +
       '" />' +
@@ -285,6 +309,15 @@
     var countryEl = document.getElementById('lvVisitorCountry');
     var trafficEl = document.getElementById('lvVisitorTraffic');
     var searchTimer;
+    document.querySelectorAll('[data-visitor-stage]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var next = btn.getAttribute('data-visitor-stage') || 'all';
+        if (visitorState.stage === next) return;
+        visitorState.stage = next;
+        visitorState.offset = 0;
+        reload();
+      });
+    });
     if (searchEl) {
       searchEl.addEventListener('input', function () {
         clearTimeout(searchTimer);
@@ -1158,6 +1191,7 @@
         country: visitorState.country,
         traffic: visitorState.traffic,
         search: visitorState.search,
+        stage: visitorState.stage,
         offset: visitorState.offset,
         limit: visitorState.limit
       })

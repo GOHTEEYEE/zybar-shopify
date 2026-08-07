@@ -12,7 +12,7 @@
     ? "luneva.checkout.pending"
     : "zybar.checkout.pending";
   var CART_KEY = IS_LUNEVA_CHECKOUT ? "luneva.cart.items" : "zybar.cart.items";
-  var LUNEVA_SHIPPING_USD = 8.99;
+  var LUNEVA_SHIPPING_USD = 0;
   var LUNEVA_SHIPPING_METHODS = [
     {
       code: "standard",
@@ -221,6 +221,12 @@
     var rounded = Math.round(n * 100) / 100;
     if (rounded % 1 === 0) return "US$" + String(Math.round(rounded));
     return "US$" + rounded.toFixed(2);
+  }
+
+  function formatShippingDisplay(amount) {
+    var n = Number(amount);
+    if (IS_LUNEVA_CHECKOUT && Number.isFinite(n) && n <= 0) return "FREE";
+    return formatUsdLuxury(amount);
   }
 
   function getLunevaShippingAmount() {
@@ -458,7 +464,7 @@
       var radio = option ? option.querySelector('input[name="shippingMethod"]') : null;
       if (!radio) return;
       var cost = getEffectiveShippingCostUSD(radio.value);
-      el.textContent = formatUsdLuxury(cost);
+      el.textContent = formatShippingDisplay(cost);
     });
   }
 
@@ -529,7 +535,7 @@
       '<span class="checkout-shipping-compact-price" data-shipping-price="' +
       escapeHtml(code) +
       '">' +
-      formatUsdLuxury(price) +
+      formatShippingDisplay(price) +
       "</span></span>" +
       (arrival
         ? '<span class="checkout-shipping-arrival">Estimated arrival ' +
@@ -962,7 +968,7 @@
     var discountLabel = isDevtestCode(state.discountCode)
       ? "Internal Test Discount"
       : IS_LUNEVA_CHECKOUT && String(state.discountCode || "").toUpperCase() === "LUNEVA5"
-        ? "Welcome savings (5% off)"
+        ? "Welcome savings (15% off)"
         : (member && member.isActive()) || isWelcomeCode(state.discountCode)
           ? "Member Savings"
           : "Savings";
@@ -1003,7 +1009,7 @@
         '<div class="checkout-total-row"><span>Shipping</span><span class="checkout-money" data-total="shipping" data-value="' +
           state.shipping +
           '">' +
-          formatUsdLuxury(state.shipping) +
+          formatShippingDisplay(state.shipping) +
           "</span></div>"
       );
     }

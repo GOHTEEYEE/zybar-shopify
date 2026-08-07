@@ -4,11 +4,11 @@
   var PROFILES = {
     usd: {
       currency: "usd",
-      kit: { "30x45": 39, "40x60": 49 },
+      kit: { "30x45": 59, "40x60": 69 },
       compare: { "30x45": 109, "40x60": 119 },
-      shipping: 8.99,
+      shipping: 0,
       announcement:
-        "Lighting effects $39 · Lighting + Mechanical Butterfly $49"
+        "Lighting effects $59 · Lighting + Mechanical Butterfly $69 · Free shipping"
     }
   };
 
@@ -81,16 +81,24 @@
     });
     document.querySelectorAll(".lv-page-hero .lv-container > p").forEach(function (node) {
       var text = String(node.textContent || "");
-      if (text.indexOf("$39") !== -1 || text.indexOf("RM129") !== -1) {
+      if (
+          text.indexOf("$39") !== -1 ||
+          text.indexOf("$59") !== -1 ||
+          text.indexOf("RM129") !== -1
+        ) {
         node.textContent = p.announcement;
       }
     });
   }
 
   function updateAnnouncementBars() {
-    var text = profile().announcement;
+    var p = profile();
+    var priceText = p.announcement;
+    var shippingText = "Free worldwide shipping";
     document.querySelectorAll(".lv-announcement__track span").forEach(function (node, index) {
-      if (index % 3 === 0) node.textContent = text;
+      var mod = index % 3;
+      if (mod === 0) node.textContent = priceText;
+      else if (mod === 1) node.textContent = shippingText;
     });
   }
 

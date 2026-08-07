@@ -322,6 +322,36 @@ body {
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+  align-items: center;
+}
+
+.lv-admin__stage-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.lv-admin__stage-btn {
+  border: 1px solid var(--lv-line);
+  background: var(--lv-surface);
+  color: var(--lv-muted);
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.lv-admin__stage-btn:hover {
+  color: var(--lv-ink);
+  border-color: #cfc6ba;
+}
+
+.lv-admin__stage-btn.is-active {
+  background: var(--lv-ink);
+  border-color: var(--lv-ink);
+  color: #fff;
 }
 
 .lv-admin__input {
