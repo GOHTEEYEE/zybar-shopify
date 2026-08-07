@@ -144,7 +144,7 @@
       '<div class="lv-popup__stage">' +
       '<div class="lv-popup__panel lv-popup__panel--intent is-active">' +
       '<p class="lv-popup__brand">LUNEVA</p>' +
-      '<h2 class="lv-popup__title" id="luneva-popup-title">You\'ve Got A Special Discount</h2>' +
+      '<h2 class="lv-popup__title" id="luneva-popup-title">Welcome — 15% off</h2>' +
       '<p class="lv-popup__question">What brings you to LUNEVA today?<span aria-hidden="true">*</span></p>' +
       '<div class="lv-popup__choices">' +
       intentButtons +
@@ -152,7 +152,7 @@
       "</div>" +
       '<div class="lv-popup__panel lv-popup__panel--email" hidden>' +
       '<p class="lv-popup__brand">LUNEVA</p>' +
-      '<h2 class="lv-popup__title">You\'ve Got A Special Discount</h2>' +
+      '<h2 class="lv-popup__title">Welcome — 15% off</h2>' +
       '<form class="lv-popup__form" novalidate>' +
       '<label class="visually-hidden" for="luneva-popup-email">Email</label>' +
       '<input id="luneva-popup-email" class="lv-popup__input" type="email" name="email" autocomplete="email" inputmode="email" placeholder="Your email address" required />' +
@@ -164,7 +164,7 @@
       '<p class="lv-popup__brand">LUNEVA</p>' +
       '<div class="lv-popup__success-icon" aria-hidden="true">✓</div>' +
       '<h2 class="lv-popup__title">You\'re in!</h2>' +
-      '<p class="lv-popup__offer">Your special discount will apply automatically at checkout.</p>' +
+      '<p class="lv-popup__offer">Your Welcome 15% savings will apply automatically at checkout.</p>' +
       '<button type="button" class="lv-popup__cta lv-popup__continue">Continue shopping</button>' +
       "</div>" +
       "</div>" +
@@ -188,7 +188,7 @@
     teaser.id = "luneva-popup-teaser";
     teaser.hidden = true;
     teaser.innerHTML =
-      '<button type="button" class="lv-popup-teaser__open" aria-label="Open special discount offer">Special discount</button>' +
+      '<button type="button" class="lv-popup-teaser__open" aria-label="Open Welcome 15% offer">Welcome 15%</button>' +
       '<button type="button" class="lv-popup-teaser__close" aria-label="Hide offer">&times;</button>';
     document.body.appendChild(teaser);
     this.teaser = teaser;

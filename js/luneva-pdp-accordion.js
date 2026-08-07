@@ -23,11 +23,11 @@
         "<h4>Production Time</h4>" +
         "<p>Every artwork is handcrafted and made to order with great attention to detail. Please allow 1–2 business days for production before your order is shipped.</p>" +
         "<h4>Worldwide Shipping</h4>" +
-        "<p>We proudly ship worldwide. Estimated delivery time is 5–7 business days, depending on your location. Once your order has been dispatched, you'll receive a confirmation email with a tracking number so you can follow your shipment every step of the way.</p>" +
+        "<p><strong>Free worldwide shipping</strong> on every order. Estimated delivery time is 5–7 business days, depending on your location. Once your order has been dispatched, you'll receive a confirmation email with a tracking number so you can follow your shipment every step of the way.</p>" +
         "<h4>Safe Packaging &amp; Easy Setup</h4>" +
-        "<p>To ensure your artwork arrives safely during international shipping, certain components are securely packed separately. Setup is quick and straightforward, taking only a few minutes. All required parts and easy-to-follow instructions are included in the package, so no special tools or technical experience are required.</p>" +
+        "<p>To ensure your artwork arrives safely during international shipping, certain components are securely packed separately. Setup is quick and straightforward — <strong>easy assembly</strong> with all required parts and an easy-to-follow guide included. No special tools or technical experience required.</p>" +
         "<h4>Returns &amp; Replacements</h4>" +
-        "<p>As every piece is handcrafted and made to order, we do not accept returns or exchanges for change of mind. If your order arrives damaged, defective, or incorrect, please contact us within 7 days of delivery. Our team will gladly arrange a replacement or provide a suitable solution.</p>" +
+        "<p><strong>60-day free returns.</strong> If your order isn’t right, contact us within 60 days of delivery for a free return. If your order arrives damaged, defective, or incorrect, we’ll gladly arrange a replacement or provide a suitable solution.</p>" +
         "<h4>Quality Guarantee</h4>" +
         "<p>Every artwork is carefully inspected before shipping to ensure it meets our quality standards. If you experience any manufacturing defects or quality issues, simply contact our support team and we'll be happy to help.</p>" +
         "<h4>Order Tracking</h4>" +
@@ -54,9 +54,10 @@
         "<li>Each order is thoroughly inspected before shipping to ensure excellent quality.</li>" +
         "<li>Every piece is securely packaged to help protect it during international transit.</li>" +
         "<li>If your order arrives damaged, defective, or incorrect, we'll make it right with a replacement or appropriate solution.</li>" +
+        "<li><strong>60-day free returns</strong> if your order isn’t right.</li>" +
         "<li>Our support team is always here to assist you before and after your purchase.</li>" +
         "</ul>" +
-        "<p>Your satisfaction is our priority, and we're committed to making your experience with ZYBAR and LUNEVA as smooth and enjoyable as possible.</p>"
+        "<p>Your satisfaction is our priority, and we're committed to making your LUNEVA experience as smooth and enjoyable as possible.</p>"
     },
     {
       id: "faq",
@@ -65,8 +66,9 @@
         "<div class=\"lv-accordion__qa\">" +
         "<p><strong>Is this suitable as a gift?</strong><br />Absolutely. LUNEVA artworks make thoughtful gifts for birthdays, anniversaries, housewarmings, weddings, Mother's Day, and many other special occasions.</p>" +
         "<p><strong>How should I display my artwork?</strong><br />Each artwork is designed for indoor display and looks beautiful on shelves, tabletops, or mounted on a wall. For the best appearance, avoid prolonged exposure to direct sunlight and excessive humidity.</p>" +
-        "<p><strong>Do you ship worldwide?</strong><br />Yes. We proudly ship worldwide, and every order includes tracking information once dispatched.</p>" +
-        "<p><strong>What if my order arrives damaged?</strong><br />If your artwork arrives damaged or incorrect, simply contact us within 7 days of delivery. We'll gladly arrange a replacement or provide a suitable solution.</p>" +
+        "<p><strong>Do you ship worldwide?</strong><br />Yes. We offer free worldwide shipping, and every order includes tracking information once dispatched.</p>" +
+        "<p><strong>What is your return policy?</strong><br />We offer 60-day free returns. Contact us within 60 days of delivery and we’ll help you return it.</p>" +
+        "<p><strong>What if my order arrives damaged?</strong><br />If your artwork arrives damaged or incorrect, contact us and we'll gladly arrange a replacement or provide a suitable solution.</p>" +
         "</div>"
     }
   ];

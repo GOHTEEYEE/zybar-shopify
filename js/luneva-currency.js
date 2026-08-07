@@ -8,7 +8,7 @@
       compare: { "30x45": 109, "40x60": 119 },
       shipping: 0,
       announcement:
-        "Lighting effects $59 · Lighting + Mechanical Butterfly $69 · Free shipping"
+        "Lighting effects $59 · Lighting + Mechanical Butterfly $69 · Free shipping · Welcome 15%"
     }
   };
 
@@ -94,11 +94,13 @@
   function updateAnnouncementBars() {
     var p = profile();
     var priceText = p.announcement;
-    var shippingText = "Free worldwide shipping";
+    var shippingText = "Free worldwide shipping · Easy assembly";
+    var brandText = "Welcome 15% with email · 60-day free returns";
     document.querySelectorAll(".lv-announcement__track span").forEach(function (node, index) {
       var mod = index % 3;
       if (mod === 0) node.textContent = priceText;
       else if (mod === 1) node.textContent = shippingText;
+      else node.textContent = brandText;
     });
   }
 

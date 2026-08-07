@@ -421,6 +421,211 @@ button {
   opacity: 0.65;
 }
 
+.lv-trust-bar {
+  border-bottom: 1px solid var(--lv-line);
+  background: #f1ebe3;
+}
+
+.lv-trust-bar__inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1.4rem;
+  justify-content: center;
+  padding: 0.75rem 1.6rem;
+  font-size: 1.2rem;
+  color: var(--lv-muted);
+  letter-spacing: 0.02em;
+}
+
+.lv-trust-bar__inner span {
+  white-space: nowrap;
+}
+
+.lv-menu-btn {
+  display: none;
+  width: 4rem;
+  height: 4rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.lv-menu-btn span {
+  display: block;
+  width: 1.8rem;
+  height: 1.5px;
+  margin: 0.35rem auto;
+  background: var(--lv-ink);
+}
+
+.lv-mobile-nav {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(18, 14, 10, 0.42);
+}
+
+.lv-mobile-nav__panel {
+  width: min(32rem, 88vw);
+  height: 100%;
+  background: var(--lv-bg);
+  padding: 2.4rem 1.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.12);
+}
+
+.lv-mobile-nav__panel a {
+  font-size: 1.7rem;
+  color: var(--lv-ink);
+  text-decoration: none;
+}
+
+.lv-mobile-nav__panel .lv-btn {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.lv-rating {
+  margin: 1rem 0 1.6rem;
+}
+
+.lv-rating--compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.6rem 0 1.2rem;
+  color: var(--lv-ink);
+  text-decoration: none;
+  font-size: 1.35rem;
+}
+
+.lv-ship-eta {
+  margin: 0 0 1.2rem;
+  color: var(--lv-muted);
+  font-size: 1.35rem;
+}
+
+.lv-rating__stars {
+  color: var(--lv-gold);
+  letter-spacing: 0.08em;
+  font-size: 1.2rem;
+}
+
+.lv-rating__score {
+  margin: 0.35rem 0 0.55rem;
+  font-size: 1.5rem;
+}
+
+.lv-trust-strip {
+  padding: 2.4rem 0;
+  border-bottom: 1px solid var(--lv-line);
+}
+
+.lv-trust-strip__inner {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.lv-occasion-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.lv-occasion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.6rem 1.4rem;
+  border: 1px solid var(--lv-line);
+  background: var(--lv-surface);
+  text-decoration: none;
+  color: inherit;
+  min-height: 16rem;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.lv-occasion:hover {
+  border-color: #cfc6ba;
+  transform: translateY(-2px);
+}
+
+.lv-occasion strong {
+  font-family: var(--lv-font-display);
+  font-size: 2.2rem;
+  font-weight: 400;
+}
+
+.lv-occasion span:last-child {
+  color: var(--lv-muted);
+  font-size: 1.3rem;
+  line-height: 1.45;
+}
+
+.lv-occasion-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.8rem;
+}
+
+.lv-occasion-chip {
+  border: 1px solid var(--lv-line);
+  background: var(--lv-surface);
+  color: var(--lv-muted);
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.lv-occasion-chip.is-active,
+.lv-occasion-chip:hover {
+  border-color: var(--lv-ink);
+  color: var(--lv-ink);
+}
+
+.lv-craft {
+  padding: 5rem 0;
+  background:
+    linear-gradient(180deg, rgba(146, 113, 53, 0.08), transparent 40%),
+    #efe8df;
+  border-top: 1px solid var(--lv-line);
+  border-bottom: 1px solid var(--lv-line);
+}
+
+.lv-craft__inner {
+  max-width: 72rem;
+}
+
+.lv-craft__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem 2rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--lv-muted);
+  font-size: 1.4rem;
+}
+
+.lv-craft__list li::before {
+  content: "·";
+  margin-right: 0.55rem;
+  color: var(--lv-gold);
+}
+
+.lv-cart-summary__note {
+  margin: 0.8rem 0 1.4rem;
+  color: var(--lv-muted);
+  font-size: 1.2rem;
+  line-height: 1.4;
+}
+
 /* PDP */
 .lv-pdp {
   display: grid;
@@ -1059,12 +1264,31 @@ button {
     grid-template-columns: auto 1fr auto;
   }
 
+  .lv-menu-btn {
+    display: inline-block;
+  }
+
   .lv-nav {
     display: none;
   }
 
   .lv-header__cta .lv-btn {
     display: none;
+  }
+
+  .lv-occasion-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lv-craft__list {
+    grid-template-columns: 1fr;
+  }
+
+  .lv-trust-bar__inner {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
   }
 
   .lv-hero {

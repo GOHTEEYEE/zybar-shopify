@@ -738,6 +738,8 @@
       '<div class="lv-cart-summary__row"><span>Subtotal</span><strong>' +
       money(subtotal) +
       "</strong></div>" +
+      '<div class="lv-cart-summary__row"><span>Shipping</span><strong>FREE</strong></div>' +
+      '<p class="lv-cart-summary__note">Free worldwide shipping · Easy assembly · 60-day free returns</p>' +
       '<button class="lv-btn lv-btn-primary lv-btn-block" type="button" data-luneva-go-checkout>Checkout</button>' +
       '<a class="lv-btn lv-btn-outline lv-btn-block" href="/luneva/shop/" style="margin-top:1rem">Continue shopping</a>' +
       "</aside></div>";
@@ -904,9 +906,31 @@
     }
 
     var script = document.createElement("script");
-    script.src = "/js/luneva-popup.js?v=5";
+    script.src = "/js/luneva-popup.js?v=6";
     script.defer = true;
     script.onload = bootPopup;
+    document.head.appendChild(script);
+  }
+
+  function initSiteChrome() {
+    if (window.LunevaSiteChrome) {
+      window.LunevaSiteChrome.init();
+      return;
+    }
+    var existing = document.getElementById("luneva-site-chrome-js");
+    if (existing) {
+      existing.addEventListener("load", function () {
+        if (window.LunevaSiteChrome) window.LunevaSiteChrome.init();
+      });
+      return;
+    }
+    var script = document.createElement("script");
+    script.id = "luneva-site-chrome-js";
+    script.src = "/js/luneva-site-chrome.js?v=2";
+    script.defer = true;
+    script.onload = function () {
+      if (window.LunevaSiteChrome) window.LunevaSiteChrome.init();
+    };
     document.head.appendChild(script);
   }
 
@@ -921,6 +945,7 @@
       updateHeaderCount();
       renderCartPage();
       renderCheckoutPage();
+      initSiteChrome();
       initLunevaPopup();
     });
   });
