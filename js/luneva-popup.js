@@ -4,7 +4,7 @@
   var STORAGE_KEY = "luneva_popup_v2";
   var SESSION_KEY = "luneva_popup_session_shown";
   var TEASER_SESSION_KEY = "luneva_popup_teaser_hidden";
-  var DELAY_MS = 3000;
+  var DELAY_MS = 6000;
   var DISMISS_WAIT_MS = 7 * 24 * 60 * 60 * 1000;
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

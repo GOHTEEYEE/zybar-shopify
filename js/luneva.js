@@ -890,7 +890,7 @@
     }
 
     var script = document.createElement("script");
-    script.src = "/js/luneva-popup.js?v=6";
+    script.src = "/js/luneva-popup.js?v=7";
     script.defer = true;
     script.onload = bootPopup;
     document.head.appendChild(script);
