@@ -378,33 +378,17 @@
   }
 
   function initHero() {
-    var slides = document.querySelectorAll(".lv-hero__slide");
-    var dots = document.querySelectorAll(".lv-hero__dots button");
-    if (!slides.length) return;
-
-    slides.forEach(function (slide) {
-      var focus = slide.getAttribute("data-focus");
-      if (focus) slide.style.setProperty("--lv-focus", focus);
-    });
-
-    var index = 0;
-    function show(next) {
-      index = (next + slides.length) % slides.length;
-      slides.forEach(function (slide, i) {
-        slide.classList.toggle("is-active", i === index);
-      });
-      dots.forEach(function (dot, i) {
-        dot.classList.toggle("is-active", i === index);
+    var video = document.querySelector(".lv-hero__video");
+    if (!video) return;
+    video.muted = true;
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+    var play = video.play();
+    if (play && typeof play.catch === "function") {
+      play.catch(function () {
+        // Autoplay can be blocked until a gesture; keep muted loop ready.
       });
     }
-    dots.forEach(function (dot, i) {
-      dot.addEventListener("click", function () {
-        show(i);
-      });
-    });
-    window.setInterval(function () {
-      show(index + 1);
-    }, 5500);
   }
 
   function initGallery() {

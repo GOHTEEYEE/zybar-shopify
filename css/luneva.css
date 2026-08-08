@@ -165,9 +165,18 @@ button {
 .lv-hero__stage {
   position: relative;
   width: 100%;
-  /* Let the image define height — no crop. */
+  /* Let the media define height — no crop. */
   height: auto;
   overflow: hidden;
+  background: #1a1714;
+}
+
+.lv-hero__video {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center center;
   background: #1a1714;
 }
 
@@ -1309,7 +1318,8 @@ button {
     inset: auto;
   }
 
-  .lv-hero__slide img {
+  .lv-hero__slide img,
+  .lv-hero__video {
     width: 100%;
     height: auto;
     object-fit: contain;
