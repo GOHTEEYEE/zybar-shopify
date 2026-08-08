@@ -904,6 +904,7 @@
         'Emails & customers',
         'Welcome popup emails, checkout leads, and completed orders in the selected period.'
       ) +
+      '<p class="lv-admin__hint"><a href="#send">Send an email to these leads →</a></p>' +
       '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Email</th><th>Name</th><th>Source</th><th>Orders</th><th>Revenue</th><th>Last activity</th></tr></thead><tbody>' +
       (customers.length
         ? customers
@@ -928,6 +929,232 @@
         : '<tr><td colspan="6">No emails or customers in this range.</td></tr>') +
       '</tbody></table></section>';
     bindRangeButtons();
+  }
+
+  function authFetch(path, options) {
+    return fetch(path, options || {}).then(function (res) {
+      return res.json().then(function (body) {
+        return { ok: res.ok, status: res.status, body: body };
+      });
+    });
+  }
+
+  function renderSendEmail(data) {
+    var state = {
+      step: 1,
+      audience: '',
+      template_key: '',
+      audiences: (data && data.audiences) || [],
+      templates: (data && data.templates) || [],
+      preview: null,
+      recipient_count: 0
+    };
+
+    function audienceLabel(key) {
+      for (var i = 0; i < state.audiences.length; i++) {
+        if (state.audiences[i].key === key) return state.audiences[i].label;
+      }
+      return key;
+    }
+
+    function paint() {
+      var body = '';
+      if (state.step === 1) {
+        body =
+          '<div class="lv-admin__field"><label for="lvCampAud">1. Who to email</label><select id="lvCampAud"><option value="">Select audience…</option>' +
+          state.audiences
+            .map(function (a) {
+              return (
+                '<option value="' +
+                esc(a.key) +
+                '"' +
+                (a.key === state.audience ? ' selected' : '') +
+                '>' +
+                esc(a.label) +
+                ' (' +
+                a.count +
+                ')</option>'
+              );
+            })
+            .join('') +
+          '</select></div>';
+      } else if (state.step === 2) {
+        body =
+          '<div class="lv-admin__field"><label for="lvCampTpl">2. Email template</label><select id="lvCampTpl"><option value="">Select template…</option>' +
+          state.templates
+            .map(function (t) {
+              return (
+                '<option value="' +
+                esc(t.key) +
+                '"' +
+                (t.key === state.template_key ? ' selected' : '') +
+                '>' +
+                esc(t.name) +
+                '</option>'
+              );
+            })
+            .join('') +
+          '</select></div>' +
+          '<p class="lv-admin__muted">LUNEVA welcome, cart, and purchase templates only — never ZYBAR car emails.</p>';
+      } else if (state.step === 3) {
+        body =
+          '<p class="lv-admin__muted">3. Preview — ' +
+          esc(audienceLabel(state.audience)) +
+          ' · ' +
+          esc(state.recipient_count) +
+          ' recipients · ' +
+          esc(state.template_key) +
+          '</p>' +
+          (state.preview
+            ? '<div class="lv-admin__preview-subject">' +
+              esc(state.preview.subject) +
+              '</div><iframe class="lv-admin__preview-frame" title="Email preview" srcdoc="' +
+              esc(state.preview.html) +
+              '"></iframe>'
+            : '');
+      } else {
+        body =
+          '<p>4. Send now to <strong>' +
+          esc(String(state.recipient_count)) +
+          '</strong> LUNEVA leads.</p>' +
+          '<p class="lv-admin__muted">One-time broadcast. Does not change automated journey progress.</p>' +
+          '<button type="button" class="lv-admin__btn" id="lvCampSend">Send Now</button>';
+      }
+
+      content.innerHTML =
+        header(
+          'Send email',
+          'One-time LUNEVA broadcast to welcome popup and checkout leads.'
+        ) +
+        '<section class="lv-admin__card lv-admin__send">' +
+        '<div class="lv-admin__steps">' +
+        [1, 2, 3, 4]
+          .map(function (n) {
+            return (
+              '<span class="lv-admin__step' +
+              (state.step === n ? ' is-active' : '') +
+              (state.step > n ? ' is-done' : '') +
+              '">' +
+              n +
+              '</span>'
+            );
+          })
+          .join('') +
+        '</div>' +
+        body +
+        '<div class="lv-admin__send-actions">' +
+        (state.step > 1
+          ? '<button type="button" class="lv-admin__btn lv-admin__btn--ghost" id="lvCampBack">Back</button>'
+          : '') +
+        (state.step < 4
+          ? '<button type="button" class="lv-admin__btn" id="lvCampNext">Next</button>'
+          : '') +
+        '</div>' +
+        '<p class="lv-admin__send-status" id="lvCampStatus" hidden></p>' +
+        '</section>';
+
+      var back = document.getElementById('lvCampBack');
+      if (back) {
+        back.addEventListener('click', function () {
+          state.step -= 1;
+          paint();
+        });
+      }
+      var next = document.getElementById('lvCampNext');
+      if (next) {
+        next.addEventListener('click', function () {
+          if (state.step === 1) {
+            state.audience = document.getElementById('lvCampAud').value;
+            if (!state.audience) return alert('Select an audience');
+            state.step = 2;
+            paint();
+            return;
+          }
+          if (state.step === 2) {
+            state.template_key = document.getElementById('lvCampTpl').value;
+            if (!state.template_key) return alert('Select a template');
+            next.disabled = true;
+            next.textContent = 'Loading…';
+            authFetch('/api/admin/luneva/campaigns/preview', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                audience: state.audience,
+                template_key: state.template_key
+              })
+            }).then(function (r) {
+              next.disabled = false;
+              next.textContent = 'Next';
+              if (!r.ok || !r.body.success) {
+                return alert((r.body && r.body.error) || 'Preview failed');
+              }
+              state.preview = r.body.preview || { subject: r.body.subject, html: r.body.html };
+              state.recipient_count = r.body.recipient_count || 0;
+              state.step = 3;
+              paint();
+            });
+            return;
+          }
+          state.step = 4;
+          paint();
+        });
+      }
+      var send = document.getElementById('lvCampSend');
+      if (send) {
+        send.addEventListener('click', function () {
+          if (
+            !window.confirm(
+              'Send this LUNEVA email to ' + state.recipient_count + ' people now?'
+            )
+          ) {
+            return;
+          }
+          var statusEl = document.getElementById('lvCampStatus');
+          var backBtn = document.getElementById('lvCampBack');
+          if (backBtn) backBtn.disabled = true;
+          send.disabled = true;
+          send.textContent = 'Sending…';
+          if (statusEl) {
+            statusEl.hidden = false;
+            statusEl.textContent =
+              'Sending one by one via Resend. Keep this tab open — larger lists can take a minute.';
+          }
+          authFetch('/api/admin/luneva/campaigns/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audience: state.audience,
+              template_key: state.template_key
+            })
+          }).then(function (r) {
+            if (!r.ok || !r.body.success) {
+              send.disabled = false;
+              send.textContent = 'Send Now';
+              if (backBtn) backBtn.disabled = false;
+              if (statusEl) {
+                statusEl.textContent = (r.body && r.body.error) || 'Send failed';
+              }
+              return;
+            }
+            send.textContent = 'Sent';
+            if (statusEl) {
+              statusEl.textContent =
+                'Sent ' +
+                (r.body.sent || 0) +
+                ' · skipped ' +
+                (r.body.skipped || 0) +
+                ' · failed ' +
+                (r.body.failed || 0) +
+                (r.body.errors && r.body.errors.length
+                  ? ' — first error: ' + r.body.errors[0].error
+                  : '');
+            }
+          });
+        });
+      }
+    }
+
+    paint();
   }
 
   function renderInquiries(data) {
@@ -1250,6 +1477,17 @@
     if (tab === 'customers') {
       return api('/api/admin/luneva/customers')
         .then(renderCustomers)
+        .catch(showError)
+        .finally(function () {
+          setLoading(false);
+        });
+    }
+    if (tab === 'send') {
+      return authFetch('/api/admin/luneva/campaigns')
+        .then(function (r) {
+          if (!r.ok) throw new Error((r.body && r.body.error) || 'Failed to load campaigns');
+          renderSendEmail(r.body);
+        })
         .catch(showError)
         .finally(function () {
           setLoading(false);

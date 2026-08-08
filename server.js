@@ -976,6 +976,42 @@ app.get('/api/admin/luneva/customers', async (req, res) => {
   }
 });
 
+app.get('/api/admin/luneva/campaigns', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaCampaigns = require('./lib/luneva-campaigns.js');
+    const data = await LunevaCampaigns.getBootstrap(supabase);
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/luneva/campaigns error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load LUNEVA campaigns' });
+  }
+});
+
+app.post('/api/admin/luneva/campaigns/preview', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaCampaigns = require('./lib/luneva-campaigns.js');
+    const result = await LunevaCampaigns.previewCampaign(supabase, req.body || {}, process.env);
+    return res.status(result.status).json(result.json);
+  } catch (err) {
+    console.error('POST /api/admin/luneva/campaigns/preview error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Preview failed' });
+  }
+});
+
+app.post('/api/admin/luneva/campaigns/send', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaCampaigns = require('./lib/luneva-campaigns.js');
+    const result = await LunevaCampaigns.sendCampaign(supabase, req.body || {}, process.env);
+    return res.status(result.status).json(result.json);
+  } catch (err) {
+    console.error('POST /api/admin/luneva/campaigns/send error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Send failed' });
+  }
+});
+
 app.get('/api/admin/luneva/visitors', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
