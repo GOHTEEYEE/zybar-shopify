@@ -119,6 +119,17 @@
         state.discount = 0;
         if (state.pending) delete state.pending.discountCode;
       }
+    } else if (
+      IS_LUNEVA_CHECKOUT &&
+      String(state.discountCode || "").toUpperCase() === "LUNEVA5"
+    ) {
+      var member = window.ZYBAR && window.ZYBAR.MemberPricing;
+      if (!(member && member.isActive())) {
+        state.discountCode = "";
+        state.discountPercent = 0;
+        state.discount = 0;
+        if (state.pending) delete state.pending.discountCode;
+      }
     }
   }
 
@@ -2297,6 +2308,38 @@
     return refreshCheckoutSession();
   }
 
+  function wireLunevaEmailDiscount() {
+    if (!IS_LUNEVA_CHECKOUT) return;
+    var emailInput = document.getElementById("checkout-email");
+    if (!emailInput) return;
+    var timer = null;
+
+    function schedule() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () {
+        var email = String(emailInput.value || "").trim();
+        state.customerEmail = email;
+        if (state.pending) state.pending.customerEmail = email;
+        var looksValid = email.indexOf("@") > 0 && email.indexOf(".") > email.indexOf("@");
+        if (!looksValid) return;
+        if (isDevtestCode(state.requestedDevtestCode) || isDevtestCode(state.discountCode)) {
+          return;
+        }
+        invalidateSessionCache();
+        refreshCheckoutSession()
+          .then(function () {
+            renderOrderSummary(state.displayItems || (state.pending && state.pending.displayItems) || []);
+          })
+          .catch(function (err) {
+            console.warn("LUNEVA email discount refresh:", err && err.message);
+          });
+      }, 450);
+    }
+
+    emailInput.addEventListener("change", schedule);
+    emailInput.addEventListener("blur", schedule);
+  }
+
   function wireDevtestDiscount() {
     state.requestedDevtestCode = readRequestedDevtestCode();
     if (!isDevtestCode(state.requestedDevtestCode)) return;
@@ -2512,6 +2555,7 @@
     wireCountrySelector();
     wireLunevaAddressWatch();
     wireShippingMethod();
+    wireLunevaEmailDiscount();
     window.addEventListener("zybar:member-pricing-change", function () {
       var member = window.ZYBAR && window.ZYBAR.MemberPricing;
       if (!member || !member.isActive() || state.discount > 0) return;

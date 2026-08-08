@@ -4149,7 +4149,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
       {
         credential: memberCredential,
         visitorId: visitorId,
-        sessionId: sessionId
+        sessionId: sessionId,
+        email: checkoutEmail
       },
       process.env
     );
