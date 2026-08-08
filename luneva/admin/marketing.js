@@ -99,26 +99,26 @@
       content.innerHTML =
         header(
           'Marketing',
-          '一目了然：现在要发几封、还在等几封、Welcome / ATC 各有多少人。',
+          'Due to send, waiting, Welcome, and ATC at a glance.',
           '<button type="button" class="lv-admin__btn lv-admin__btn--ghost" id="lvMktEnroll">Enroll into Welcome</button>' +
             '<button type="button" class="lv-admin__btn" id="lvMktExec">Execute due sends</button>'
         ) +
         '<section class="lv-admin__card lv-mkt-summary">' +
-        '<h3 style="margin:0 0 0.85rem">现在这四个数字</h3>' +
+        '<h3 style="margin:0 0 0.85rem">Key numbers</h3>' +
         '<div class="lv-admin__grid">' +
-        kpi('现在要发', num(q.due), 'Due — 时间到了，点 Execute 就会发出') +
-        kpi('Waiting 等待中', num(q.waiting), '已排程，还没到发送时间') +
-        kpi('Welcome 里', num(k.welcome_leads), '人正在欢迎邮件旅程') +
-        kpi('ATC / Cart 里', num(k.cart_leads), '人正在弃购挽回旅程') +
+        kpi('Due now', num(q.due), 'Ready — click Execute due sends') +
+        kpi('Waiting', num(q.waiting), 'Scheduled, not due yet') +
+        kpi('In Welcome', num(k.welcome_leads), 'People in the welcome journey') +
+        kpi('In ATC / Cart', num(k.cart_leads), 'People in cart recovery') +
         '</div>' +
         '<p class="lv-admin__muted" style="margin:1rem 0 0">' +
-        '总邮箱 ' +
+        'Total leads ' +
         num(k.total_leads) +
-        ' · Purchase 旅程 ' +
+        ' · Purchase journey ' +
         num(k.purchase_leads) +
-        ' · 还没进旅程 ' +
+        ' · Not in a journey ' +
         num(k.never_enrolled) +
-        ' · 今天已发出 ' +
+        ' · Sent today ' +
         num(k.emails_sent_today) +
         '</p></section>' +
         '<section class="lv-admin__card" style="margin-top:1.25rem">' +
@@ -133,7 +133,7 @@
               esc(c.label) +
               '</strong><span class="lv-mkt-cat-val">' +
               num(c.current) +
-              '</span><span class="lv-admin__muted">人在这个旅程 · 历史入队 ' +
+              '</span><span class="lv-admin__muted">Active now · ever enrolled ' +
               num(c.ever_enrolled) +
               '</span></a>'
             );
@@ -142,16 +142,16 @@
         '</div></section>' +
         '<section class="lv-admin__card" style="margin-top:1.25rem">' +
         '<div class="lv-admin__header" style="margin:0 0 1rem;padding:0">' +
-        '<div><h3 style="margin:0">邮件队列（每一封）</h3>' +
-        '<p class="lv-admin__muted" id="lvMktQueueCaption">Due = 现在就能发。Waiting = 还没到点。</p></div>' +
+        '<div><h3 style="margin:0">Email queue</h3>' +
+        '<p class="lv-admin__muted" id="lvMktQueueCaption">Due = ready to send now. Waiting = scheduled for later.</p></div>' +
         '<div class="lv-mkt-queue-tabs">' +
-        '<button type="button" class="lv-admin__chip is-active" data-q="due">现在要发 Due (' +
+        '<button type="button" class="lv-admin__chip is-active" data-q="due">Due (' +
         num(q.due) +
         ')</button>' +
         '<button type="button" class="lv-admin__chip" data-q="waiting">Waiting (' +
         num(q.waiting) +
         ')</button>' +
-        '<button type="button" class="lv-admin__chip" data-q="completed">已发出 Sent (' +
+        '<button type="button" class="lv-admin__chip" data-q="completed">Sent (' +
         num(q.completed) +
         ')</button>' +
         '</div></div>' +
