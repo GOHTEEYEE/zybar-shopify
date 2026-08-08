@@ -110,6 +110,8 @@
         kpi('Waiting', num(q.waiting), 'Scheduled, not due yet') +
         kpi('In Welcome', num(k.welcome_leads), 'People in the welcome journey') +
         kpi('In ATC / Cart', num(k.cart_leads), 'People in cart recovery') +
+        kpi('Opened', num(k.emails_opened) + ' / ' + num(q.completed), 'People who opened a sent email') +
+        kpi('Open rate', (k.open_rate || 0) + '%', 'Opened ÷ sent') +
         '</div>' +
         '<p class="lv-admin__muted" style="margin:1rem 0 0">' +
         'Total leads ' +
@@ -172,7 +174,7 @@
               ? 'Emails ready to send now.'
               : category === 'waiting'
                 ? 'Scheduled for later.'
-                : 'Recently completed LUNEVA sends.';
+                : 'Sent emails — Opened means the recipient viewed it.';
         }
         var status = category === 'completed' ? 'completed' : 'pending';
         authFetch('/api/admin/luneva/marketing/queue?status=' + status + '&limit=200').then(
@@ -193,11 +195,25 @@
               host.innerHTML = '<p class="lv-admin__muted">No emails in this bucket.</p>';
               return;
             }
+            var showEngage = category === 'completed';
             host.innerHTML =
-              '<table class="lv-admin__table"><thead><tr><th>When</th><th>Email</th><th>Journey</th><th>Step / template</th><th>Status</th></tr></thead><tbody>' +
+              '<table class="lv-admin__table"><thead><tr><th>When</th><th>Email</th><th>Journey</th><th>Step / template</th>' +
+              (showEngage ? '<th>Opened</th><th>Clicked</th>' : '<th>Status</th>') +
+              '</tr></thead><tbody>' +
               rows
                 .slice(0, 80)
                 .map(function (row) {
+                  var engageCols = showEngage
+                    ? '<td>' +
+                      (row.opened_at
+                        ? '<span class="lv-admin__chip">Opened</span> ' + esc(fmtDate(row.opened_at))
+                        : '<span class="lv-admin__muted">Not opened</span>') +
+                      '</td><td>' +
+                      (row.clicked_at
+                        ? '<span class="lv-admin__chip">Clicked</span> ' + esc(fmtDate(row.clicked_at))
+                        : '<span class="lv-admin__muted">No click</span>') +
+                      '</td>'
+                    : '<td>' + esc(row.status) + '</td>';
                   return (
                     '<tr><td>' +
                     esc(fmtDate(row.executed_at || row.scheduled_at)) +
@@ -207,9 +223,9 @@
                     esc(row.journey_name || '—') +
                     '</td><td>' +
                     esc(row.step_name || row.template_id || '—') +
-                    '</td><td>' +
-                    esc(row.status) +
-                    '</td></tr>'
+                    '</td>' +
+                    engageCols +
+                    '</tr>'
                   );
                 })
                 .join('') +
