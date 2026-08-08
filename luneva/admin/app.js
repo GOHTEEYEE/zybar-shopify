@@ -875,14 +875,26 @@
   }
 
   function customerSourceLabel(row) {
-    if ((row.orders || 0) > 0) return 'Purchased';
+    if ((row.orders || 0) > 0 || row.source === 'purchase' || row.status === 'purchased') {
+      return 'Purchased';
+    }
     if (row.source === 'checkout_draft' || row.status === 'details_filled') {
       return 'Checkout details (unpaid)';
     }
     if (row.source === 'checkout_email' || row.source === 'luneva_checkout') {
       return 'Checkout email';
     }
-    return 'Lead';
+    if (
+      row.status === 'email_marketing' ||
+      String(row.source || '').indexOf('luneva_popup') === 0
+    ) {
+      var intent = String(row.source || '').split(':')[1] || '';
+      if (intent === 'gift') return 'Welcome popup · Gift';
+      if (intent === 'diy') return 'Welcome popup · DIY';
+      if (intent === 'other') return 'Welcome popup · Other';
+      return 'Welcome popup';
+    }
+    return 'Email lead';
   }
 
   function renderCustomers(data) {
@@ -890,7 +902,7 @@
     content.innerHTML =
       header(
         'Emails & customers',
-        'Checkout emails and completed orders in the selected period.'
+        'Welcome popup emails, checkout leads, and completed orders in the selected period.'
       ) +
       '<section class="lv-admin__card"><table class="lv-admin__table"><thead><tr><th>Email</th><th>Name</th><th>Source</th><th>Orders</th><th>Revenue</th><th>Last activity</th></tr></thead><tbody>' +
       (customers.length
