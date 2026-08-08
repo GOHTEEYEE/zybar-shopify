@@ -1493,6 +1493,27 @@
           setLoading(false);
         });
     }
+    if (tab === 'marketing' || tab === 'mkt-overview') {
+      setLoading(false);
+      if (content) content.hidden = false;
+      if (window.LunevaMarketingUI) window.LunevaMarketingUI.renderOverview(content);
+      else showError(new Error('Marketing UI failed to load'));
+      return;
+    }
+    if (tab === 'mkt-audience') {
+      setLoading(false);
+      if (content) content.hidden = false;
+      if (window.LunevaMarketingUI) window.LunevaMarketingUI.renderAudience(content);
+      else showError(new Error('Marketing UI failed to load'));
+      return;
+    }
+    if (tab === 'mkt-journeys') {
+      setLoading(false);
+      if (content) content.hidden = false;
+      if (window.LunevaMarketingUI) window.LunevaMarketingUI.renderJourneys(content);
+      else showError(new Error('Marketing UI failed to load'));
+      return;
+    }
     if (tab === 'inquiries') {
       return api('/api/admin/luneva/inquiries')
         .then(renderInquiries)

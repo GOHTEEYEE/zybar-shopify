@@ -1012,6 +1012,85 @@ app.post('/api/admin/luneva/campaigns/send', async (req, res) => {
   }
 });
 
+app.get('/api/admin/luneva/marketing/overview', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaMarketing = require('./lib/luneva-marketing.js');
+    const data = await LunevaMarketing.getOverview(supabase);
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/luneva/marketing/overview error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load marketing overview' });
+  }
+});
+
+app.get('/api/admin/luneva/marketing/audience', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaMarketing = require('./lib/luneva-marketing.js');
+    const data = await LunevaMarketing.getAudience(supabase, req.query || {});
+    return res.json(data);
+  } catch (err) {
+    console.error('GET /api/admin/luneva/marketing/audience error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load audience' });
+  }
+});
+
+app.get('/api/admin/luneva/marketing/journeys', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaMarketing = require('./lib/luneva-marketing.js');
+    const journeys = await LunevaMarketing.listJourneys(supabase);
+    return res.json({ journeys: journeys });
+  } catch (err) {
+    console.error('GET /api/admin/luneva/marketing/journeys error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load journeys' });
+  }
+});
+
+app.get('/api/admin/luneva/marketing/queue', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaMarketing = require('./lib/luneva-marketing.js');
+    const queue = await LunevaMarketing.listQueue(supabase, req.query || {});
+    return res.json({ queue: queue });
+  } catch (err) {
+    console.error('GET /api/admin/luneva/marketing/queue error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load queue' });
+  }
+});
+
+app.post('/api/admin/luneva/marketing/execute', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaMarketing = require('./lib/luneva-marketing.js');
+    const body = req.body || {};
+    const result = await LunevaMarketing.executeReady(supabase, process.env, {
+      limit: body.limit || 25,
+      promote_limit: body.promote_limit || 100,
+      max_rounds: body.max_rounds || 20
+    });
+    return res.json(Object.assign({ ok: true }, result));
+  } catch (err) {
+    console.error('POST /api/admin/luneva/marketing/execute error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to execute LUNEVA sends' });
+  }
+});
+
+app.post('/api/admin/luneva/marketing/enroll-welcome', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaMarketing = require('./lib/luneva-marketing.js');
+    const result = await LunevaMarketing.enrollNeverIntoWelcome(supabase, {
+      limit: (req.body && req.body.limit) || 200
+    });
+    return res.json(Object.assign({ ok: true }, result));
+  } catch (err) {
+    console.error('POST /api/admin/luneva/marketing/enroll-welcome error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to enroll leads' });
+  }
+});
+
 app.get('/api/admin/luneva/visitors', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);
