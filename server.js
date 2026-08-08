@@ -1091,6 +1091,18 @@ app.post('/api/admin/luneva/marketing/enroll-welcome', async (req, res) => {
   }
 });
 
+app.get('/api/admin/luneva/marketing/templates/:key/preview', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const LunevaMarketing = require('./lib/luneva-marketing.js');
+    const result = await LunevaMarketing.previewTemplate(supabase, req.params.key, process.env);
+    return res.status(result.status).json(result.json);
+  } catch (err) {
+    console.error('GET /api/admin/luneva/marketing/templates/:key/preview error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Preview failed' });
+  }
+});
+
 app.get('/api/admin/luneva/visitors', async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Analytics not configured' });
   const range = parseAnalyticsRange(req);

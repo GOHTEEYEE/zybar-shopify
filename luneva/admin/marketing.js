@@ -446,11 +446,64 @@
     load();
   }
 
+  function openTemplatePreview(templateKey, stepName) {
+    var existing = document.getElementById('lvMktPreviewModal');
+    if (existing) existing.remove();
+
+    var modal = document.createElement('div');
+    modal.id = 'lvMktPreviewModal';
+    modal.className = 'lv-mkt-preview-modal';
+    modal.innerHTML =
+      '<div class="lv-mkt-preview-dialog" role="dialog" aria-modal="true">' +
+      '<div class="lv-mkt-preview-head">' +
+      '<div><p class="lv-admin__muted" style="margin:0">Customer preview</p>' +
+      '<h2 id="lvMktPreviewTitle">' +
+      esc(stepName || templateKey) +
+      '</h2></div>' +
+      '<button type="button" class="lv-admin__btn lv-admin__btn--ghost" id="lvMktPreviewClose">Close</button>' +
+      '</div>' +
+      '<p class="lv-admin__muted" id="lvMktPreviewMeta">Loading template…</p>' +
+      '<div class="lv-admin__preview-subject" id="lvMktPreviewSubject"></div>' +
+      '<iframe class="lv-admin__preview-frame" id="lvMktPreviewFrame" title="Email preview"></iframe>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    function close() {
+      modal.remove();
+    }
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) close();
+    });
+    document.getElementById('lvMktPreviewClose').addEventListener('click', close);
+
+    authFetch(
+      '/api/admin/luneva/marketing/templates/' + encodeURIComponent(templateKey) + '/preview'
+    ).then(function (res) {
+      var meta = document.getElementById('lvMktPreviewMeta');
+      var subjectEl = document.getElementById('lvMktPreviewSubject');
+      var frame = document.getElementById('lvMktPreviewFrame');
+      if (!res.ok || !res.body.success) {
+        if (meta) meta.textContent = (res.body && res.body.error) || 'Preview failed';
+        return;
+      }
+      var preview = res.body.preview || {};
+      var def = res.body.template || {};
+      if (meta) {
+        meta.textContent =
+          'Template: ' +
+          (def.key || templateKey) +
+          (def.description ? ' — ' + def.description : '');
+      }
+      if (subjectEl) subjectEl.textContent = 'Subject: ' + (preview.subject || '—');
+      if (frame) frame.srcdoc = preview.html || '';
+    });
+  }
+
   function renderJourneys(content) {
     content.innerHTML =
       header(
         'Journeys',
-        'LUNEVA lifecycle flows. Cron also sends due emails every 5 minutes.',
+        'Click any step to preview the exact email customers receive.',
         '<button type="button" class="lv-admin__btn" id="lvMktJExec">Execute due sends</button>'
       ) +
       '<div class="lv-admin__muted">Loading journeys…</div>';
@@ -468,7 +521,7 @@
       content.innerHTML =
         header(
           'Journeys',
-          'LUNEVA welcome → cart → purchase. Execute due only affects LUNEVA.',
+          'Click any step to see the full customer email. Execute due only affects LUNEVA.',
           '<button type="button" class="lv-admin__btn" id="lvMktJExec">Execute due sends</button>'
         ) +
         (journeys.length
@@ -505,13 +558,17 @@
                   (j.steps || [])
                     .map(function (s) {
                       return (
-                        '<li>' +
-                        esc(s.step_name) +
-                        ' <span class="lv-admin__muted">(' +
-                        esc(s.delay_value + ' ' + s.delay_unit) +
-                        ' · ' +
+                        '<li><button type="button" class="lv-mkt-step-btn" data-template="' +
                         esc(s.template_id) +
-                        ')</span></li>'
+                        '" data-step="' +
+                        esc(s.step_name) +
+                        '">' +
+                        '<span class="lv-mkt-step-name">' +
+                        esc(s.step_name) +
+                        '</span>' +
+                        '<span class="lv-admin__muted">' +
+                        esc(s.delay_value + ' ' + s.delay_unit) +
+                        ' · Preview →</span></button></li>'
                       );
                     })
                     .join('') +
@@ -522,6 +579,15 @@
             '</div>'
           : '<p class="lv-admin__muted">No LUNEVA journeys found. Run the email journeys migration.</p>') +
         '<p class="lv-admin__send-status" id="lvMktJStatus" hidden></p>';
+
+      content.querySelectorAll('[data-template]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openTemplatePreview(
+            btn.getAttribute('data-template'),
+            btn.getAttribute('data-step')
+          );
+        });
+      });
 
       var exec = document.getElementById('lvMktJExec');
       if (exec) {
