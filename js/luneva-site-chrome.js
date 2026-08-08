@@ -109,25 +109,51 @@
   function enhanceFooter() {
     var footer = document.querySelector(".lv-footer .lv-container");
     if (!footer) return;
-    var links = footer.querySelector("p:last-of-type");
-    var desired =
+
+    var navHtml =
       '<a href="/luneva/shop/">Shop</a> · <a href="/luneva/reviews/">Reviews</a> · <a href="/luneva/faqs/">FAQs</a> · <a href="/luneva/contact/">Contact</a> · <a href="/luneva/cart/">Cart</a>';
-    if (!links || links.querySelectorAll("a").length < 4) {
-      if (links && links.querySelector("a")) {
-        links.innerHTML = desired;
+    var legalHtml =
+      '<a href="/luneva/about/">About</a> · <a href="/luneva/policies/privacy/">Privacy</a> · <a href="/luneva/policies/terms/">Terms</a> · <a href="/luneva/policies/refund/">Refunds</a>';
+
+    var nav = footer.querySelector(".lv-footer__nav");
+    if (!nav) {
+      var legacyLinks = footer.querySelector("p:last-of-type");
+      if (legacyLinks && legacyLinks.querySelector("a") && !legacyLinks.classList.contains("lv-footer__note")) {
+        legacyLinks.className = "lv-footer__nav";
+        nav = legacyLinks;
       } else {
-        var p = document.createElement("p");
-        p.innerHTML = desired;
-        footer.appendChild(p);
+        nav = document.createElement("p");
+        nav.className = "lv-footer__nav";
+        footer.appendChild(nav);
       }
     }
-    if (!footer.querySelector(".lv-footer__note")) {
-      var note = document.createElement("p");
+    nav.innerHTML = navHtml;
+
+    var legal = footer.querySelector(".lv-footer__legal");
+    if (!legal) {
+      legal = document.createElement("p");
+      legal.className = "lv-footer__legal";
+      footer.appendChild(legal);
+    }
+    legal.innerHTML = legalHtml;
+
+    var identity = footer.querySelector(".lv-footer__identity");
+    if (!identity) {
+      identity = document.createElement("p");
+      identity.className = "lv-footer__identity";
+      footer.appendChild(identity);
+    }
+    identity.innerHTML =
+      'LUNEVA Mechanical Butterfly Series · Operated at zybar.shop/luneva · Support <a href="mailto:support@zybar.shop">support@zybar.shop</a>';
+
+    var note = footer.querySelector(".lv-footer__note");
+    if (!note) {
+      note = document.createElement("p");
       note.className = "lv-footer__note";
-      note.textContent =
-        "Free worldwide shipping · Easy assembly · 60-day free returns · Welcome 15% with email";
       footer.appendChild(note);
     }
+    note.textContent =
+      "Free worldwide shipping · Easy assembly · 60-day free returns · Secure Stripe checkout · Welcome 15% with email";
   }
 
   function injectPdpRating() {
@@ -150,7 +176,7 @@
     if (!buyCol.querySelector(".lv-ship-eta")) {
       var eta = document.createElement("p");
       eta.className = "lv-ship-eta";
-      eta.textContent = "Ships in 5–7 days · Free worldwide shipping";
+      eta.textContent = "Ships in 5–10 business days · Free worldwide shipping";
       var actions = buyCol.querySelector(".lv-actions");
       var bullets = buyCol.querySelector(".lv-bullets");
       if (actions) {

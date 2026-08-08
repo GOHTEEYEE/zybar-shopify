@@ -944,6 +944,21 @@
   font-weight: 500;
 }
 
+.checkout-guarantees a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.checkout-footer-note {
+  margin: 0.85rem 0 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--co-muted);
+  line-height: 1.5;
+}
+
 /* Loading / error */
 .checkout-loading {
   display: flex;

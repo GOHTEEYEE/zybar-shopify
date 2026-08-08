@@ -425,8 +425,30 @@ button {
   margin-bottom: 1rem;
 }
 
+.lv-footer__nav,
+.lv-footer__legal {
+  margin: 0.85rem 0 0;
+  line-height: 1.7;
+}
+
+.lv-footer__legal a,
+.lv-footer__nav a,
+.lv-footer__identity a {
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.lv-footer__identity {
+  margin-top: 1.4rem;
+  opacity: 0.72;
+  font-size: 1.2rem;
+  line-height: 1.55;
+  max-width: 52rem;
+}
+
 .lv-footer__note {
-  margin-top: 2rem;
+  margin-top: 1.2rem;
   opacity: 0.65;
 }
 
