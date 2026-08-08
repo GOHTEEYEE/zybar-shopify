@@ -2677,22 +2677,64 @@ async function persistPaidCheckoutSession(session) {
       (session.customer_email) ||
       null;
     if (email) {
+      const BrandAnalytics = require('./lib/brand-analytics.js');
+      const metaCollection =
+        session.metadata && session.metadata.collection
+          ? String(session.metadata.collection).toLowerCase()
+          : '';
+      const productSlug =
+        session.metadata && session.metadata.productSlug
+          ? String(session.metadata.productSlug)
+          : '';
+      const orderBrand =
+        metaCollection === 'luneva' || productSlug.indexOf('luneva-') === 0
+          ? BrandAnalytics.BRAND_LUNEVA
+          : BrandAnalytics.BRAND_ZYBAR;
+      const normalizedEmail = String(email).trim().toLowerCase();
+
       let leadRes = await supabase
         .from('newsletter_subscribers')
         .select('*')
-        .ilike('email', String(email).trim().toLowerCase())
+        .ilike('email', normalizedEmail)
+        .eq('brand', orderBrand)
         .maybeSingle();
-      if (!leadRes.error && !leadRes.data) {
+      if (leadRes.error && /brand|column/i.test(String(leadRes.error.message || ''))) {
         leadRes = await supabase
           .from('newsletter_subscribers')
-          .insert({
-            email: String(email).trim().toLowerCase(),
-            source: 'purchase',
-            status: 'active',
-            is_test: false
-          })
+          .select('*')
+          .ilike('email', normalizedEmail)
+          .maybeSingle();
+        if (
+          !leadRes.error &&
+          leadRes.data &&
+          BrandAnalytics.inferLeadBrand(leadRes.data) !== orderBrand
+        ) {
+          leadRes = { data: null, error: null };
+        }
+      }
+      if (!leadRes.error && !leadRes.data) {
+        const insertRow = {
+          email: normalizedEmail,
+          source: orderBrand === BrandAnalytics.BRAND_LUNEVA ? 'luneva_purchase' : 'purchase',
+          status: 'active',
+          is_test: false,
+          brand: orderBrand,
+          discount_code:
+            orderBrand === BrandAnalytics.BRAND_LUNEVA ? 'LUNEVA5' : null
+        };
+        leadRes = await supabase
+          .from('newsletter_subscribers')
+          .insert(insertRow)
           .select('*')
           .single();
+        if (leadRes.error && /brand|column/i.test(String(leadRes.error.message || ''))) {
+          delete insertRow.brand;
+          leadRes = await supabase
+            .from('newsletter_subscribers')
+            .insert(insertRow)
+            .select('*')
+            .single();
+        }
       }
       if (!leadRes.error && leadRes.data) {
         const JourneyEngine = require('./lib/journey-engine.js');
@@ -4521,19 +4563,34 @@ app.post('/api/analytics/track', async (req, res) => {
 
       try {
         if (
-          cartBrand === BrandAnalytics.BRAND_ZYBAR &&
           Array.isArray(cart.items) &&
           cart.items.length &&
-          cart.visitor_id
+          cart.visitor_id &&
+          (cartBrand === BrandAnalytics.BRAND_ZYBAR ||
+            cartBrand === BrandAnalytics.BRAND_LUNEVA)
         ) {
-          const leadRes = await supabase
+          let leadQuery = supabase
             .from('newsletter_subscribers')
             .select('*')
-            .eq('visitor_id', String(cart.visitor_id))
-            .maybeSingle();
-          if (!leadRes.error && leadRes.data && !BrandAnalytics.isLunevaLead(leadRes.data)) {
+            .eq('visitor_id', String(cart.visitor_id));
+          const brandedLead = await leadQuery.eq('brand', cartBrand).maybeSingle();
+          let lead = null;
+          if (!brandedLead.error && brandedLead.data) {
+            lead = brandedLead.data;
+          } else if (brandedLead.error && /brand|column/i.test(String(brandedLead.error.message || ''))) {
+            const legacyLead = await supabase
+              .from('newsletter_subscribers')
+              .select('*')
+              .eq('visitor_id', String(cart.visitor_id))
+              .maybeSingle();
+            if (!legacyLead.error && legacyLead.data) {
+              const leadBrand = BrandAnalytics.inferLeadBrand(legacyLead.data);
+              if (leadBrand === cartBrand) lead = legacyLead.data;
+            }
+          }
+          if (lead) {
             const JourneyEngine = require('./lib/journey-engine.js');
-            await JourneyEngine.enrollLeadOnAddToCart(supabase, leadRes.data);
+            await JourneyEngine.enrollLeadOnAddToCart(supabase, lead);
           }
         }
       } catch (cartJourneyErr) {
