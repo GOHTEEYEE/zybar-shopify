@@ -107,53 +107,46 @@
   }
 
   function enhanceFooter() {
-    var footer = document.querySelector(".lv-footer .lv-container");
+    var footerRoot = document.querySelector(".lv-footer");
+    var footer = footerRoot && footerRoot.querySelector(".lv-container");
     if (!footer) return;
 
-    var navHtml =
-      '<a href="/luneva/shop/">Shop</a> · <a href="/luneva/reviews/">Reviews</a> · <a href="/luneva/faqs/">FAQs</a> · <a href="/luneva/contact/">Contact</a> · <a href="/luneva/cart/">Cart</a>';
-    var legalHtml =
-      '<a href="/luneva/about/">About</a> · <a href="/luneva/policies/privacy/">Privacy</a> · <a href="/luneva/policies/terms/">Terms</a> · <a href="/luneva/policies/refund/">Refunds</a>';
-
-    var nav = footer.querySelector(".lv-footer__nav");
-    if (!nav) {
-      var legacyLinks = footer.querySelector("p:last-of-type");
-      if (legacyLinks && legacyLinks.querySelector("a") && !legacyLinks.classList.contains("lv-footer__note")) {
-        legacyLinks.className = "lv-footer__nav";
-        nav = legacyLinks;
-      } else {
-        nav = document.createElement("p");
-        nav.className = "lv-footer__nav";
-        footer.appendChild(nav);
-      }
-    }
-    nav.innerHTML = navHtml;
-
-    var legal = footer.querySelector(".lv-footer__legal");
-    if (!legal) {
-      legal = document.createElement("p");
-      legal.className = "lv-footer__legal";
-      footer.appendChild(legal);
-    }
-    legal.innerHTML = legalHtml;
-
-    var identity = footer.querySelector(".lv-footer__identity");
-    if (!identity) {
-      identity = document.createElement("p");
-      identity.className = "lv-footer__identity";
-      footer.appendChild(identity);
-    }
-    identity.innerHTML =
-      'LUNEVA Mechanical Butterfly Series · Operated at zybar.shop/luneva · Support <a href="mailto:support@zybar.shop">support@zybar.shop</a>';
-
-    var note = footer.querySelector(".lv-footer__note");
-    if (!note) {
-      note = document.createElement("p");
-      note.className = "lv-footer__note";
-      footer.appendChild(note);
-    }
-    note.textContent =
-      "Free worldwide shipping · Easy assembly · 60-day free returns · Secure Stripe checkout · Welcome 15% with email";
+    footer.innerHTML =
+      '<div class="lv-footer__grid">' +
+      '<div class="lv-footer__brand-col">' +
+      '<div class="lv-footer__brand">LUNEVA</div>' +
+      '<p class="lv-footer__tagline">Beauty in motion. Made to inspire.</p>' +
+      "</div>" +
+      '<div class="lv-footer__col">' +
+      '<h3 class="lv-footer__heading">Customer area</h3>' +
+      "<ul>" +
+      '<li><a href="/luneva/contact/">Contact</a></li>' +
+      '<li><a href="/luneva/cart/">Cart</a></li>' +
+      '<li><a href="/luneva/faqs/">FAQs</a></li>' +
+      '<li><a href="/luneva/policies/refund/">Refunds</a></li>' +
+      "</ul>" +
+      "</div>" +
+      '<div class="lv-footer__col">' +
+      '<h3 class="lv-footer__heading">Navigation</h3>' +
+      "<ul>" +
+      '<li><a href="/luneva/shop/">Shop</a></li>' +
+      '<li><a href="/luneva/reviews/">Reviews</a></li>' +
+      '<li><a href="/luneva/about/">About</a></li>' +
+      '<li><a href="/luneva/policies/privacy/">Privacy</a></li>' +
+      '<li><a href="/luneva/policies/terms/">Terms</a></li>' +
+      "</ul>" +
+      "</div>" +
+      "</div>" +
+      '<div class="lv-footer__social" aria-label="Social">' +
+      '<a href="https://www.facebook.com/people/ZY-Bar/61552413785446/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M14 8h3V5h-3c-2.2 0-4 1.8-4 4v2H7v3h3v7h3v-7h3l1-3h-4V9c0-.6.4-1 1-1z"/></svg></a>' +
+      '<a href="https://www.instagram.com/zybar.shop" target="_blank" rel="noopener noreferrer" aria-label="Instagram">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zm5 2.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5zm5.25-3.25a1 1 0 1 1-1 1 1 1 0 0 1 1-1z"/></svg></a>' +
+      '<a href="https://www.tiktok.com/@zybar.shop" target="_blank" rel="noopener noreferrer" aria-label="TikTok">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M14.5 3c.4 2.3 1.8 3.8 4 4.2v2.5c-1.4-.1-2.7-.5-3.8-1.3v5.8a5.2 5.2 0 1 1-5.2-5.2c.3 0 .6 0 .9.1v2.6a2.6 2.6 0 1 0 1.8 2.5V3h2.3z"/></svg></a>' +
+      "</div>" +
+      '<p class="lv-footer__identity">LUNEVA Mechanical Butterfly Series · Operated at zybar.shop/luneva · Support <a href="mailto:support@zybar.shop">support@zybar.shop</a></p>' +
+      '<p class="lv-footer__note">Free worldwide shipping · Easy assembly · 60-day free returns · Secure Stripe checkout · Welcome 15% with email</p>';
   }
 
   function injectPdpRating() {

@@ -910,7 +910,7 @@
     }
     var script = document.createElement("script");
     script.id = "luneva-site-chrome-js";
-    script.src = "/js/luneva-site-chrome.js?v=3";
+    script.src = "/js/luneva-site-chrome.js?v=4";
     script.defer = true;
     script.onload = function () {
       if (window.LunevaSiteChrome) window.LunevaSiteChrome.init();
