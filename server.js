@@ -4651,6 +4651,18 @@ app.post('/api/analytics/track', async (req, res) => {
         cartId = existing.id;
       }
 
+      const priorCart = await supabase
+        .from('cart_sessions')
+        .select('item_count,status')
+        .eq('id', cartId)
+        .maybeSingle();
+      const priorCount = priorCart.data ? Number(priorCart.data.item_count) || 0 : 0;
+      const nextCount = Number(cart.item_count) || 0;
+      const addedItems = nextCount > priorCount;
+      if (priorCart.data && priorCart.data.status === 'purchased' && !addedItems) {
+        cartRow.status = 'purchased';
+      }
+
       let upsertErr = (
         await supabase.from('cart_sessions').upsert(Object.assign({}, cartRow, { id: cartId }), {
           onConflict: 'id'
@@ -4716,7 +4728,7 @@ app.post('/api/analytics/track', async (req, res) => {
               if (leadBrand === cartBrand) lead = legacyLead.data;
             }
           }
-          if (lead) {
+          if (lead && addedItems) {
             const JourneyEngine = require('./lib/journey-engine.js');
             await JourneyEngine.enrollLeadOnAddToCart(supabase, lead);
           }

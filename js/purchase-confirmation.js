@@ -105,6 +105,15 @@
     }
   }
 
+  function clearPurchasedCart() {
+    try {
+      window.localStorage.removeItem("zybar.cart.items");
+      window.localStorage.removeItem("luneva.cart.items");
+      window.sessionStorage.removeItem("zybar.checkout.pending");
+      window.sessionStorage.removeItem("luneva.checkout.pending");
+    } catch (_) {}
+  }
+
   function fetchOrder(sessionId, attempt) {
     var apiBase = getApiBase();
     showStatus(attempt > 0 ? "Confirming payment…" : "Loading your order details…");
@@ -120,6 +129,7 @@
       })
       .then(function (result) {
         if (result.ok && result.body) {
+          clearPurchasedCart();
           renderOrder(result.body);
           showStatus("");
           if (window.ZYBAR && window.ZYBAR.Analytics) {
@@ -158,6 +168,7 @@
       })
       .then(function (result) {
         if (result.ok && result.body) {
+          clearPurchasedCart();
           renderOrder(result.body);
           showStatus("");
           if (window.ZYBAR && window.ZYBAR.Analytics) {
