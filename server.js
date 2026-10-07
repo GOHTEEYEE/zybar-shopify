@@ -1697,7 +1697,7 @@ app.post('/api/track-order', async (req, res) => {
     const { data, error } = await supabase
       .from('orders')
       .select(
-        'id,customer_email,customer_name,product_slug,size,quantity,line_items,status,fulfillment_status,tracking_number,shipping_method,created_at'
+        'id,customer_email,customer_name,product_slug,size,quantity,line_items,status,fulfillment_status,tracking_number,shipping_method,shipping_address,city,state,postcode,country,created_at'
       )
       .ilike('tracking_number', escaped)
       .limit(5);
@@ -1773,7 +1773,10 @@ app.post('/api/track-order', async (req, res) => {
         paymentStatus: match.status || null,
         createdAt: match.created_at || null,
         productLabel: productLabel(match),
-        items: itemList(match)
+        items: itemList(match),
+        address: [match.shipping_address, [match.city, match.state, match.postcode].filter(Boolean).join(', '), match.country].filter(function (line) {
+          return line && String(line).trim();
+        })
       }
     });
   } catch (e) {

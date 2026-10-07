@@ -6019,33 +6019,146 @@ body:has(.pdp-sticky-bar) .site-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.track-order-result-title {
-  margin: 0 0 1rem;
-  font-family: "Playfair Display", Georgia, serif;
-  font-size: 1.35rem;
-  font-weight: 600;
+.track-status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0 0 1.35rem;
+  padding: 0;
+}
+
+.track-status li span {
+  display: block;
+  padding-top: 0.55rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.track-status li::before {
+  content: "";
+  display: block;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.track-status li.is-done::before,
+.track-status li.is-current::before {
+  background: #fff;
+}
+
+.track-status li.is-done span,
+.track-status li.is-current span {
   color: #fff;
+}
+
+.track-order-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.track-order-hint {
+  margin: 0.55rem 0 0;
+  max-width: 36rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.track-order-dl a,
+.track-order-address {
+  color: #fff;
+}
+
+.track-order-dl a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.track-order-address {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.track-order-result-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #fff;
+  word-break: break-word;
+}
+
+.track-order-carrier {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.track-order-actions {
+  margin-top: 1rem;
+}
+
+.track-carrier-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.7rem 1.1rem;
+  background: #fff;
+  color: #111;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.track-order-cancelled {
+  margin: 0 0 1rem;
+  color: #fca5a5;
+}
+
+.track-order-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1rem;
+  margin-top: 1.35rem;
+}
+
+.track-order-grid section {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1rem 1.05rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.track-order-grid h3,
+.track-order-dl dt {
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.48);
+  font-weight: 600;
 }
 
 .track-order-dl {
   display: grid;
   gap: 0.75rem;
-  margin: 0 0 1.25rem;
+  margin: 0;
 }
 
 .track-order-dl > div {
   display: grid;
-  grid-template-columns: 8.5rem 1fr;
-  gap: 0.5rem;
-  align-items: baseline;
-}
-
-.track-order-dl dt {
-  margin: 0;
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  gap: 0.15rem;
 }
 
 .track-order-dl dd {
@@ -6054,30 +6167,20 @@ body:has(.pdp-sticky-bar) .site-footer {
   word-break: break-word;
 }
 
-.track-order-products h3 {
-  margin: 0 0 0.5rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 600;
-}
-
 .track-order-items {
   margin: 0;
   padding-left: 1.1rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .track-order-items-empty {
   margin: 0;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
 }
 
-@media (max-width: 520px) {
-  .track-order-dl > div {
+@media (max-width: 720px) {
+  .track-order-grid {
     grid-template-columns: 1fr;
-    gap: 0.15rem;
   }
 }
 

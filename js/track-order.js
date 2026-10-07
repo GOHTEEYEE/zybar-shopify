@@ -50,6 +50,22 @@
     return text.charAt(0).toUpperCase() + text.slice(1);
   }
 
+  function stepState(status) {
+    var key = String(status || '').toLowerCase();
+    if (key === 'delivered') return 2;
+    if (key === 'shipped') return 1;
+    return 0;
+  }
+
+  function statusHeadline(status) {
+    var key = String(status || 'unfulfilled').toLowerCase();
+    if (key === 'delivered') return 'Delivered';
+    if (key === 'shipped') return 'Shipped';
+    if (key === 'processing') return 'Processing';
+    if (key === 'cancelled') return 'Cancelled';
+    return 'Order confirmed';
+  }
+
   function renderResult(order) {
     if (!resultEl) return;
     var items = Array.isArray(order.items) ? order.items : [];
@@ -63,24 +79,55 @@
         '</ul>'
       : '<p class="track-order-items-empty">' + esc(order.productLabel || 'ZYBAR LED Wall Art') + '</p>';
 
+    var status = String(order.fulfillmentStatus || 'unfulfilled').toLowerCase();
+    var cancelled = status === 'cancelled';
+    var active = stepState(status);
+    var steps = ['Confirmed', 'Shipped', 'Delivered']
+      .map(function (label, index) {
+        var cls = cancelled ? '' : index < active ? 'is-done' : index === active ? 'is-current' : '';
+        return '<li class="' + cls + '"><span>' + label + '</span></li>';
+      })
+      .join('');
+
+    var number = esc(order.trackingNumber || '—');
+    var numberHtml = order.trackingUrl
+      ? '<a href="' + esc(order.trackingUrl) + '" target="_blank" rel="noopener">' + number + '</a>'
+      : number;
+    var carrierName = order.carrier || 'the carrier';
+    var carrierBtn = order.trackingUrl
+      ? '<a class="btn track-carrier-btn" href="' +
+        esc(order.trackingUrl) +
+        '" target="_blank" rel="noopener">Track shipment</a>'
+      : '';
+    var address = Array.isArray(order.address) ? order.address.filter(Boolean) : [];
+    var addressHtml = address.length
+      ? '<section><h3>Ships to</h3><p class="track-order-address">' +
+        address.map(esc).join('<br/>') +
+        '</p></section>'
+      : '';
+
     resultEl.hidden = false;
     resultEl.innerHTML =
       '<div class="track-order-result-card">' +
-      '<h2 class="track-order-result-title">Order found</h2>' +
-      '<dl class="track-order-dl">' +
-      '<div><dt>Fulfillment</dt><dd>' +
-      esc(formatStatus(order.fulfillmentStatus)) +
-      '</dd></div>' +
-      '<div><dt>Tracking number</dt><dd>' +
+      (cancelled
+        ? '<p class="track-order-cancelled">This order was cancelled.</p>'
+        : '<ol class="track-status">' + steps + '</ol>') +
+      '<p class="track-order-kicker">Your order</p>' +
+      '<h2 class="track-order-result-title">' +
+      esc(statusHeadline(order.fulfillmentStatus)) +
+      '</h2>' +
+      (order.carrier ? '<p class="track-order-carrier">' + esc(order.carrier) + '</p>' : '') +
       (order.trackingUrl
-        ? '<a href="' + esc(order.trackingUrl) + '" target="_blank" rel="noopener">' + esc(order.trackingNumber) + '</a>'
-        : esc(order.trackingNumber)) +
-      '</dd></div>' +
-      (order.carrier
-        ? '<div><dt>Carrier</dt><dd>' + esc(order.carrier) + '</dd></div>'
+        ? '<p class="track-order-hint">' + esc(carrierName) + ' shows the latest location.</p>'
         : '') +
-      '<div><dt>Shipping</dt><dd>' +
-      esc(order.shippingMethod || '—') +
+      (carrierBtn ? '<div class="track-order-actions">' + carrierBtn + '</div>' : '') +
+      '<div class="track-order-grid">' +
+      '<section><h3>Items</h3>' +
+      itemsHtml +
+      '</section>' +
+      '<section><h3>Shipment</h3><dl class="track-order-dl">' +
+      '<div><dt>Tracking number</dt><dd>' +
+      numberHtml +
       '</dd></div>' +
       '<div><dt>Order date</dt><dd>' +
       esc(formatDate(order.createdAt)) +
@@ -88,11 +135,9 @@
       '<div><dt>Payment</dt><dd>' +
       esc(formatStatus(order.paymentStatus)) +
       '</dd></div>' +
-      '</dl>' +
-      '<div class="track-order-products"><h3>Items</h3>' +
-      itemsHtml +
-      '</div>' +
-      '</div>';
+      '</dl></section>' +
+      addressHtml +
+      '</div></div>';
   }
 
   form.addEventListener('submit', function (e) {

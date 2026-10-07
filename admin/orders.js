@@ -103,23 +103,61 @@ window.renderAdminorders = function (container) {
         if (notice && notice.notified) {
           var when = notice.created_at ? formatDateTime(notice.created_at) : '';
           lines.push(
-            'Shipping email already sent' +
-              (notice.tracking_number ? ' for ' + notice.tracking_number : '') +
-              (when ? ' · ' + when : '') +
-              '.'
+            'Shipping email sent' +
+              (notice.tracking_number ? ' · ' + notice.tracking_number : '') +
+              (when ? ' · ' + when : '')
           );
         }
         var delivery = data.delivery;
         if (delivery && delivery.notified) {
           var deliveredAt = delivery.created_at ? formatDateTime(delivery.created_at) : '';
-          lines.push('Delivery email already sent' + (deliveredAt ? ' · ' + deliveredAt : '') + '.');
+          lines.push('Delivery email sent' + (deliveredAt ? ' · ' + deliveredAt : ''));
         }
-        if (notice && notice.notified) {
-          lines.push('Saving the same tracking number will not send the shipping email again.');
-        }
-        note.textContent = lines.join(' ');
+        note.className = 'ship-log';
+        note.hidden = !lines.length;
+        note.textContent = lines.join('\n');
       })
       .catch(function () {});
+  }
+
+  function shipStepsHtml(status) {
+    var stage = String(status || 'unfulfilled');
+    if (stage === 'cancelled') {
+      return '<p class="ship-cancelled">Cancelled. Saving will not email the customer.</p>';
+    }
+    var index = stage === 'delivered' ? 2 : stage === 'shipped' ? 1 : 0;
+    return (
+      '<ol class="ship-steps">' +
+      ['Confirmed', 'Shipped', 'Delivered']
+        .map(function (label, i) {
+          var cls = i < index ? 'is-done' : i === index ? 'is-current' : '';
+          return '<li class="' + cls + '"><span>' + label + '</span></li>';
+        })
+        .join('') +
+      '</ol>'
+    );
+  }
+
+  function fulfillmentOptions(current) {
+    return [
+      ['unfulfilled', 'Unfulfilled'],
+      ['processing', 'Processing'],
+      ['shipped', 'Shipped'],
+      ['delivered', 'Delivered'],
+      ['cancelled', 'Cancelled']
+    ]
+      .map(function (pair) {
+        return (
+          '<option value="' +
+          pair[0] +
+          '"' +
+          ((current || 'unfulfilled') === pair[0] ? ' selected' : '') +
+          '>' +
+          pair[1] +
+          '</option>'
+        );
+      })
+      .join('');
   }
 
   function selectCols() {
@@ -395,26 +433,14 @@ window.renderAdminorders = function (container) {
       '</div></div>' +
       '<div class="admin-detail-grid">' +
       section(
-        'Customer Information',
-        '<dl class="admin-dl">' +
-          row('Name', order.customer_name) +
-          row('Email', order.customer_email) +
-          row('Phone', order.customer_phone) +
-          '</dl>'
-      ) +
-      section('Shipping Address', '<p>' + escapeHtml(shipping) + '</p>') +
-      section('Billing Address', '<p>' + escapeHtml(billing) + '</p>') +
-      section(
-        'Products Purchased',
-        '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th></th><th>Product</th><th>Size</th><th>Qty</th></tr></thead><tbody>' +
-          itemsHtml +
-          '</tbody></table></div>'
-      ) +
-      section(
         'Shipping & Tracking',
-        '<dl class="admin-dl">' +
+        '<div id="orderShipSteps">' +
+          shipStepsHtml(order.fulfillment_status) +
+          '</div>' +
+          '<dl class="admin-dl">' +
           row('Shipping Method', order.shipping_method) +
           '</dl>' +
+          '<div class="ship-form">' +
           '<div class="admin-form-group"><label for="orderCarrier">Carrier</label>' +
           '<select id="orderCarrier">' +
           '<option value="">Select carrier</option>' +
@@ -431,26 +457,36 @@ window.renderAdminorders = function (container) {
           '<input id="orderTracking" type="text" value="' +
           escapeHtml(order.tracking_number || '') +
           '" /></div>' +
-          '<div class="admin-form-group"><label for="orderFulfillment">Fulfillment Status</label>' +
+          '<div class="admin-form-group"><label for="orderFulfillment">Fulfillment</label>' +
           '<select id="orderFulfillment">' +
-          ['unfulfilled', 'processing', 'shipped', 'delivered', 'cancelled']
-            .map(function (s) {
-              return (
-                '<option value="' +
-                s +
-                '"' +
-                ((order.fulfillment_status || 'unfulfilled') === s ? ' selected' : '') +
-                '>' +
-                s +
-                '</option>'
-              );
-            })
-            .join('') +
-          '</select></div>' +
-          '<label class="admin-check" style="display:flex;gap:0.5rem;align-items:center;margin:0.75rem 0">' +
-          '<input id="orderNotify" type="checkbox" checked /> Email the customer this tracking number' +
+          fulfillmentOptions(order.fulfillment_status) +
+          '</select></div></div>' +
+          '<label class="admin-check ship-notify">' +
+          '<input id="orderNotify" type="checkbox" checked /> Email the customer' +
           '</label>' +
-          '<p id="orderShippingNote" class="admin-muted"></p>'
+          '<div class="ship-actions">' +
+          '<button type="button" class="admin-btn-primary" id="orderSaveBtn">Save &amp; notify</button>' +
+          '<button type="button" class="admin-btn-secondary" id="orderResendBtn">Resend shipping email</button>' +
+          '</div>' +
+          '<p id="orderSaveMsg" class="admin-muted"></p>' +
+          '<p id="orderShippingNote" class="ship-log" hidden></p>',
+        'admin-detail-card--wide'
+      ) +
+      section(
+        'Customer Information',
+        '<dl class="admin-dl">' +
+          row('Name', order.customer_name) +
+          row('Email', order.customer_email) +
+          row('Phone', order.customer_phone) +
+          '</dl>'
+      ) +
+      section('Shipping Address', '<p>' + escapeHtml(shipping) + '</p>') +
+      section('Billing Address', '<p>' + escapeHtml(billing) + '</p>') +
+      section(
+        'Products Purchased',
+        '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th></th><th>Product</th><th>Size</th><th>Qty</th></tr></thead><tbody>' +
+          itemsHtml +
+          '</tbody></table></div>'
       ) +
       section(
         'Payment Information',
@@ -482,10 +518,7 @@ window.renderAdminorders = function (container) {
         'Internal Notes',
         '<textarea id="orderNotes" rows="4" placeholder="Private notes for your team…">' +
           escapeHtml(order.internal_notes || '') +
-          '</textarea>' +
-          '<button type="button" class="admin-btn-primary" id="orderSaveBtn" style="margin-top:0.75rem">Save &amp; notify</button>' +
-          '<button type="button" class="admin-btn-secondary" id="orderResendBtn" style="margin-top:0.75rem;margin-left:0.5rem">Resend shipping email</button>' +
-          '<p id="orderSaveMsg" class="admin-muted" style="margin-top:0.5rem"></p>'
+          '</textarea>'
       ) +
       '<div id="customOrderSection" class="admin-card admin-detail-card" hidden><h3>Custom Order</h3><div id="customOrderBody"></div></div>' +
       '</div>';
@@ -500,7 +533,13 @@ window.renderAdminorders = function (container) {
       resendBtn.textContent =
         fulfillmentEl.value === 'delivered' ? 'Resend delivery email' : 'Resend shipping email';
     }
-    if (fulfillmentEl) fulfillmentEl.addEventListener('change', syncResendLabel);
+    if (fulfillmentEl) {
+      fulfillmentEl.addEventListener('change', function () {
+        syncResendLabel();
+        var steps = document.getElementById('orderShipSteps');
+        if (steps) steps.innerHTML = shipStepsHtml(fulfillmentEl.value);
+      });
+    }
     syncResendLabel();
     function saveFulfillment(resend) {
       var msg = document.getElementById('orderSaveMsg');
@@ -539,6 +578,8 @@ window.renderAdminorders = function (container) {
             var statusEl = document.getElementById('orderFulfillment');
             if (statusEl) statusEl.value = res.body.order.fulfillment_status;
             syncResendLabel();
+            var steps = document.getElementById('orderShipSteps');
+            if (steps) steps.innerHTML = shipStepsHtml(statusEl.value);
           }
           var email = res.body.email || {};
           if (msg) msg.textContent = email.reason || 'Saved.';
@@ -669,8 +710,16 @@ window.renderAdminorders = function (container) {
       .catch(function () {});
   }
 
-  function section(title, body) {
-    return '<div class="admin-card admin-detail-card"><h3>' + title + '</h3>' + body + '</div>';
+  function section(title, body, extraClass) {
+    return (
+      '<div class="admin-card admin-detail-card' +
+      (extraClass ? ' ' + extraClass : '') +
+      '"><h3>' +
+      title +
+      '</h3>' +
+      body +
+      '</div>'
+    );
   }
 
   function row(label, value) {

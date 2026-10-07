@@ -3571,3 +3571,106 @@ a.mkt-kpi:hover {
   background: #f3f4f6;
   display: block;
 }
+
+.admin-detail-card--wide {
+  grid-column: 1 / -1;
+}
+
+.ship-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.ship-steps li span {
+  display: block;
+  padding-top: 0.45rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--admin-text-muted);
+}
+
+.ship-steps li::before {
+  content: "";
+  display: block;
+  height: 2px;
+  background: var(--admin-border);
+}
+
+.ship-steps li.is-done::before,
+.ship-steps li.is-current::before {
+  background: #111827;
+}
+
+.ship-steps li.is-done span,
+.ship-steps li.is-current span {
+  color: var(--admin-text);
+  font-weight: 600;
+}
+
+.ship-form {
+  display: grid;
+  grid-template-columns: 1.1fr 1.5fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.ship-notify {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  margin: 0.9rem 0 0.2rem;
+}
+
+.ship-notify input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #111827;
+}
+
+.ship-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.ship-actions .admin-btn-primary,
+.ship-actions .admin-btn-secondary {
+  width: auto;
+  margin-top: 0;
+}
+
+.ship-log {
+  margin: 0.75rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: var(--admin-text);
+  font-size: 0.85rem;
+  white-space: pre-line;
+}
+
+.ship-cancelled {
+  margin: 0 0 0.85rem;
+  color: var(--admin-error);
+  font-size: 0.9rem;
+}
+
+#orderSaveMsg {
+  margin: 0.55rem 0 0;
+}
+
+@media (max-width: 800px) {
+  .ship-form {
+    grid-template-columns: 1fr;
+  }
+}
