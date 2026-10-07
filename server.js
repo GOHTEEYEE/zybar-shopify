@@ -1751,11 +1751,24 @@ app.post('/api/track-order', async (req, res) => {
       return [productLabel(row)];
     }
 
+    const ShippingNotice = require('./lib/shipping-notice.js');
+    let carrier = '';
+    let carrierTrackingUrl = '';
+    try {
+      const tracking = await ShippingNotice.publicTracking(supabase, match);
+      carrier = tracking.carrier || '';
+      carrierTrackingUrl = tracking.trackingUrl || '';
+    } catch (err) {
+      console.error('track-order carrier:', err && err.message ? err.message : err);
+    }
+
     return res.json({
       ok: true,
       order: {
         fulfillmentStatus: match.fulfillment_status || 'unfulfilled',
         trackingNumber: match.tracking_number,
+        carrier: carrier,
+        trackingUrl: carrierTrackingUrl,
         shippingMethod: match.shipping_method || null,
         paymentStatus: match.status || null,
         createdAt: match.created_at || null,
@@ -3749,6 +3762,37 @@ app.get('/api/admin/custom-orders', requireAdminSession, async (req, res) => {
   } catch (err) {
     console.error('GET /api/admin/custom-orders error:', err);
     return res.status(500).json({ error: err.message || 'Failed to load custom orders' });
+  }
+});
+
+app.get('/api/admin/orders/:id/shipping', requireAdminSession, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Orders not configured' });
+  try {
+    const ShippingNotice = require('./lib/shipping-notice.js');
+    const summary = await ShippingNotice.shippingSummary(supabase, req.params.id);
+    return res.json({
+      ok: true,
+      carriers: ShippingNotice.CARRIERS,
+      carrier: summary.carrier,
+      notice: summary.notice,
+      delivery: summary.delivery
+    });
+  } catch (err) {
+    console.error('GET /api/admin/orders/:id/shipping error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to load shipping notice' });
+  }
+});
+
+app.post('/api/admin/orders/:id/fulfill', requireAdminSession, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Orders not configured' });
+  try {
+    const ShippingNotice = require('./lib/shipping-notice.js');
+    const result = await ShippingNotice.fulfillOrder(supabase, req.params.id, req.body || {}, process.env);
+    return res.json({ ok: true, order: result.order, email: result.email, notice: result.notice });
+  } catch (err) {
+    console.error('POST /api/admin/orders/:id/fulfill error:', err);
+    const status = err.status || 500;
+    return res.status(status).json({ error: err.message || 'Fulfillment failed' });
   }
 });
 

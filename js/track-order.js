@@ -4,7 +4,15 @@
   var form = document.getElementById('trackOrderForm');
   var statusEl = document.getElementById('trackOrderStatus');
   var resultEl = document.getElementById('trackOrderResult');
-  if (!form) return;
+    if (!form) return;
+
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var emailInput = document.getElementById('trackEmail');
+    var numberInput = document.getElementById('trackNumber');
+    if (emailInput && params.get('email')) emailInput.value = params.get('email');
+    if (numberInput && params.get('tracking')) numberInput.value = params.get('tracking');
+  } catch (_) {}
 
   function setStatus(message, isError) {
     if (!statusEl) return;
@@ -64,8 +72,13 @@
       esc(formatStatus(order.fulfillmentStatus)) +
       '</dd></div>' +
       '<div><dt>Tracking number</dt><dd>' +
-      esc(order.trackingNumber) +
+      (order.trackingUrl
+        ? '<a href="' + esc(order.trackingUrl) + '" target="_blank" rel="noopener">' + esc(order.trackingNumber) + '</a>'
+        : esc(order.trackingNumber)) +
       '</dd></div>' +
+      (order.carrier
+        ? '<div><dt>Carrier</dt><dd>' + esc(order.carrier) + '</dd></div>'
+        : '') +
       '<div><dt>Shipping</dt><dd>' +
       esc(order.shippingMethod || '—') +
       '</dd></div>' +
@@ -147,4 +160,10 @@
         }
       });
   });
+
+  var prefilledEmail = String((document.getElementById('trackEmail') || {}).value || '').trim();
+  var prefilledTracking = String((document.getElementById('trackNumber') || {}).value || '').trim();
+  if (prefilledEmail && prefilledTracking && typeof form.requestSubmit === 'function') {
+    form.requestSubmit();
+  }
 })();

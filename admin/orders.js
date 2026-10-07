@@ -87,6 +87,41 @@ window.renderAdminorders = function (container) {
       .join(', ') || '—';
   }
 
+  function loadShippingNote(orderId) {
+    fetch('/api/admin/orders/' + encodeURIComponent(orderId) + '/shipping')
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .then(function (data) {
+        if (!data) return;
+        var carrierEl = document.getElementById('orderCarrier');
+        if (carrierEl && data.carrier) carrierEl.value = data.carrier;
+        var note = document.getElementById('orderShippingNote');
+        if (!note) return;
+        var lines = [];
+        var notice = data.notice;
+        if (notice && notice.notified) {
+          var when = notice.created_at ? formatDateTime(notice.created_at) : '';
+          lines.push(
+            'Shipping email already sent' +
+              (notice.tracking_number ? ' for ' + notice.tracking_number : '') +
+              (when ? ' · ' + when : '') +
+              '.'
+          );
+        }
+        var delivery = data.delivery;
+        if (delivery && delivery.notified) {
+          var deliveredAt = delivery.created_at ? formatDateTime(delivery.created_at) : '';
+          lines.push('Delivery email already sent' + (deliveredAt ? ' · ' + deliveredAt : '') + '.');
+        }
+        if (notice && notice.notified) {
+          lines.push('Saving the same tracking number will not send the shipping email again.');
+        }
+        note.textContent = lines.join(' ');
+      })
+      .catch(function () {});
+  }
+
   function selectCols() {
     return (
       'id,stripe_session_id,stripe_payment_intent,customer_name,customer_email,customer_phone,' +
@@ -380,6 +415,18 @@ window.renderAdminorders = function (container) {
         '<dl class="admin-dl">' +
           row('Shipping Method', order.shipping_method) +
           '</dl>' +
+          '<div class="admin-form-group"><label for="orderCarrier">Carrier</label>' +
+          '<select id="orderCarrier">' +
+          '<option value="">Select carrier</option>' +
+          ['dhl', 'fedex', 'ups', 'usps', 'yunexpress', '4px', 'other']
+            .map(function (id) {
+              var label = id === '4px' ? '4PX' : id === 'yunexpress' ? 'YunExpress' : id.toUpperCase();
+              if (id === 'fedex') label = 'FedEx';
+              if (id === 'other') label = 'Other';
+              return '<option value="' + id + '">' + label + '</option>';
+            })
+            .join('') +
+          '</select></div>' +
           '<div class="admin-form-group"><label for="orderTracking">Tracking Number</label>' +
           '<input id="orderTracking" type="text" value="' +
           escapeHtml(order.tracking_number || '') +
@@ -399,7 +446,11 @@ window.renderAdminorders = function (container) {
               );
             })
             .join('') +
-          '</select></div>'
+          '</select></div>' +
+          '<label class="admin-check" style="display:flex;gap:0.5rem;align-items:center;margin:0.75rem 0">' +
+          '<input id="orderNotify" type="checkbox" checked /> Email the customer this tracking number' +
+          '</label>' +
+          '<p id="orderShippingNote" class="admin-muted"></p>'
       ) +
       section(
         'Payment Information',
@@ -432,7 +483,8 @@ window.renderAdminorders = function (container) {
         '<textarea id="orderNotes" rows="4" placeholder="Private notes for your team…">' +
           escapeHtml(order.internal_notes || '') +
           '</textarea>' +
-          '<button type="button" class="admin-btn-primary" id="orderSaveBtn" style="margin-top:0.75rem">Save changes</button>' +
+          '<button type="button" class="admin-btn-primary" id="orderSaveBtn" style="margin-top:0.75rem">Save &amp; notify</button>' +
+          '<button type="button" class="admin-btn-secondary" id="orderResendBtn" style="margin-top:0.75rem;margin-left:0.5rem">Resend shipping email</button>' +
           '<p id="orderSaveMsg" class="admin-muted" style="margin-top:0.5rem"></p>'
       ) +
       '<div id="customOrderSection" class="admin-card admin-detail-card" hidden><h3>Custom Order</h3><div id="customOrderBody"></div></div>' +
@@ -441,36 +493,74 @@ window.renderAdminorders = function (container) {
     loadCustomOrderSection(order);
 
     var saveBtn = document.getElementById('orderSaveBtn');
+    var resendBtn = document.getElementById('orderResendBtn');
+    var fulfillmentEl = document.getElementById('orderFulfillment');
+    function syncResendLabel() {
+      if (!resendBtn || !fulfillmentEl) return;
+      resendBtn.textContent =
+        fulfillmentEl.value === 'delivered' ? 'Resend delivery email' : 'Resend shipping email';
+    }
+    if (fulfillmentEl) fulfillmentEl.addEventListener('change', syncResendLabel);
+    syncResendLabel();
+    function saveFulfillment(resend) {
+      var msg = document.getElementById('orderSaveMsg');
+      var tracking = (document.getElementById('orderTracking') || {}).value || '';
+      var carrier = (document.getElementById('orderCarrier') || {}).value || '';
+      var fulfillment = (document.getElementById('orderFulfillment') || {}).value || 'unfulfilled';
+      var notes = (document.getElementById('orderNotes') || {}).value || '';
+      var notify = document.getElementById('orderNotify');
+      if (saveBtn) saveBtn.disabled = true;
+      if (resendBtn) resendBtn.disabled = true;
+      fetch('/api/admin/orders/' + encodeURIComponent(order.id) + '/fulfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tracking_number: tracking,
+          tracking_carrier: carrier,
+          fulfillment_status: fulfillment,
+          internal_notes: notes,
+          notify: resend ? true : !!(notify && notify.checked),
+          resend: !!resend
+        })
+      })
+        .then(function (r) {
+          return r.json().then(function (body) {
+            return { ok: r.ok, body: body };
+          });
+        })
+        .then(function (res) {
+          if (saveBtn) saveBtn.disabled = false;
+          if (resendBtn) resendBtn.disabled = false;
+          if (!res.ok || !res.body || res.body.error) {
+            if (msg) msg.textContent = (res.body && res.body.error) || 'Save failed.';
+            return;
+          }
+          if (res.body.order && res.body.order.fulfillment_status) {
+            var statusEl = document.getElementById('orderFulfillment');
+            if (statusEl) statusEl.value = res.body.order.fulfillment_status;
+            syncResendLabel();
+          }
+          var email = res.body.email || {};
+          if (msg) msg.textContent = email.reason || 'Saved.';
+          loadShippingNote(order.id);
+        })
+        .catch(function (err) {
+          if (saveBtn) saveBtn.disabled = false;
+          if (resendBtn) resendBtn.disabled = false;
+          if (msg) msg.textContent = (err && err.message) || 'Save failed.';
+        });
+    }
     if (saveBtn) {
       saveBtn.addEventListener('click', function () {
-        var sb = window.supabase;
-        var msg = document.getElementById('orderSaveMsg');
-        if (!sb) {
-          if (msg) msg.textContent = 'Supabase not configured.';
-          return;
-        }
-        saveBtn.disabled = true;
-        sb.from('orders')
-          .update({
-            tracking_number: (document.getElementById('orderTracking') || {}).value || null,
-            fulfillment_status: (document.getElementById('orderFulfillment') || {}).value || 'unfulfilled',
-            internal_notes: (document.getElementById('orderNotes') || {}).value || null
-          })
-          .eq('id', order.id)
-          .then(function (res) {
-            saveBtn.disabled = false;
-            if (res.error) {
-              if (msg) msg.textContent = res.error.message || 'Save failed.';
-              return;
-            }
-            if (msg) msg.textContent = 'Saved.';
-          })
-          .catch(function (err) {
-            saveBtn.disabled = false;
-            if (msg) msg.textContent = (err && err.message) || 'Save failed.';
-          });
+        saveFulfillment(false);
       });
     }
+    if (resendBtn) {
+      resendBtn.addEventListener('click', function () {
+        saveFulfillment(true);
+      });
+    }
+    loadShippingNote(order.id);
   }
 
   function loadCustomOrderSection(order) {
